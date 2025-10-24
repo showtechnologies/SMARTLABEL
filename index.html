@@ -11,51 +11,256 @@
   }
   *{box-sizing:border-box}
   html,body{height:100%}
-  body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
-  header{position:sticky;top:0;background:linear-gradient(180deg,#0b0f14 0%, #0b0f14cc 100%);backdrop-filter:blur(8px);border-bottom:1px solid #1114;z-index:5}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--text);
+    font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  header{
+    position:sticky;top:0;
+    background:linear-gradient(180deg,#0b0f14 0%, #0b0f14cc 100%);
+    backdrop-filter:blur(8px);
+    border-bottom:1px solid #1114;
+    z-index:5;
+  }
   .wrap{max-width:980px;margin:0 auto;padding:16px}
   h1{margin:0 0 6px;font-size:20px;letter-spacing:.2px}
-  nav{display:flex;gap:8px;flex-wrap:wrap}
-  nav button{border:1px solid #202635;background:#121824;border-radius:12px;padding:10px 14px;cursor:pointer;color:var(--text)}
-  nav button.active{background:var(--accent);border-color:var(--accent)}
+  nav{
+    display:flex;
+    gap:8px;
+    flex-wrap:wrap;
+  }
+  nav button{
+    border:1px solid #202635;
+    background:#121824;
+    border-radius:12px;
+    padding:12px 16px;
+    cursor:pointer;
+    color:var(--text);
+    font-size:14px;
+    line-height:1.2;
+    flex-grow:1;
+    text-align:center;
+  }
+  nav button.active{
+    background:var(--accent);
+    border-color:var(--accent);
+    color:#fff;
+    font-weight:600;
+  }
+  nav button[data-tab="tab-home"]{
+    flex-basis:100%;
+  }
+  @media(min-width:768px){
+    nav button{
+      flex-grow:0;
+      flex-basis:auto;
+      font-size:13px;
+      padding:8px 12px;
+      border-radius:10px;
+    }
+    nav button[data-tab="tab-home"]{
+      flex-basis:auto;
+    }
+  }
+
   h2{margin:14px 0 8px;font-size:18px}
   .grid{display:grid;gap:var(--gap)}
-  .cols-2{grid-template-columns:1fr} @media(min-width:900px){.cols-2{grid-template-columns:1fr 1fr}}
-  .card{background:var(--card);border:1px solid #1b2230;border-radius:16px;padding:14px}
-  label{font-size:12px;color:var(--muted);display:block;margin-bottom:6px}
-  input,textarea{width:100%;border:1px solid #253043;background:#0f141b;border-radius:12px;padding:12px;color:var(--text);font-family:inherit}
+  .cols-2{grid-template-columns:1fr}
+  @media(min-width:900px){.cols-2{grid-template-columns:1fr 1fr}}
+
+  .card{
+    background:var(--card);
+    border:1px solid #1b2230;
+    border-radius:16px;
+    padding:14px;
+  }
+  label{
+    font-size:12px;
+    color:var(--muted);
+    display:block;
+    margin-bottom:6px
+  }
+  input,textarea{
+    width:100%;
+    border:1px solid #253043;
+    background:#0f141b;
+    border-radius:12px;
+    padding:14px;
+    color:var(--text);
+    font-family:inherit;
+    font-size:15px;
+    line-height:1.3;
+  }
   input::placeholder,textarea::placeholder{color:#94a3b8}
+
   table{width:100%;border-collapse:collapse}
-  th,td{padding:10px;border-bottom:1px solid #1b2230;text-align:left;font-size:14px}
-  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:end}
-  .btn{border:1px solid #253043;border-radius:12px;padding:12px 14px;background:var(--accent);color:#fff;cursor:pointer}
-  .btn.ghost{background:#121824;color:var(--text)}
-  .btn.sm{padding:8px 10px;font-size:12px}
-  .muted{color:#9aa6b2} .ok{color:var(--ok)} .warn{color:var(--warn)} .err{color:var(--err)}
-  .qrbox{display:flex;align-items:center;justify-content:center;min-height:260px;background:#0b0f14;border:1px dashed #22304a;border-radius:16px}
-  .mono{font-family:ui-monospace,Menlo,Consolas,monospace;white-space:pre-wrap}
+  th,td{
+    padding:10px;
+    border-bottom:1px solid #1b2230;
+    text-align:left;
+    font-size:14px;
+    vertical-align:top;
+  }
+
+  .row{
+    display:flex;
+    gap:10px;
+    flex-wrap:wrap;
+    align-items:end
+  }
+  .btn{
+    border:1px solid #253043;
+    border-radius:12px;
+    padding:14px 16px;
+    background:var(--accent);
+    color:#fff;
+    cursor:pointer;
+    font-size:15px;
+    line-height:1.2;
+    flex-shrink:0;
+  }
+  .btn.ghost{
+    background:#121824;
+    color:var(--text)
+  }
+  .btn.sm{
+    padding:8px 10px;
+    font-size:13px;
+    line-height:1.2;
+    border-radius:10px;
+  }
+  @media(min-width:1024px){
+    .btn{padding:10px 12px;font-size:14px}
+    .btn.sm{padding:6px 8px;font-size:12px}
+  }
+
+  .muted{color:#9aa6b2}
+  .ok{color:var(--ok)}
+  .warn{color:var(--warn)}
+  .err{color:var(--err)}
+
+  .qrbox{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    min-height:260px;
+    background:#0b0f14;
+    border:1px dashed #22304a;
+    border-radius:16px
+  }
+  .mono{
+    font-family:ui-monospace,Menlo,Consolas,monospace;
+    white-space:pre-wrap;
+    font-size:13px;
+    line-height:1.4;
+  }
+
   video,canvas{max-width:100%}
   .hidden{display:none}
+
   /* HOME CTA */
-  .home-cta{display:grid;grid-template-columns:1fr;gap:12px;margin-top:8px}
-  .cta{display:flex;align-items:center;gap:12px;border:1px solid #22304a;background:#0f141b;border-radius:16px;padding:16px;cursor:pointer}
-  .cta .icon{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;background:#182034}
-  .cta .title{font-weight:600}
-  .cta .desc{font-size:12px;color:#9aa6b2}
-  @media(min-width:760px){.home-cta{grid-template-columns:1fr 1fr 1fr}}
+  .home-cta{
+    display:grid;
+    grid-template-columns:1fr;
+    gap:12px;
+    margin-top:8px
+  }
+  .cta{
+    display:flex;
+    align-items:center;
+    gap:12px;
+    border:1px solid #22304a;
+    background:#0f141b;
+    border-radius:16px;
+    padding:16px;
+    cursor:pointer
+  }
+  .cta .icon{
+    width:44px;
+    height:44px;
+    border-radius:12px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    background:#182034;
+    font-size:20px;
+  }
+  .cta .title{font-weight:600;font-size:15px;line-height:1.3;color:var(--text)}
+  .cta .desc{font-size:12px;color:#9aa6b2;line-height:1.4}
+  @media(min-width:760px){
+    .home-cta{
+      grid-template-columns:1fr 1fr 1fr
+    }
+  }
+
   /* PROGRESS */
-  .progress{height:12px;background:#1b2230;border-radius:999px;overflow:hidden;border:1px solid #253043}
-  .progress>span{display:block;height:100%;background:linear-gradient(90deg,#22c55e,#16a34a);width:0%}
+  .progress{
+    height:12px;
+    background:#1b2230;
+    border-radius:999px;
+    overflow:hidden;
+    border:1px solid #253043
+  }
+  .progress>span{
+    display:block;
+    height:100%;
+    background:linear-gradient(90deg,#22c55e,#16a34a);
+    width:0%
+  }
+
   /* Print */
-  @media print{ header, .noprint { display:none!important } body{background:#fff} .print-sheet{display:block!important} }
+  @media print{
+    header, .noprint { display:none!important }
+    body{background:#fff;color:#000}
+    .print-sheet{display:block!important}
+  }
   .print-sheet{display:none;color:#000}
-  .print-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:center}
-  .print-qr{border:1px solid #999;padding:12px;border-radius:12px;display:flex;justify-content:center;align-items:center}
-  .print-qr canvas{width:100%;height:auto}
-  .print-list{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px}
-  /* FAB mobile for quick actions (optional) */
-  .fabbar{position:fixed;bottom:16px;left:0;right:0;display:flex;justify-content:center;gap:10px;z-index:10}
-  .fabbar .btn{padding:12px 16px;border-radius:999px}
+  .print-grid{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:18px;
+    align-items:center
+  }
+  .print-qr{
+    border:1px solid #999;
+    padding:12px;
+    border-radius:12px;
+    display:flex;
+    justify-content:center;
+    align-items:center
+  }
+  .print-qr canvas{
+    width:100%;
+    height:auto
+  }
+  .print-list{
+    font-family:ui-monospace,Menlo,Consolas,monospace;
+    font-size:12px;
+    line-height:1.4;
+    white-space:pre-wrap;
+  }
+
+  /* FAB mobile */
+  .fabbar{
+    position:fixed;
+    bottom:16px;left:0;right:0;
+    display:flex;
+    justify-content:center;
+    gap:10px;
+    z-index:10
+  }
+  .fabbar .btn{
+    padding:12px 16px;
+    border-radius:999px;
+    font-size:14px;
+  }
+  @media(min-width:1024px){
+    .fabbar{bottom:24px}
+    .fabbar .btn{padding:10px 14px;font-size:13px}
+  }
 </style>
 </head>
 <body>
@@ -68,7 +273,7 @@
       <button data-tab="tab-qr">QR & Stampa</button>
       <button data-tab="tab-decode">Leggi lista</button>
       <button data-tab="tab-rientro">Spunta</button>
-      <span id="status" class="muted" style="margin-left:auto"></span>
+      <span id="status" class="muted" style="margin-left:auto;flex-grow:0;flex-basis:auto"></span>
     </nav>
   </div>
 </header>
@@ -81,21 +286,21 @@
         <div class="icon">📝</div>
         <div>
           <div class="title">Crea lista</div>
-          <div class="desc">Aggiungi articoli (descrizione + quantità), ID baule ed evento</div>
+          <div class="desc">Aggiungi articoli (descrizione + quantità), ID baule ed evento.</div>
         </div>
       </div>
       <div class="cta" data-go="tab-decode">
         <div class="icon">📷</div>
         <div>
           <div class="title">Leggi lista</div>
-          <div class="desc">Carica o scansiona un QR per importare la lista</div>
+          <div class="desc">Carica/scansiona un QR o un PDF e ricostruisci la lista.</div>
         </div>
       </div>
       <div class="cta" data-go="tab-rientro">
         <div class="icon">☑️</div>
         <div>
           <div class="title">Spunta articoli</div>
-          <div class="desc">Segna i rientri con barra di avanzamento in tempo reale</div>
+          <div class="desc">Segna rientri, vedi progresso e genera report PDF.</div>
         </div>
       </div>
     </div>
@@ -166,8 +371,9 @@
           <button id="btnGenQR" class="btn">Genera QR</button>
           <button id="btnDownloadPNG" class="btn ghost" disabled>Scarica PNG</button>
           <button id="btnPrint" class="btn ghost" disabled>Stampa scheda</button>
+          <button id="btnPDFMain" class="btn ghost" disabled>PDF scheda</button>
         </div>
-        <div class="muted">ECC=H, schema <code>QRJ1:</code> (zlib + Base45). Mantieni modulo ≥ 0,40 mm.</div>
+        <div class="muted">ECC=H, schema <code>QRJ1:</code> (zlib + Base45).</div>
         <div id="qrBox" class="qrbox" aria-live="polite"></div>
         <div id="encInfo" class="muted"></div>
       </div>
@@ -178,7 +384,7 @@
       </div>
     </div>
 
-    <!-- foglio di stampa -->
+    <!-- foglio di stampa (per window.print) -->
     <div id="printSheet" class="print-sheet">
       <h2>Scheda baule</h2>
       <div class="print-grid">
@@ -186,7 +392,6 @@
         <div class="print-list">
           <div><strong>ID baule:</strong> <span id="pBox"></span></div>
           <div><strong>Evento:</strong> <span id="pEvent"></span></div>
-          <div><strong>Data:</strong> <span id="pDate"></span></div>
           <hr>
           <div id="pList"></div>
         </div>
@@ -196,15 +401,15 @@
 
   <!-- TAB: CARICA/VERIFICA -->
   <section id="tab-decode" class="tab hidden">
-    <h2>Leggi/Verifica QR</h2>
+    <h2>Leggi/Verifica QR o PDF</h2>
     <div class="grid cols-2">
       <div class="card">
         <div class="row">
           <div>
-            <label>Decodifica da immagine</label>
-            <input id="fileInput" type="file" accept="image/*">
+            <label>Decodifica da immagine o PDF</label>
+            <input id="fileInput" type="file" accept="image/*,application/pdf" capture="environment">
           </div>
-          <div>
+          <div id="camBox">
             <label>…oppure da webcam</label>
             <button id="btnCam" class="btn ghost">Apri webcam</button>
             <button id="btnShot" class="btn ghost" disabled>Scatta & Decodifica</button>
@@ -236,7 +441,8 @@
       <div class="row">
         <button id="rReset" class="btn ghost">Azzera</button>
         <button id="rAll" class="btn ghost">Tutti rientrati</button>
-        <button id="rExport" class="btn">Esporta CSV</button>
+        <button id="rExport" class="btn ghost">Esporta CSV</button>
+        <button id="rPDF" class="btn">PDF rientro</button>
       </div>
       <div class="muted" style="margin:8px 0 6px">Avanzamento rientro</div>
       <div class="progress" aria-label="Progresso rientro"><span id="rBar" style="width:0%"></span></div>
@@ -250,7 +456,7 @@
   </section>
 </div>
 
-<!-- Optional quick actions on mobile -->
+<!-- bottom quick actions -->
 <div class="fabbar noprint">
   <button class="btn ghost" data-go="tab-lista">📝 Crea</button>
   <button class="btn ghost" data-go="tab-decode">📷 Leggi</button>
@@ -259,31 +465,54 @@
 
 <!-- Service worker per offline dopo primo avvio -->
 <script>
-const CACHE_VERSION='qrj1-mobile-v1';
+const CACHE_VERSION='qrj1-mobile-v2';
 const PRECACHE=[
   'https://cdn.jsdelivr.net/pyodide/v0.25.1/full/pyodide.js',
   'https://cdn.jsdelivr.net/pyodide/v0.25.1/full/pyodide.asm.wasm',
   'https://cdn.jsdelivr.net/pyodide/v0.25.1/full/pyodide.asm.data',
   'https://cdn.jsdelivr.net/pyodide/v0.25.1/full/packages.json',
+
   'https://cdn.jsdelivr.net/npm/@zxing/library@0.21.2/umd/index.min.js',
   'https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js',
-  'https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js'
+  'https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js',
+
+  'https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js',
+  'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js',
+  'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js'
 ];
 if('serviceWorker' in navigator){
   const sw=`
     const C='${CACHE_VERSION}', PREC=${JSON.stringify(PRECACHE)};
-    self.addEventListener('install',e=>e.waitUntil((async()=>{const c=await caches.open(C);await c.addAll(PREC);self.skipWaiting();})()));
-    self.addEventListener('activate',e=>e.waitUntil((async()=>{const ks=await caches.keys();await Promise.all(ks.map(k=>{if(k!==C)return caches.delete(k)}));self.clients.claim();})()));
+    self.addEventListener('install',e=>e.waitUntil((async()=>{
+      const c=await caches.open(C);
+      await c.addAll(PREC);
+      self.skipWaiting();
+    })()));
+    self.addEventListener('activate',e=>e.waitUntil((async()=>{
+      const ks=await caches.keys();
+      await Promise.all(ks.map(k=>{if(k!==C)return caches.delete(k)}));
+      self.clients.claim();
+    })()));
     self.addEventListener('fetch',e=>{
       const u=e.request.url;
       if (PREC.some(p=>u.startsWith(p.split('/').slice(0,5).join('/'))||u===p)){
-        e.respondWith((async()=>{const c=await caches.open(C);const m=await c.match(e.request); if(m) return m;
-          try{const f=await fetch(e.request,{cache:'no-store'}); if(f&&f.ok) c.put(e.request,f.clone()); return f;}catch{return m||Response.error();}
+        e.respondWith((async()=>{
+          const c=await caches.open(C);
+          const m=await c.match(e.request);
+          if(m) return m;
+          try{
+            const f=await fetch(e.request,{cache:'no-store'});
+            if(f&&f.ok) c.put(e.request,f.clone());
+            return f;
+          }catch{
+            return m||Response.error();
+          }
         })());
       }
     });
   `;
-  const blob=new Blob([sw],{type:'text/javascript'}); const url=URL.createObjectURL(blob);
+  const blob=new Blob([sw],{type:'text/javascript'});
+  const url=URL.createObjectURL(blob);
   navigator.serviceWorker.register(url).catch(()=>{});
 }
 </script>
@@ -294,21 +523,48 @@ const PYODIDE_URL="https://cdn.jsdelivr.net/pyodide/v0.25.1/full/pyodide.js";
 const ZXING_URL="https://cdn.jsdelivr.net/npm/@zxing/library@0.21.2/umd/index.min.js";
 const JSQR_URL="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js";
 const QRG_URL="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js";
+const JSPDF_URL="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js";
+const PDFJS_URL="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js";
+const PDFJS_WORKER_URL="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js";
 
 let pyodide,zxingReader=null,barcodeDetector=null,currentQRCanvas=null,decodedObj=null;
+let jsPDFmod=null, pdfjsLib=null;
 
 (async()=>{
   setStatus("Carico runtime…");
   await loadScript(PYODIDE_URL);
-  await Promise.all([loadScript(ZXING_URL), loadScript(JSQR_URL), loadScript(QRG_URL)]);
+  await Promise.all([
+    loadScript(ZXING_URL),
+    loadScript(JSQR_URL),
+    loadScript(QRG_URL),
+    loadScript(JSPDF_URL),
+    loadScript(PDFJS_URL),
+    loadScript(PDFJS_WORKER_URL)
+  ]);
+
   pyodide = await loadPyodide({ indexURL:"https://cdn.jsdelivr.net/pyodide/v0.25.1/full/" });
   await initPython();
   await initDecoders();
+
+  jsPDFmod = window.jspdf;
+  pdfjsLib = window['pdfjs-dist/build/pdf'];
+  if (pdfjsLib) {
+    pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_WORKER_URL;
+  }
+
   setStatus("Pronto (offline dopo primo avvio).");
   renderTables();
 })();
 
-function loadScript(src){ return new Promise((res,rej)=>{ const s=document.createElement('script'); s.src=src; s.onload=res; s.onerror=rej; document.head.appendChild(s); }); }
+function loadScript(src){
+  return new Promise((res,rej)=>{
+    const s=document.createElement('script');
+    s.src=src;
+    s.onload=res;
+    s.onerror=rej;
+    document.head.appendChild(s);
+  });
+}
 function setStatus(t){ document.getElementById('status').textContent=t; }
 
 async function initPython(){
@@ -340,7 +596,8 @@ def pack_json_str(s: str) -> str:
     comp=zlib.compress(s.encode("utf-8"),9)
     return SCHEME + b45encode(comp)
 def unpack_to_pretty(s: str) -> str:
-    if not s.startswith(SCHEME): raise ValueError("prefisso QRJ1: mancante")
+    if not s.startswith(SCHEME):
+        raise ValueError("prefisso QRJ1: mancante")
     payload=s[len(SCHEME):]
     data=zlib.decompress(b45decode(payload)).decode("utf-8")
     obj=json.loads(data)
@@ -349,7 +606,12 @@ def unpack_to_pretty(s: str) -> str:
 }
 async function initDecoders(){
   if('BarcodeDetector' in window){
-    try{ const fmts = await BarcodeDetector.getSupportedFormats?.()||[]; if(fmts.includes('qr_code')||fmts.length) barcodeDetector=new BarcodeDetector({formats:['qr_code']}); }catch{}
+    try{
+      const fmts = await BarcodeDetector.getSupportedFormats?.()||[];
+      if(fmts.includes('qr_code')||fmts.length){
+        barcodeDetector=new BarcodeDetector({formats:['qr_code']});
+      }
+    }catch{}
   }
   zxingReader=new ZXing.BrowserMultiFormatReader();
 }
@@ -358,12 +620,16 @@ async function initDecoders(){
 <!-- LOGICA APP -->
 <script>
 // === Stato (lista corrente) ===
-const KEY_STORE='qrj1_simple_list';
+// Ogni elemento lista: { d:"descrizione", q:previsti, r:rientrati }
+const KEY_STORE='qrj1_simple_list_v2';
 let state = loadLocal() || { v:1, t:today(), b:"", e:"", l:[] };
 
-function today(){ const d=new Date(); return d.toISOString().slice(0,10); }
+function today(){
+  const d=new Date();
+  return d.toISOString().slice(0,10);
+}
 
-// === Navigazione: tabs + home CTA + FAB ===
+// === Navigazione
 document.querySelectorAll('nav button[data-tab]').forEach(b=>{
   b.onclick=()=>goTab(b.dataset.tab,true);
 });
@@ -379,7 +645,7 @@ function goTab(id,fromUser=false){
   if(fromUser) window.scrollTo({top:0,behavior:'smooth'});
 }
 
-// === LISTA: add/remove/save ===
+// === LISTA: add/remove/save
 document.getElementById('boxId').value = state.b || "";
 document.getElementById('eventName').value = state.e || "";
 
@@ -387,95 +653,188 @@ document.getElementById('addItem').onclick=()=>{
   const d=document.getElementById('desc').value.trim();
   const q=parseInt(document.getElementById('qty').value||"0",10);
   if(!d || q<=0){ alert("Inserisci descrizione e quantità > 0"); return; }
-  state.l.push({d,q}); document.getElementById('desc').value=""; document.getElementById('qty').value="1"; renderTables();
+  state.l.push({d,q,r:0});
+  document.getElementById('desc').value="";
+  document.getElementById('qty').value="1";
+  renderTables();
 };
 
-document.getElementById('saveLocal').onclick=()=>{ syncMeta(); saveLocal(state); alert("Salvato in locale."); };
-document.getElementById('loadLocal').onclick=()=>{ const s=loadLocal(); if(s){ state=s; applyMeta(); renderTables(); } else alert("Nessun dato locale."); };
-document.getElementById('clearList').onclick=()=>{ if(confirm("Svuotare la lista?")){ state.l=[]; renderTables(); } };
-document.getElementById('exportJson').onclick=()=>{ const j = canonicalJSON(state); downloadBlob(new Blob([j],{type:'application/json'}),'lista.json'); };
+document.getElementById('saveLocal').onclick=()=>{
+  syncMeta();
+  saveLocal(state);
+  alert("Salvato in locale.");
+};
+document.getElementById('loadLocal').onclick=()=>{
+  const s=loadLocal();
+  if(s){
+    state=s;
+    applyMeta();
+    renderTables();
+  } else alert("Nessun dato locale.");
+};
+document.getElementById('clearList').onclick=()=>{
+  if(confirm("Svuotare la lista?")){
+    state.l=[];
+    renderTables();
+  }
+};
+document.getElementById('exportJson').onclick=()=>{
+  const j = canonicalJSON(state,true);
+  downloadBlob(new Blob([j],{type:'application/json'}),'lista.json');
+};
 
-function syncMeta(){ state.b=document.getElementById('boxId').value.trim(); state.e=document.getElementById('eventName').value.trim(); state.t=state.t||today(); }
-function applyMeta(){ document.getElementById('boxId').value=state.b||""; document.getElementById('eventName').value=state.e||""; }
+function syncMeta(){
+  state.b=document.getElementById('boxId').value.trim();
+  state.e=document.getElementById('eventName').value.trim();
+  state.t=state.t||today();
+}
+function applyMeta(){
+  document.getElementById('boxId').value=state.b||"";
+  document.getElementById('eventName').value=state.e||"";
+}
 
 function renderTables(){
-  // Lista
-  const tb=document.querySelector('#itemsTbl tbody'); tb.innerHTML="";
+  const tb=document.querySelector('#itemsTbl tbody');
+  tb.innerHTML="";
   state.l.forEach((it,idx)=>{
     const tr=document.createElement('tr');
-    tr.innerHTML=`<td>${idx+1}</td><td>${escapeHtml(it.d)}</td><td>${it.q}</td>
-      <td class="noprint"><button class="btn sm ghost" data-del="${idx}">Elimina</button></td>`;
+    tr.innerHTML=`
+      <td>${idx+1}</td>
+      <td>${escapeHtml(it.d)}</td>
+      <td>${it.q}</td>
+      <td class="noprint">
+        <button class="btn sm ghost" data-del="${idx}">Elimina</button>
+      </td>`;
     tb.appendChild(tr);
   });
-  tb.querySelectorAll('button[data-del]').forEach(b=>b.onclick=()=>{ const i=parseInt(b.dataset.del,10); state.l.splice(i,1); renderTables(); });
+  tb.querySelectorAll('button[data-del]').forEach(b=>{
+    b.onclick=()=>{
+      const i=parseInt(b.dataset.del,10);
+      state.l.splice(i,1);
+      renderTables();
+    };
+  });
 
-  // Rientro
   renderRientroTable();
 }
 
-function saveLocal(obj){ localStorage.setItem(KEY_STORE, JSON.stringify(obj)); }
-function loadLocal(){ try{ const s=localStorage.getItem(KEY_STORE); return s?JSON.parse(s):null; }catch{return null;} }
-function escapeHtml(s){ return s.replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function saveLocal(obj){
+  localStorage.setItem(KEY_STORE, JSON.stringify(obj));
+}
+function loadLocal(){
+  try{
+    const s=localStorage.getItem(KEY_STORE);
+    return s?JSON.parse(s):null;
+  }catch{
+    return null;
+  }
+}
+function escapeHtml(s){
+  return s.replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+}
 
-// === QR & Stampa ===
+// === QR & Stampa / PDF scheda
 let lastPayloadText = "";
+
 document.getElementById('btnGenQR').onclick=async ()=>{
   syncMeta();
-  if(!state.b || !state.e){ alert("Compila ID baule ed Evento."); return; }
-  const canon = canonicalJSON(state);
+  if(!state.b || !state.e){
+    alert("Compila ID baule ed Evento.");
+    return;
+  }
+  const canon = canonicalJSON(state,true);
   document.getElementById('jsonCanon').value = canon;
   document.getElementById('sha256').textContent = await sha256hex(canon);
 
-  // Python → pack (QRJ1:)
   try{
-    lastPayloadText = await pyodide.runPythonAsync(`pack_json_str(${JSON.stringify(canon)})`);
-  }catch(e){ alert("Errore pack Python: "+e); return; }
+    lastPayloadText = await pyodide.runPythonAsync(
+      `pack_json_str(${JSON.stringify(canon)})`
+    );
+  }catch(e){
+    alert("Errore pack Python: "+e);
+    return;
+  }
 
-  // genera QR su canvas
   const sizeMm = parseFloat(document.getElementById('sizeMm').value||"40");
   const border = parseInt(document.getElementById('borderMods').value||"4",10);
   currentQRCanvas = makeQrCanvas(lastPayloadText, border);
 
-  const box=document.getElementById('qrBox'); box.innerHTML=""; box.appendChild(currentQRCanvas);
+  const box=document.getElementById('qrBox');
+  box.innerHTML="";
+  box.appendChild(currentQRCanvas);
   currentQRCanvas.style.width = Math.round(sizeMm*3.78) + "px";
-  document.getElementById('encInfo').textContent = `ECC=H, quiet zone ${border} moduli.`;
+
+  document.getElementById('encInfo').textContent =
+    `Quiet zone ${border} moduli, ECC=H.`;
+
   document.getElementById('btnDownloadPNG').disabled=false;
   document.getElementById('btnPrint').disabled=false;
+  document.getElementById('btnPDFMain').disabled=false;
 
-  // prepara pagina stampa
   prepPrintSheet(sizeMm, border);
 };
 
 document.getElementById('btnDownloadPNG').onclick=()=>{
   if(!currentQRCanvas) return;
   const sizeMm = parseFloat(document.getElementById('sizeMm').value||"40");
-  const DPI=300, px=Math.round((sizeMm/25.4)*DPI);
-  const out=document.createElement('canvas'); out.width=px; out.height=px;
-  const g=out.getContext('2d'); g.imageSmoothingEnabled=false;
-  g.fillStyle='#fff'; g.fillRect(0,0,px,px);
+  const DPI=300;
+  const px=Math.round((sizeMm/25.4)*DPI);
+  const out=document.createElement('canvas');
+  out.width=px; out.height=px;
+  const g=out.getContext('2d');
+  g.imageSmoothingEnabled=false;
+  g.fillStyle='#fff';
+  g.fillRect(0,0,px,px);
   g.drawImage(currentQRCanvas,0,0,px,px);
   downloadBlob(dataURLtoBlob(out.toDataURL('image/png')), 'qr_baule.png');
 };
 
 document.getElementById('btnPrint').onclick=()=>{ window.print(); };
+document.getElementById('btnPDFMain').onclick=()=>{
+  exportPDFScheda(false);
+};
 
+document.getElementById('rPDF').onclick=()=>{
+  exportPDFScheda(true);
+};
+
+// genera canvas QR
 function makeQrCanvas(text, borderMods){
-  const typeNumber=0; const qr = qrcode(typeNumber, 'H');
-  qr.addData(text); qr.make();
-  const m=qr.getModuleCount(); const mp=m+borderMods*2; const px=Math.max(256, mp*8);
-  const c=document.createElement('canvas'); c.width=px; c.height=px;
-  const g=c.getContext('2d'); g.imageSmoothingEnabled=false;
-  g.fillStyle='#fff'; g.fillRect(0,0,px,px);
-  const s=px/mp; g.fillStyle='#000';
-  for(let r=0;r<m;r++)for(let col=0;col<m;col++) if(qr.isDark(r,col))
-    g.fillRect(Math.round((col+borderMods)*s), Math.round((r+borderMods)*s), Math.ceil(s), Math.ceil(s));
+  const typeNumber=0;
+  const qr = qrcode(typeNumber, 'H');
+  qr.addData(text);
+  qr.make();
+
+  const m=qr.getModuleCount();
+  const mp=m+borderMods*2;
+  const px=Math.max(256, mp*8);
+  const c=document.createElement('canvas');
+  c.width=px; c.height=px;
+  const g=c.getContext('2d');
+  g.imageSmoothingEnabled=false;
+  g.fillStyle='#fff';
+  g.fillRect(0,0,px,px);
+  const s=px/mp;
+  g.fillStyle='#000';
+  for(let r=0;r<m;r++){
+    for(let col=0;col<m;col++){
+      if(qr.isDark(r,col)){
+        g.fillRect(
+          Math.round((col+borderMods)*s),
+          Math.round((r+borderMods)*s),
+          Math.ceil(s),
+          Math.ceil(s)
+        );
+      }
+    }
+  }
   return c;
 }
 
+// per print classico
 function prepPrintSheet(sizeMm, border){
   document.getElementById('pBox').textContent = state.b || "";
   document.getElementById('pEvent').textContent = state.e || "";
-  document.getElementById('pDate').textContent = state.t || today();
   const list = state.l.map(x=>`- ${x.d} × ${x.q}`).join('\n');
   document.getElementById('pList').textContent = list;
   const c=makeQrCanvas(lastPayloadText, border);
@@ -484,70 +843,262 @@ function prepPrintSheet(sizeMm, border){
   target.getContext('2d').drawImage(c,0,0);
 }
 
-// === Carica/Verifica QR ===
-const decStatus=document.getElementById('decStatus'), rawOut=document.getElementById('rawOut');
-const jsonDecoded=document.getElementById('jsonDecoded'), btnSetCurrent=document.getElementById('btnSetCurrent'), btnCompare=document.getElementById('btnCompare'), cmpResult=document.getElementById('cmpResult');
+// PDF export: lista e rientro
+function exportPDFScheda(withRientro){
+  if(!jsPDFmod){ alert("jsPDF non caricato"); return; }
+  const { jsPDF } = jsPDFmod;
+  const doc = new jsPDF({orientation:"portrait", unit:"mm", format:"a4"});
+
+  function slugify(s){
+    return (s || "")
+      .trim()
+      .replace(/\s+/g,"_")
+      .replace(/[^A-Za-z0-9_\-]+/g,"");
+  }
+
+  // completo?
+  let completo = true;
+  if (withRientro) {
+    for (const it of state.l) {
+      const r = it.r || 0;
+      if (r < it.q) { completo = false; break; }
+    }
+  }
+
+  const left = 15;
+  let y = 20;
+
+  doc.setFont("helvetica","bold");
+  doc.setFontSize(16);
+  if (withRientro) {
+    doc.text("Rientro materiale", left, y);
+  } else {
+    doc.text("Lista materiale", left, y);
+  }
+  y += 8;
+
+  doc.setFont("helvetica","normal");
+  doc.setFontSize(11);
+  doc.text(`Evento: ${state.e || ""}`, left, y); y += 5;
+  doc.text(`ID baule: ${state.b || ""}`, left, y); y += 10;
+
+  if (withRientro && !completo) {
+    doc.setFont("helvetica","bold");
+    doc.setFontSize(18);
+    doc.setTextColor(255,0,0);
+    doc.text("INCOMPLETO", left, y);
+    doc.setTextColor(0,0,0);
+    y += 12;
+  }
+
+  doc.setFont("helvetica","bold");
+  doc.setFontSize(12);
+  if (withRientro) {
+    doc.text("Materiali (Previsti / Rientrati / Mancano)", left, y);
+  } else {
+    doc.text("Materiali (Quantità previste)", left, y);
+  }
+  y += 6;
+
+  doc.setFont("helvetica","normal");
+  doc.setFontSize(11);
+
+  const maxWidth = 110;
+  state.l.forEach((it)=>{
+    const prev = it.q;
+    const rin  = it.r || 0;
+    const manc = Math.max(0, prev - rin);
+
+    let line;
+    if (withRientro) {
+      line = `- ${it.d} | ${prev} / ${rin} / ${manc}`;
+    } else {
+      line = `- ${it.d} × ${prev}`;
+    }
+
+    const wrapped = doc.splitTextToSize(line, maxWidth);
+    wrapped.forEach(st=>{
+      doc.text(st, left, y);
+      y += 5;
+      if (y > 250) {
+        doc.addPage();
+        y = 20;
+      }
+    });
+  });
+
+  // QR code da inserire
+  const canon = canonicalJSON(state,true);
+  const qrPayloadPromise = pyodide.runPythonAsync(
+    `pack_json_str(${JSON.stringify(canon)})`
+  );
+
+  qrPayloadPromise.then(qp=>{
+    const qrCanvas = makeQrCanvas(qp, 4);
+    const qrDataURL = qrCanvas.toDataURL("image/png");
+
+    const qrSizeMm = 40;
+    const qrX = 150;
+    const qrY = (y > 200) ? 200 : y;
+    doc.addImage(qrDataURL, "PNG", qrX, qrY, qrSizeMm, qrSizeMm);
+
+    // filename: <EVENTO>_<BAULE>[_RIENTRO].pdf
+    const baseName =
+      slugify(state.e || "evento") + "_" +
+      slugify(state.b || "baule") +
+      (withRientro ? "_RIENTRO" : "");
+
+    doc.save(baseName + ".pdf");
+  });
+}
+
+// === Carica/Verifica QR o PDF
+const decStatus=document.getElementById('decStatus'),
+      rawOut=document.getElementById('rawOut');
+const jsonDecoded=document.getElementById('jsonDecoded'),
+      btnSetCurrent=document.getElementById('btnSetCurrent'),
+      btnCompare=document.getElementById('btnCompare'),
+      cmpResult=document.getElementById('cmpResult');
 
 document.getElementById('fileInput').addEventListener('change', async ev=>{
-  const f=ev.target.files?.[0]; if(!f)return;
-  const url=URL.createObjectURL(f);
+  const f=ev.target.files?.[0];
+  if(!f) return;
   decStatus.textContent="Decodifica…";
-  try{
-    const img=new Image(); await new Promise(r=>{ img.onload=r; img.src=url; });
-    const text=await robustDecodeFromImage(img);
-    URL.revokeObjectURL(url);
-    await handleDecodedText(text);
-  }catch(e){ URL.revokeObjectURL(url); decStatus.innerHTML=`<span class="err">${e}</span>`; }
+
+  if (f.type === "application/pdf") {
+    try{
+      const text = await decodeFromPDF(f);
+      await handleDecodedText(text);
+    }catch(e){
+      decStatus.innerHTML=`<span class="err">${e}</span>`;
+    }
+  } else {
+    const url=URL.createObjectURL(f);
+    try{
+      const img=new Image();
+      await new Promise(r=>{ img.onload=r; img.src=url; });
+      const text=await robustDecodeFromImage(img);
+      URL.revokeObjectURL(url);
+      await handleDecodedText(text);
+    }catch(e){
+      URL.revokeObjectURL(url);
+      decStatus.innerHTML=`<span class="err">${e}</span>`;
+    }
+  }
 });
 
 let stream=null;
 document.getElementById('btnCam').onclick=async()=>{
-  try{ stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}}); const v=document.getElementById('video'); v.srcObject=stream;
-    document.getElementById('btnShot').disabled=false; document.getElementById('btnStopCam').disabled=false; decStatus.textContent="Inquadra e premi Scatta."; }
-  catch(e){ decStatus.innerHTML=`<span class="err">Webcam non disponibile: ${e}</span>`; }
+  try{
+    stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}});
+    const v=document.getElementById('video');
+    v.srcObject=stream;
+    document.getElementById('btnShot').disabled=false;
+    document.getElementById('btnStopCam').disabled=false;
+    decStatus.textContent="Inquadra e premi Scatta.";
+  }catch(e){
+    decStatus.innerHTML=`<span class="err">Webcam non disponibile: ${e}</span>`;
+  }
 };
-document.getElementById('btnStopCam').onclick=()=>{ if(stream){stream.getTracks().forEach(t=>t.stop()); stream=null;} document.getElementById('btnShot').disabled=true; document.getElementById('btnStopCam').disabled=true; decStatus.textContent="Webcam chiusa."; };
+document.getElementById('btnStopCam').onclick=()=>{
+  if(stream){stream.getTracks().forEach(t=>t.stop()); stream=null;}
+  document.getElementById('btnShot').disabled=true;
+  document.getElementById('btnStopCam').disabled=true;
+  decStatus.textContent="Webcam chiusa.";
+};
 document.getElementById('btnShot').onclick=async()=>{
   if(!stream)return;
-  const v=document.getElementById('video'); const s=document.getElementById('snap');
-  s.width=v.videoWidth; s.height=v.videoHeight; s.getContext('2d').drawImage(v,0,0,s.width,s.height);
-  const img=new Image(); img.src=s.toDataURL('image/png'); await img.decode();
-  const text=await robustDecodeFromImage(img); await handleDecodedText(text);
+  const v=document.getElementById('video');
+  const s=document.getElementById('snap');
+  s.width=v.videoWidth; s.height=v.videoHeight;
+  s.getContext('2d').drawImage(v,0,0,s.width,s.height);
+  const text=await robustDecodeFromCanvas(s);
+  await handleDecodedText(text);
 };
 
-btnSetCurrent.onclick=()=>{ try{ const obj=JSON.parse(jsonDecoded.value); state=obj; applyMeta(); renderTables(); alert("Lista impostata come corrente."); }catch{ alert("JSON non valido."); } };
+btnSetCurrent.onclick=()=>{
+  try{
+    const obj=JSON.parse(jsonDecoded.value);
+    obj.l = obj.l.map(item=>({d:item.d,q:item.q,r:item.r||0}));
+    state=obj;
+    applyMeta();
+    renderTables();
+    alert("Lista impostata come corrente.");
+  }catch{
+    alert("JSON non valido.");
+  }
+};
+
 btnCompare.onclick=async()=>{
   try{
-    const a = canonicalJSON(state);
-    const b = canonicalJSON(JSON.parse(jsonDecoded.value));
+    const a = canonicalJSON(state,true);
+    const b = canonicalJSON(JSON.parse(jsonDecoded.value),true);
     const equal = (await sha256hex(a)) === (await sha256hex(b));
-    cmpResult.innerHTML = equal ? '<span class="ok">La lista coincide.</span>' : '<span class="warn">Le liste sono diverse.</span>';
-  }catch(e){ cmpResult.innerHTML=`<span class="err">${e}</span>`; }
+    cmpResult.innerHTML = equal
+      ? '<span class="ok">La lista coincide.</span>'
+      : '<span class="warn">Le liste sono diverse.</span>';
+  }catch(e){
+    cmpResult.innerHTML=`<span class="err">${e}</span>`;
+  }
 };
 
 async function handleDecodedText(text){
-  if(!text){ decStatus.innerHTML=`<span class="warn">Nessun QR leggibile.</span>`; rawOut.textContent=""; jsonDecoded.value=""; btnSetCurrent.disabled=true; btnCompare.disabled=true; return; }
+  if(!text){
+    decStatus.innerHTML=`<span class="warn">Nessun QR leggibile.</span>`;
+    rawOut.textContent="";
+    jsonDecoded.value="";
+    btnSetCurrent.disabled=true;
+    btnCompare.disabled=true;
+    return;
+  }
   rawOut.textContent=text;
   try{
-    const pretty=await pyodide.runPythonAsync(`unpack_to_pretty(${JSON.stringify(text)})`);
-    jsonDecoded.value=pretty; decodedObj=JSON.parse(pretty);
-    decStatus.innerHTML=`<span class="ok">QRJ1 decodificato.</span>`; btnSetCurrent.disabled=false; btnCompare.disabled=false;
+    const pretty=await pyodide.runPythonAsync(
+      `unpack_to_pretty(${JSON.stringify(text)})`
+    );
+    jsonDecoded.value=pretty;
+    decodedObj=JSON.parse(pretty);
+    decodedObj.l = decodedObj.l.map(it=>({d:it.d,q:it.q,r:it.r||0}));
+
+    decStatus.innerHTML=`<span class="ok">QRJ1 decodificato.</span>`;
+    btnSetCurrent.disabled=false;
+    btnCompare.disabled=false;
   }catch{
-    jsonDecoded.value=""; decodedObj=null; decStatus.innerHTML=`<span class="warn">QR letto ma non QRJ1.</span>`; btnSetCurrent.disabled=true; btnCompare.disabled=true;
+    jsonDecoded.value="";
+    decodedObj=null;
+    decStatus.innerHTML=`<span class="warn">QR letto ma non QRJ1.</span>`;
+    btnSetCurrent.disabled=true;
+    btnCompare.disabled=true;
   }
 }
 
-// === Rientro + progress bar ===
-function ensureRientroStore(){ if(!state._r){ state._r = state.l.map(()=>0); } }
+// === Rientro + progress bar
+function ensureRientroStore(){
+  if(!state.l){ state.l=[]; }
+  state.l = state.l.map(it=>({
+    d:it.d,
+    q:it.q,
+    r: (typeof it.r==="number"?it.r:0)
+  }));
+}
 function renderRientroTable(){
   ensureRientroStore();
-  const tb=document.querySelector('#rTbl tbody'); tb.innerHTML="";
+
+  const tb=document.querySelector('#rTbl tbody');
+  tb.innerHTML="";
   let totPrev=0, totR=0;
+
   state.l.forEach((it,idx)=>{
-    totPrev+=it.q; const r=state._r[idx]||0; totR+=Math.min(it.q, r);
+    totPrev+=it.q;
+    const r=it.r||0;
+    totR+=Math.min(it.q, r);
     const manca = Math.max(0, it.q - r);
+
     const tr=document.createElement('tr');
-    tr.innerHTML=`<td>${idx+1}</td><td>${escapeHtml(it.d)}</td><td>${it.q}</td>
+    tr.innerHTML=`
+      <td>${idx+1}</td>
+      <td>${escapeHtml(it.d)}</td>
+      <td>${it.q}</td>
       <td><input type="number" min="0" max="${it.q}" value="${r}" data-r="${idx}" style="width:100px"></td>
       <td>${manca}</td>
       <td class="noprint">
@@ -557,13 +1108,41 @@ function renderRientroTable(){
       </td>`;
     tb.appendChild(tr);
   });
-  tb.querySelectorAll('input[data-r]').forEach(inp=>inp.oninput=()=>{ const i=+inp.dataset.r; const v=Math.max(0, Math.min(state.l[i].q, parseInt(inp.value||"0",10))); state._r[i]=v; updateProgress(); saveLocal(state); });
-  tb.querySelectorAll('button[data-inc]').forEach(b=>b.onclick=()=>{ const i=+b.dataset.inc; state._r[i]=Math.min(state.l[i].q,(state._r[i]||0)+1); updateProgress(); saveLocal(state); renderRientroTable(); });
-  tb.querySelectorAll('button[data-dec]').forEach(b=>b.onclick=()=>{ const i=+b.dataset.dec; state._r[i]=Math.max(0,(state._r[i]||0)-1); updateProgress(); saveLocal(state); renderRientroTable(); });
-  tb.querySelectorAll('button[data-all]').forEach(b=>b.onclick=()=>{ const i=+b.dataset.all; state._r[i]=state.l[i].q; updateProgress(); saveLocal(state); renderRientroTable(); });
+
+  tb.querySelectorAll('input[data-r]').forEach(inp=>{
+    inp.oninput=()=>{
+      const i=+inp.dataset.r;
+      const v=Math.max(0,
+        Math.min(state.l[i].q, parseInt(inp.value||"0",10))
+      );
+      state.l[i].r=v;
+      updateProgress();
+      saveLocal(state);
+    };
+  });
+  tb.querySelectorAll('button[data-inc]').forEach(b=>b.onclick=()=>{
+    const i=+b.dataset.inc;
+    state.l[i].r=Math.min(state.l[i].q,(state.l[i].r||0)+1);
+    updateProgress();
+    saveLocal(state);
+    renderRientroTable();
+  });
+  tb.querySelectorAll('button[data-dec]').forEach(b=>b.onclick=()=>{
+    const i=+b.dataset.dec;
+    state.l[i].r=Math.max(0,(state.l[i].r||0)-1);
+    updateProgress();
+    saveLocal(state);
+    renderRientroTable();
+  });
+  tb.querySelectorAll('button[data-all]').forEach(b=>b.onclick=()=>{
+    const i=+b.dataset.all;
+    state.l[i].r=state.l[i].q;
+    updateProgress();
+    saveLocal(state);
+    renderRientroTable();
+  });
 
   document.getElementById('rInfo').textContent=`Totale previsti: ${totPrev}`;
-  // progress update
   updateProgress(totR, totPrev);
 }
 
@@ -571,29 +1150,72 @@ function updateProgress(cur=null, tot=null){
   ensureRientroStore();
   let totPrev=0, totR=0;
   if (cur===null || tot===null){
-    state.l.forEach((it,i)=>{ totPrev+=it.q; totR+=Math.min(it.q, state._r[i]||0); });
-  } else { totPrev=tot; totR=cur; }
+    state.l.forEach(it=>{
+      totPrev+=it.q;
+      totR+=Math.min(it.q, it.r||0);
+    });
+  } else {
+    totPrev=tot;
+    totR=cur;
+  }
   const pct = totPrev>0 ? Math.round(100*totR/totPrev) : 0;
-  const bar=document.getElementById('rBar'); bar.style.width = pct+'%';
-  document.getElementById('rPct').textContent = `${pct}% • ${totR}/${totPrev}`;
+  const bar=document.getElementById('rBar');
+  bar.style.width = pct+'%';
+  document.getElementById('rPct').textContent =
+    `${pct}% • ${totR}/${totPrev}`;
 }
 
-document.getElementById('rReset').onclick=()=>{ state._r = state.l.map(()=>0); updateProgress(); renderRientroTable(); saveLocal(state); };
-document.getElementById('rAll').onclick=()=>{ state._r = state.l.map(x=>x.q); updateProgress(); renderRientroTable(); saveLocal(state); };
+document.getElementById('rReset').onclick=()=>{
+  ensureRientroStore();
+  state.l.forEach(it=>{it.r=0;});
+  updateProgress();
+  renderRientroTable();
+  saveLocal(state);
+};
+document.getElementById('rAll').onclick=()=>{
+  ensureRientroStore();
+  state.l.forEach(it=>{it.r=it.q;});
+  updateProgress();
+  renderRientroTable();
+  saveLocal(state);
+};
 document.getElementById('rExport').onclick=()=>{
   ensureRientroStore();
-  const rows=[["ID baule", state.b], ["Evento", state.e], ["Data", state.t], [], ["Descrizione","Prev","Rientrati","Manca"]];
-  state.l.forEach((it,i)=>{ const r=state._r[i]||0; rows.push([it.d, it.q, r, Math.max(0, it.q-r)]); });
-  const csv=rows.map(r=>r.join(";")).join("\n"); downloadBlob(new Blob([csv],{type:'text/csv'}), 'rientro.csv');
+  const rows=[
+    ["ID baule", state.b],
+    ["Evento", state.e],
+    [],
+    ["Descrizione","Prev","Rientrati","Manca"]
+  ];
+  state.l.forEach((it)=>{
+    const manque=Math.max(0, it.q-(it.r||0));
+    rows.push([it.d, it.q, it.r||0, manque]);
+  });
+  const csv=rows.map(r=>r.join(";")).join("\n");
+  downloadBlob(new Blob([csv],{type:'text/csv'}), 'rientro.csv');
 };
 
-// === Utilità comuni ===
-function canonicalJSON(obj){
-  // JSON compatto ordinato: {v,t,b,e,l:[{d,q},...]}
-  const o = { v:1, t: obj.t || today(), b: obj.b||"", e: obj.e||"", l: obj.l.map(x=>({d:x.d, q:x.q})) };
+// === Utilità comuni
+function canonicalJSON(obj, includeRientro){
+  // includiamo sempre r nel QR per avere lo stato di rientro
+  const o = {
+    v:1,
+    t: obj.t || today(),
+    b: obj.b||"",
+    e: obj.e||"",
+    l: obj.l.map(x=>({
+      d:x.d,
+      q:x.q,
+      r: (includeRientro ? (x.r||0) : 0)
+    }))
+  };
   return JSON.stringify(o, (k,v)=>{
     if (Array.isArray(v)) return v;
-    if (v && typeof v==='object'){ const out={}; Object.keys(v).sort().forEach(k=>out[k]=v[k]); return out; }
+    if (v && typeof v==='object'){
+      const out={};
+      Object.keys(v).sort().forEach(k=>out[k]=v[k]);
+      return out;
+    }
     return v;
   });
 }
@@ -602,32 +1224,193 @@ async function sha256hex(s){
   const h=await crypto.subtle.digest('SHA-256', buf);
   return [...new Uint8Array(h)].map(b=>b.toString(16).padStart(2,'0')).join('');
 }
-function dataURLtoBlob(dataURL){ const b=atob(dataURL.split(',')[1]); const len=b.length; const u8=new Uint8Array(len); for(let i=0;i<len;i++) u8[i]=b.charCodeAt(i); return new Blob([u8],{type:'image/png'}); }
-function downloadBlob(blob, name){ const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href), 4000); }
+function dataURLtoBlob(dataURL){
+  const b=atob(dataURL.split(',')[1]);
+  const len=b.length;
+  const u8=new Uint8Array(len);
+  for(let i=0;i<len;i++) u8[i]=b.charCodeAt(i);
+  return new Blob([u8],{type:'image/png'});
+}
+function downloadBlob(blob, name){
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download=name;
+  a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href), 4000);
+}
 
-// === QR decoding robusto (BarcodeDetector → ZXing → jsQR + preprocess) ===
-function drawToCanvas(img){ const c=document.createElement('canvas'); c.width=img.naturalWidth||img.videoWidth||img.width; c.height=img.naturalHeight||img.videoHeight||img.height; c.getContext('2d',{willReadFrequently:true}).drawImage(img,0,0,c.width,c.height); return c; }
-function toGray(c){ const ctx=c.getContext('2d',{willReadFrequently:true}); const d=ctx.getImageData(0,0,c.width,c.height); const a=d.data; for(let i=0;i<a.length;i+=4){ const y=(a[i]*0.2126+a[i+1]*0.7152+a[i+2]*0.0722)|0; a[i]=a[i+1]=a[i+2]=y; } const out=document.createElement('canvas'); out.width=c.width; out.height=c.height; out.getContext('2d').putImageData(d,0,0); return out; }
-function otsu(c){ const ctx=c.getContext('2d',{willReadFrequently:true}); const d=ctx.getImageData(0,0,c.width,c.height), a=d.data, hist=new Array(256).fill(0); for(let i=0;i<a.length;i+=4) hist[a[i]]++; const total=c.width*c.height; let sum=0; for(let t=0;t<256;t++) sum+=t*hist[t]; let sumB=0,wB=0,varMax=0,th=128; for(let t=0;t<256;t++){ wB+=hist[t]; if(!wB) continue; const wF=total-wB; if(!wF) break; sumB+=t*hist[t]; const mB=sumB/wB,mF=(sum-sumB)/wF; const between=wB*wF*(mB-mF)*(mB-mF); if(between>varMax){varMax=between;th=t;} } for(let i=0;i<a.length;i+=4){ const v=a[i]<th?0:255; a[i]=a[i+1]=a[i+2]=v; } const out=document.createElement('canvas'); out.width=c.width; out.height=c.height; out.getContext('2d').putImageData(d,0,0); return out; }
-function rotate(c,deg){ const o=document.createElement('canvas'), g=o.getContext('2d'); if(deg%180===0){o.width=c.width;o.height=c.height}else{o.width=c.height;o.height=c.width} g.translate(o.width/2,o.height/2); g.rotate(deg*Math.PI/180); g.imageSmoothingEnabled=false; g.drawImage(c,-c.width/2,-c.height/2); return o; }
-function scale(c,s){ const o=document.createElement('canvas'); o.width=Math.max(1,Math.round(c.width*s)); o.height=Math.max(1,Math.round(c.height*s)); const g=o.getContext('2d'); g.imageSmoothingEnabled=false; g.drawImage(c,0,0,o.width,o.height); return o; }
-function getImageData(c){ return c.getContext('2d',{willReadFrequently:true}).getImageData(0,0,c.width,c.height); }
+// === QR decoding robusto (immagine/canvas)
+function drawToCanvas(img){
+  const c=document.createElement('canvas');
+  c.width=img.naturalWidth||img.videoWidth||img.width;
+  c.height=img.naturalHeight||img.videoHeight||img.height;
+  c.getContext('2d',{willReadFrequently:true}).drawImage(img,0,0,c.width,c.height);
+  return c;
+}
+function toGray(c){
+  const ctx=c.getContext('2d',{willReadFrequently:true});
+  const d=ctx.getImageData(0,0,c.width,c.height);
+  const a=d.data;
+  for(let i=0;i<a.length;i+=4){
+    const y=(a[i]*0.2126+a[i+1]*0.7152+a[i+2]*0.0722)|0;
+    a[i]=a[i+1]=a[i+2]=y;
+  }
+  const out=document.createElement('canvas');
+  out.width=c.width; out.height=c.height;
+  out.getContext('2d').putImageData(d,0,0);
+  return out;
+}
+function otsu(c){
+  const ctx=c.getContext('2d',{willReadFrequently:true});
+  const d=ctx.getImageData(0,0,c.width,c.height),
+        a=d.data,
+        hist=new Array(256).fill(0);
+  for(let i=0;i<a.length;i+=4) hist[a[i]]++;
+  const total=c.width*c.height;
+  let sum=0;
+  for(let t=0;t<256;t++) sum+=t*hist[t];
+  let sumB=0,wB=0,varMax=0,th=128;
+  for(let t=0;t<256;t++){
+    wB+=hist[t];
+    if(!wB) continue;
+    const wF=total-wB;
+    if(!wF) break;
+    sumB+=t*hist[t];
+    const mB=sumB/wB,mF=(sum-sumB)/wF;
+    const between=wB*wF*(mB-mF)*(mB-mF);
+    if(between>varMax){varMax=between;th=t;}
+  }
+  for(let i=0;i<a.length;i+=4){
+    const v=a[i]<th?0:255;
+    a[i]=a[i+1]=a[i+2]=v;
+  }
+  const out=document.createElement('canvas');
+  out.width=c.width; out.height=c.height;
+  out.getContext('2d').putImageData(d,0,0);
+  return out;
+}
+function rotate(c,deg){
+  const o=document.createElement('canvas'), g=o.getContext('2d');
+  if(deg%180===0){o.width=c.width;o.height=c.height}else{o.width=c.height;o.height=c.width}
+  g.translate(o.width/2,o.height/2);
+  g.rotate(deg*Math.PI/180);
+  g.imageSmoothingEnabled=false;
+  g.drawImage(c,-c.width/2,-c.height/2);
+  return o;
+}
+function scale(c,s){
+  const o=document.createElement('canvas');
+  o.width=Math.max(1,Math.round(c.width*s));
+  o.height=Math.max(1,Math.round(c.height*s));
+  const g=o.getContext('2d');
+  g.imageSmoothingEnabled=false;
+  g.drawImage(c,0,0,o.width,o.height);
+  return o;
+}
+function getImageData(c){
+  return c.getContext('2d',{willReadFrequently:true}).getImageData(0,0,c.width,c.height);
+}
 
 async function tryDecodeCanvas(cnv){
-  if(barcodeDetector){ try{ const codes=await barcodeDetector.detect(cnv); if(codes?.length && codes[0].rawValue) return codes[0].rawValue; }catch{} }
-  if(zxingReader && typeof zxingReader.decodeFromCanvas==='function'){ try{ const r=await zxingReader.decodeFromCanvas(cnv); if(r?.text) return r.text; }catch{} }
-  if(typeof jsQR==='function'){ try{ const id=getImageData(cnv); const r=jsQR(id.data,id.width,id.height,{inversionAttempts:"attemptBoth"}); if(r?.data) return r.data; }catch{} }
+  if(barcodeDetector){
+    try{
+      const codes=await barcodeDetector.detect(cnv);
+      if(codes?.length && codes[0].rawValue) return codes[0].rawValue;
+    }catch{}
+  }
+  if(zxingReader && typeof zxingReader.decodeFromCanvas==='function'){
+    try{
+      const r=await zxingReader.decodeFromCanvas(cnv);
+      if(r?.text) return r.text;
+    }catch{}
+  }
+  if(typeof jsQR==='function'){
+    try{
+      const id=getImageData(cnv);
+      const r=jsQR(id.data,id.width,id.height,{inversionAttempts:"attemptBoth"});
+      if(r?.data) return r.data;
+    }catch{}
+  }
+  return null;
+}
+
+async function robustDecodeFromCanvas(baseCanvas){
+  const vars=[baseCanvas, toGray(baseCanvas), otsu(baseCanvas)];
+  const ang=[0,90,180,270], sc=[1.0,1.4,1.8,2.2];
+  for(const a of ang){
+    const rot=vars.map(v=>a?rotate(v,a):v);
+    for(const s of sc){
+      for(const v of rot){
+        const c=(Math.abs(s-1)<1e-3)?v:scale(v,s);
+        const t=await tryDecodeCanvas(c);
+        if(t) return t;
+      }
+    }
+  }
   return null;
 }
 
 async function robustDecodeFromImage(imgEl){
   const base=drawToCanvas(imgEl);
-  const vars=[base, toGray(base), otsu(base)];
-  const ang=[0,90,180,270], sc=[1.0,1.4,1.8,2.2];
-  for(const a of ang){ const rot=vars.map(v=>a?rotate(v,a):v);
-    for(const s of sc){ for(const v of rot){ const c=(Math.abs(s-1)<1e-3)?v:scale(v,s); const t=await tryDecodeCanvas(c); if(t) return t; } } }
-  return null;
+  return robustDecodeFromCanvas(base);
 }
+
+// Decodifica da PDF: prendo la prima pagina e provo a leggere il QR
+async function decodeFromPDF(file){
+  if(!pdfjsLib) throw new Error("pdf.js non caricato");
+
+  const arrBuf = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({data:arrBuf}).promise;
+  const page = await pdf.getPage(1); // prima pagina basta
+
+  const viewport = page.getViewport({scale:2});
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d');
+  canvas.width = viewport.width;
+  canvas.height = viewport.height;
+
+  await page.render({canvasContext:ctx, viewport}).promise;
+
+  const text = await robustDecodeFromCanvas(canvas);
+  return text;
+}
+
+// HTTPS / webcam fallback per iPhone
+(function(){
+  const isSecure = (
+    location.protocol === 'https:' ||
+    location.hostname === 'localhost' ||
+    location.hostname === '127.0.0.1'
+  );
+
+  const camBox   = document.getElementById('camBox');
+  const camBtn   = document.getElementById('btnCam');
+  const shotBtn  = document.getElementById('btnShot');
+  const stopBtn  = document.getElementById('btnStopCam');
+  const decStat  = document.getElementById('decStatus');
+  const fileIn   = document.getElementById('fileInput');
+
+  if (!isSecure) {
+    if (camBox) camBox.classList.add('hidden');
+    if (camBtn) camBtn.disabled = true;
+    if (shotBtn){ shotBtn.disabled = true; shotBtn.classList.add('hidden'); }
+    if (stopBtn){ stopBtn.disabled = true; stopBtn.classList.add('hidden'); }
+
+    if (decStat && !decStat.innerHTML.trim()){
+      decStat.innerHTML =
+        '<span class="warn">Modalità foto/PDF: su iPhone senza HTTPS la webcam live è bloccata. Tocca "Decodifica da immagine o PDF": puoi scattare o scegliere un PDF salvato.</span>';
+    }
+
+    if (fileIn){
+      fileIn.style.outline = "2px solid #f59e0b";
+      fileIn.style.borderColor = "#f59e0b";
+    }
+  } else {
+    if (decStat && !decStat.innerHTML.trim()){
+      decStat.textContent = "Puoi usare webcam live oppure caricare immagine/PDF.";
+    }
+  }
+})();
 </script>
 </body>
 </html>
