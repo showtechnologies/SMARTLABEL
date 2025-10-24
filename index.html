@@ -404,18 +404,26 @@
     <h2>Leggi/Verifica QR o PDF</h2>
     <div class="grid cols-2">
       <div class="card">
-        <div class="row">
-          <div>
-            <label>Decodifica da immagine o PDF</label>
-            <input id="fileInput" type="file" accept="image/*,application/pdf" capture="environment">
+          <div class="row">
+            <div style="flex:1;min-width:180px">
+              <label>Carica immagine o PDF</label>
+              <input id="fileInput" type="file" accept="image/*,application/pdf">
+            </div>
+
+            <div style="flex:1;min-width:180px">
+              <label>Scatta foto QR (solo immagine)</label>
+              <input id="cameraShot" type="file" accept="image/*" capture="environment">
+            </div>
           </div>
-          <div id="camBox">
-            <label>…oppure da webcam</label>
-            <button id="btnCam" class="btn ghost">Apri webcam</button>
-            <button id="btnShot" class="btn ghost" disabled>Scatta & Decodifica</button>
-            <button id="btnStopCam" class="btn ghost" disabled>Stop</button>
+
+          <div id="camBox" style="margin-top:10px">
+            <label>…oppure usa webcam live (desktop / HTTPS)</label>
+            <div class="row">
+              <button id="btnCam" class="btn ghost">Apri webcam</button>
+              <button id="btnShot" class="btn ghost" disabled>Scatta & Decodifica</button>
+              <button id="btnStopCam" class="btn ghost" disabled>Stop</button>
+            </div>
           </div>
-        </div>
         <video id="video" autoplay playsinline style="width:100%;max-height:240px;border:1px solid #1b2230;border-radius:12px"></video>
         <canvas id="snap" class="hidden"></canvas>
         <div id="decStatus" class="muted"></div>
@@ -986,6 +994,25 @@ document.getElementById('fileInput').addEventListener('change', async ev=>{
     }
   }
 });
+    
+    // acquisizione diretta da fotocamera (solo immagine, niente PDF)
+    document.getElementById('cameraShot').addEventListener('change', async ev=>{
+      const f=ev.target.files?.[0];
+      if(!f) return;
+      decStatus.textContent="Decodifica foto…";
+
+      const url=URL.createObjectURL(f);
+      try{
+        const img=new Image();
+        await new Promise(r=>{ img.onload=r; img.src=url; });
+        const text=await robustDecodeFromImage(img);
+        URL.revokeObjectURL(url);
+        await handleDecodedText(text);
+      }catch(e){
+        URL.revokeObjectURL(url);
+        decStatus.innerHTML=`<span class="err">${e}</span>`;
+      }
+    });
 
 let stream=null;
 document.getElementById('btnCam').onclick=async()=>{
@@ -1017,16 +1044,26 @@ document.getElementById('btnShot').onclick=async()=>{
 };
 
 btnSetCurrent.onclick=()=>{
-  try{
+    try{
     const obj=JSON.parse(jsonDecoded.value);
-    obj.l = obj.l.map(item=>({d:item.d,q:item.q,r:item.r||0}));
+
+        // normalizza gli item per essere sicuri di avere anche r
+    obj.l = (obj.l || []).map(item=>({
+        d:item.d,
+        q:item.q,
+        r:item.r || 0
+    }));
+
     state=obj;
     applyMeta();
     renderTables();
+    updateProgress(); // aggiorna barra rientro subito
+    saveLocal(state); // persistiamo subito
+
     alert("Lista impostata come corrente.");
-  }catch{
+    }catch(e){
     alert("JSON non valido.");
-  }
+    }
 };
 
 btnCompare.onclick=async()=>{
@@ -1388,9 +1425,9 @@ async function decodeFromPDF(file){
   const shotBtn  = document.getElementById('btnShot');
   const stopBtn  = document.getElementById('btnStopCam');
   const decStat  = document.getElementById('decStatus');
-  const fileIn   = document.getElementById('fileInput');
 
   if (!isSecure) {
+    // niente webcam live
     if (camBox) camBox.classList.add('hidden');
     if (camBtn) camBtn.disabled = true;
     if (shotBtn){ shotBtn.disabled = true; shotBtn.classList.add('hidden'); }
@@ -1398,16 +1435,11 @@ async function decodeFromPDF(file){
 
     if (decStat && !decStat.innerHTML.trim()){
       decStat.innerHTML =
-        '<span class="warn">Modalità foto/PDF: su iPhone senza HTTPS la webcam live è bloccata. Tocca "Decodifica da immagine o PDF": puoi scattare o scegliere un PDF salvato.</span>';
-    }
-
-    if (fileIn){
-      fileIn.style.outline = "2px solid #f59e0b";
-      fileIn.style.borderColor = "#f59e0b";
+        '<span class="warn">Modalità senza HTTPS: usa "Scatta foto QR" oppure "Carica immagine o PDF". La webcam live è bloccata dal browser.</span>';
     }
   } else {
     if (decStat && !decStat.innerHTML.trim()){
-      decStat.textContent = "Puoi usare webcam live oppure caricare immagine/PDF.";
+      decStat.textContent = "Puoi usare webcam live o caricare immagine/PDF.";
     }
   }
 })();
