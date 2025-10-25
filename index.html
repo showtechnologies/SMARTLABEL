@@ -514,11 +514,13 @@
               <button id="btnStopCam" class="btn ghost" disabled>Stop</button>
             </div>
           </div>
-        <video id="video" autoplay playsinline style="width:100%;max-height:240px;border:1px solid #1b2230;border-radius:12px"></video>
-        <canvas id="snap" class="hidden"></canvas>
-        <div id="decStatus" class="muted"></div>
-        <label>Testo letto</label>
-        <div id="rawOut" class="mono muted"></div>
+          <div id="decStatus" class="muted" style="margin-bottom:8px"></div>
+
+          <video id="video" autoplay playsinline style="width:100%;max-height:240px;border:1px solid #1b2230;border-radius:12px"></video>
+          <canvas id="snap" class="hidden"></canvas>
+
+          <label style="margin-top:12px;display:block;">Testo letto</label>
+          <div id="rawOut" class="mono muted"></div>
         <div class="row">
           <button id="btnSetCurrent" class="btn" disabled>Usa come lista corrente</button>
           <button id="btnCompare" class="btn ghost" disabled>Confronta con lista corrente</button>
@@ -951,7 +953,13 @@ function prepPrintSheet(sizeMm, border){
 function exportPDFScheda(withRientro){
   if(!jsPDFmod){ alert("jsPDF non caricato"); return; }
   const { jsPDF } = jsPDFmod;
-  const doc = new jsPDF({orientation:"portrait", unit:"mm", format:"a4"});
+
+  // A4 landscape: 297mm x 210mm
+  const doc = new jsPDF({
+    orientation:"landscape",
+    unit:"mm",
+    format:"a4"
+  });
 
   function slugify(s){
     return (s || "")
@@ -960,54 +968,65 @@ function exportPDFScheda(withRientro){
       .replace(/[^A-Za-z0-9_\-]+/g,"");
   }
 
-  // completo?
-  let completo = true;
+  // calcolo se incompleto (solo se rientro)
+  let incompleto = false;
   if (withRientro) {
     for (const it of state.l) {
       const r = it.r || 0;
-      if (r < it.q) { completo = false; break; }
+      if (r < it.q) { incompleto = true; break; }
     }
   }
 
-  const left = 15;
-  let y = 20;
+  // margini base
+  const marginL = 15;
+  const marginT = 20;
+  const pageW = 297;
+  // const pageH = 210; // non serve direttamente ma se vuoi allineare verticalmente potresti
 
+  // --- Testata sinistra: Evento e Baule in grande ---
+  // Evento e ID baule devono essere ben visibili
   doc.setFont("helvetica","bold");
-  doc.setFontSize(16);
-  if (withRientro) {
-    doc.text("Rientro materiale", left, y);
-  } else {
-    doc.text("Lista materiale", left, y);
-  }
-  y += 8;
+  doc.setFontSize(20);
+  doc.text(`Evento: ${state.e || ""}`, marginL, marginT);
 
-  doc.setFont("helvetica","normal");
-  doc.setFontSize(11);
-  doc.text(`Evento: ${state.e || ""}`, left, y); y += 5;
-  doc.text(`ID baule: ${state.b || ""}`, left, y); y += 10;
+  doc.setFontSize(24);
+  doc.text(`Baule: ${state.b || ""}`, marginL, marginT + 10);
 
-  if (withRientro && !completo) {
+  let curY = marginT + 20;
+
+  // Se è rientro e mancano pezzi → INCOMPLETO bello rosso
+  if (withRientro && incompleto) {
     doc.setFont("helvetica","bold");
-    doc.setFontSize(18);
+    doc.setFontSize(28);
     doc.setTextColor(255,0,0);
-    doc.text("INCOMPLETO", left, y);
+    doc.text("INCOMPLETO", marginL, curY);
     doc.setTextColor(0,0,0);
-    y += 12;
+    curY += 15;
+  } else if (withRientro && !incompleto) {
+    // opzionale: se vuoi segnalare "OK" in verde
+    doc.setFont("helvetica","bold");
+    doc.setFontSize(16);
+    doc.setTextColor(16,185,129); // verde
+    doc.text("TUTTO RIENTRATO", marginL, curY);
+    doc.setTextColor(0,0,0);
+    curY += 10;
   }
 
+  // --- Lista materiali ---
   doc.setFont("helvetica","bold");
-  doc.setFontSize(12);
+  doc.setFontSize(14);
   if (withRientro) {
-    doc.text("Materiali (Previsti / Rientrati / Mancano)", left, y);
+    doc.text("Materiali (Previsti / Rientrati / Mancano):", marginL, curY);
   } else {
-    doc.text("Materiali (Quantità previste)", left, y);
+    doc.text("Materiali (Quantità previste):", marginL, curY);
   }
-  y += 6;
+  curY += 8;
 
   doc.setFont("helvetica","normal");
-  doc.setFontSize(11);
+  doc.setFontSize(12);
 
-  const maxWidth = 110;
+  // area di testo max larghezza ~ 180mm (lasciamo spazio a destra per il QR)
+  const maxTextW = 180;
   state.l.forEach((it)=>{
     const prev = it.q;
     const rin  = it.r || 0;
@@ -1020,33 +1039,40 @@ function exportPDFScheda(withRientro){
       line = `- ${it.d} × ${prev}`;
     }
 
-    const wrapped = doc.splitTextToSize(line, maxWidth);
+    // wrap se troppo lungo
+    const wrapped = doc.splitTextToSize(line, maxTextW);
     wrapped.forEach(st=>{
-      doc.text(st, left, y);
-      y += 5;
-      if (y > 250) {
-        doc.addPage();
-        y = 20;
+      if (curY > 190) { // nuova pagina se andiamo troppo giù
+        doc.addPage("a4","landscape");
+        curY = marginT;
       }
+      doc.text(st, marginL, curY);
+      curY += 6;
     });
   });
 
-  // QR code da inserire
+  // --- QR code in alto a destra ---
+  // Generiamo il QR a partire dallo stato completo (includiamo rientro),
+  // perché vogliamo che il PDF sia sempre "stato verità".
   const canon = canonicalJSON(state,true);
-  const qrPayloadPromise = pyodide.runPythonAsync(
-    `pack_json_str(${JSON.stringify(canon)})`
-  );
 
-  qrPayloadPromise.then(qp=>{
+  pyodide.runPythonAsync(
+    `pack_json_str(${JSON.stringify(canon)})`
+  ).then(qp=>{
     const qrCanvas = makeQrCanvas(qp, 4);
     const qrDataURL = qrCanvas.toDataURL("image/png");
 
-    const qrSizeMm = 40;
-    const qrX = 150;
-    const qrY = (y > 200) ? 200 : y;
+    // posizioniamo il QR in alto a destra
+    // lascio 15mm dal margine destro e lo faccio 60mm lato (abbastanza grande)
+    const qrSizeMm = 60;
+    const qrX = pageW - qrSizeMm - 15;
+    const qrY = marginT;
+
+    // fondo bianco, nero pieno (questo è già così dal canvas)
     doc.addImage(qrDataURL, "PNG", qrX, qrY, qrSizeMm, qrSizeMm);
 
-    // filename: <EVENTO>_<BAULE>[_RIENTRO].pdf
+    // Nome del file finale:
+    // <EVENTO>_<BAULE>[_RIENTRO].pdf
     const baseName =
       slugify(state.e || "evento") + "_" +
       slugify(state.b || "baule") +
@@ -1110,34 +1136,79 @@ document.getElementById('fileInput').addEventListener('change', async ev=>{
       }
     });
 
-let stream=null;
-document.getElementById('btnCam').onclick=async()=>{
-  try{
-    stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}});
-    const v=document.getElementById('video');
-    v.srcObject=stream;
-    document.getElementById('btnShot').disabled=false;
-    document.getElementById('btnStopCam').disabled=false;
-    decStatus.textContent="Inquadra e premi Scatta.";
-  }catch(e){
-    decStatus.innerHTML=`<span class="err">Webcam non disponibile: ${e}</span>`;
-  }
-};
-document.getElementById('btnStopCam').onclick=()=>{
-  if(stream){stream.getTracks().forEach(t=>t.stop()); stream=null;}
-  document.getElementById('btnShot').disabled=true;
-  document.getElementById('btnStopCam').disabled=true;
-  decStatus.textContent="Webcam chiusa.";
-};
-document.getElementById('btnShot').onclick=async()=>{
-  if(!stream)return;
-  const v=document.getElementById('video');
-  const s=document.getElementById('snap');
-  s.width=v.videoWidth; s.height=v.videoHeight;
-  s.getContext('2d').drawImage(v,0,0,s.width,s.height);
-  const text=await robustDecodeFromCanvas(s);
-  await handleDecodedText(text);
-};
+    let stream = null;
+    let scanning = false;
+
+    const videoEl = document.getElementById('video');
+    const snapCanvas = document.getElementById('snap');
+    const stopBtn   = document.getElementById('btnStopCam');
+    const camBtn    = document.getElementById('btnCam');
+    const shotBtn   = document.getElementById('btnShot'); // rimane ma lo disabilitiamo in realtime
+
+async function startCamera(){
+    try {
+    stream = await navigator.mediaDevices.getUserMedia({
+        video:{facingMode:'environment'}
+    });
+    videoEl.srcObject = stream;
+    scanning = true;
+    stopBtn.disabled = false;
+    if (shotBtn){
+        shotBtn.disabled = true;
+        shotBtn.classList.add('hidden');
+    }
+    decStatus.textContent = "Inquadra il QR. Lettura in tempo reale...";
+    tickScan();
+    } catch(e){
+    decStatus.innerHTML = `<span class="err">Webcam non disponibile: ${e}</span>`;
+      }
+    }
+
+// loop di scansione frame-by-frame
+async function tickScan(){
+    if(!scanning || !stream) return;
+
+    if (videoEl.readyState === videoEl.HAVE_ENOUGH_DATA){
+    // copia frame corrente su canvas
+    snapCanvas.width  = videoEl.videoWidth;
+    snapCanvas.height = videoEl.videoHeight;
+    const gx = snapCanvas.getContext('2d');
+    gx.drawImage(videoEl,0,0,snapCanvas.width,snapCanvas.height);
+
+    // proviamo a decodificare senza bloccare l'UI
+    robustDecodeFromCanvas(snapCanvas).then(async text=>{
+        if (text && scanning){
+        // abbiamo trovato qualcosa!
+        scanning = false;
+        stopCamera(); // ferma la cam
+        await handleDecodedText(text);
+        decStatus.innerHTML = `<span class="ok">QR rilevato.</span>`;
+        } else {
+        // niente ancora, continuiamo
+        decStatus.textContent = "Inquadra il QR…";
+        }
+    });
+    }
+
+    // throttling leggero: riprova tra ~200ms
+    if (scanning){
+    setTimeout(()=>{ requestAnimationFrame(tickScan); }, 200);
+    }
+}
+
+function stopCamera(){
+    if(stream){
+    stream.getTracks().forEach(t=>t.stop());
+    stream = null;
+    }
+    scanning = false;
+    stopBtn.disabled = true;
+    decStatus.textContent = "Webcam chiusa.";
+}
+
+// bind ai bottoni
+camBtn.onclick = ()=>{ startCamera(); };
+stopBtn.onclick = ()=>{ stopCamera(); };
 
 btnSetCurrent.onclick=()=>{
     try{
