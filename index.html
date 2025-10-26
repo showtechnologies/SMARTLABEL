@@ -1005,20 +1005,82 @@
     let jsPDFmod=null,
         pdfjsLib=null;
 
-    // camera state
+    // camera state (li teniamo globali, ma li inizializziamo qui va bene)
     let camStream = null;
     let scanning = false;
     let trackTorchCapable = null;
     let torchOn = false;
 
-    // app state
-    const KEY_STORE='qrj1_simple_list_v2';
-    const KEY_OPERATOR='qrj1_operator_name';
-    let state = loadLocal() || { v:1, t:today(), b:"", e:"", l:[] };
-    let selectedIndex = null;
-    let operatorName = loadOperator() || "";
+    // NOTA: qui NON dichiariamo ancora state / operatorName
+    // perché le funzioni che servono arrivano nello script dopo.
 
-    (async()=>{
+    async function loadScript(src){
+      return new Promise((res,rej)=>{
+        const s=document.createElement('script');
+        s.src=src;
+        s.onload=res;
+        s.onerror=rej;
+        document.head.appendChild(s);
+      });
+    }
+
+    function setStatus(t){
+      const el = document.getElementById('status');
+      if (el) el.textContent=t;
+    }
+
+    async function initPython(){
+      await pyodide.runPythonAsync(`
+  import json, zlib
+  _CH="0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ $%*+-./:"
+  _MAP={c:i for i,c in enumerate(_CH)}
+  def b45encode(data: bytes) -> str:
+      out=[]; i=0; n=len(data)
+      while i<n:
+          if i+1<n:
+              x=(data[i]<<8)|data[i+1]
+              out.extend((_CH[x//(45*45)], _CH[(x//45)%45], _CH[x%45])); i+=2
+          else:
+              x=data[i]; out.extend((_CH[x//45], _CH[x%45])); i+=1
+      return "".join(out)
+  def b45decode(s: str) -> bytes:
+      buf=bytearray(); i=0; n=len(s)
+      while i<n:
+          if i+2<n:
+              x=_MAP[s[i]]*45*45 + _MAP[s[i+1]]*45 + _MAP[s[i+2]]
+              buf+=bytes([(x>>8)&0xFF, x&0xFF]); i+=3
+          else:
+              x=_MAP[s[i]]*45 + _MAP[s[i+1]]
+              buf.append(x&0xFF); i+=2
+      return bytes(buf)
+  SCHEME="QRJ1:"
+  def pack_json_str(s: str) -> str:
+      comp=zlib.compress(s.encode("utf-8"),9)
+      return SCHEME + b45encode(comp)
+  def unpack_to_pretty(s: str) -> str:
+      if not s.startswith(SCHEME):
+          raise ValueError("prefisso QRJ1: mancante")
+      payload=s[len(SCHEME):]
+      data=zlib.decompress(b45decode(payload)).decode("utf-8")
+      obj=json.loads(data)
+      return json.dumps(obj, ensure_ascii=False, indent=2)
+      `);
+    }
+
+    async function initDecoders(){
+      if('BarcodeDetector' in window){
+        try{
+          const fmts = await BarcodeDetector.getSupportedFormats?.()||[];
+          if(fmts.includes('qr_code')||fmts.length){
+            barcodeDetector=new BarcodeDetector({formats:['qr_code']});
+          }
+        }catch{}
+      }
+      zxingReader=new ZXing.BrowserMultiFormatReader();
+    }
+
+    // Prepariamo una funzione globale initApp() che l'altro script chiamerà
+    window.__bootRuntime = async function(){
       setStatus("Carico runtime…");
       await loadScript(PYODIDE_URL);
       await Promise.all([
@@ -1041,85 +1103,12 @@
       }
 
       setStatus("Pronto (offline dopo primo avvio).");
-
-      // init UI
-      applyMeta();
-      renderTables();
-      updateSelectedInfo();
-      if (!operatorName){
-        showLoginOverlay(true);
-      } else {
-        updateOperatorLabel();
-      }
-    })();
-
-    function loadScript(src){
-      return new Promise((res,rej)=>{
-        const s=document.createElement('script');
-        s.src=src;
-        s.onload=res;
-        s.onerror=rej;
-        document.head.appendChild(s);
-      });
-    }
-
-    function setStatus(t){
-      document.getElementById('status').textContent=t;
-    }
-
-    async function initPython(){
-      await pyodide.runPythonAsync(`
-import json, zlib
-_CH="0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ $%*+-./:"
-_MAP={c:i for i,c in enumerate(_CH)}
-def b45encode(data: bytes) -> str:
-    out=[]; i=0; n=len(data)
-    while i<n:
-        if i+1<n:
-            x=(data[i]<<8)|data[i+1]
-            out.extend((_CH[x//(45*45)], _CH[(x//45)%45], _CH[x%45])); i+=2
-        else:
-            x=data[i]; out.extend((_CH[x//45], _CH[x%45])); i+=1
-    return "".join(out)
-def b45decode(s: str) -> bytes:
-    buf=bytearray(); i=0; n=len(s)
-    while i<n:
-        if i+2<n:
-            x=_MAP[s[i]]*45*45 + _MAP[s[i+1]]*45 + _MAP[s[i+2]]
-            buf+=bytes([(x>>8)&0xFF, x&0xFF]); i+=3
-        else:
-            x=_MAP[s[i]]*45 + _MAP[s[i+1]]
-            buf.append(x&0xFF); i+=2
-    return bytes(buf)
-SCHEME="QRJ1:"
-def pack_json_str(s: str) -> str:
-    comp=zlib.compress(s.encode("utf-8"),9)
-    return SCHEME + b45encode(comp)
-def unpack_to_pretty(s: str) -> str:
-    if not s.startswith(SCHEME):
-        raise ValueError("prefisso QRJ1: mancante")
-    payload=s[len(SCHEME):]
-    data=zlib.decompress(b45decode(payload)).decode("utf-8")
-    obj=json.loads(data)
-    return json.dumps(obj, ensure_ascii=False, indent=2)
-      `);
-    }
-
-    async function initDecoders(){
-      if('BarcodeDetector' in window){
-        try{
-          const fmts = await BarcodeDetector.getSupportedFormats?.()||[];
-          if(fmts.includes('qr_code')||fmts.length){
-            barcodeDetector=new BarcodeDetector({formats:['qr_code']});
-          }
-        }catch{}
-      }
-      zxingReader=new ZXing.BrowserMultiFormatReader();
-    }
+    };
   </script>
 
   <!-- LOGICA APP -->
   <script>
+    /* === Utility base === */
     function today(){
       const d=new Date();
       return d.toISOString().slice(0,10);
@@ -1135,7 +1124,21 @@ def unpack_to_pretty(s: str) -> str:
       return `${yyyy}-${mm}-${dd} ${hh}:${mi}`;
     }
 
-    /* === Operator handling === */
+    const KEY_STORE='qrj1_simple_list_v2';
+    const KEY_OPERATOR='qrj1_operator_name';
+
+    function loadLocal(){
+      try{
+        const s=localStorage.getItem(KEY_STORE);
+        return s?JSON.parse(s):null;
+      }catch{
+        return null;
+      }
+    }
+    function saveLocal(obj){
+      localStorage.setItem(KEY_STORE, JSON.stringify(obj));
+    }
+
     function loadOperator(){
       try{
         return localStorage.getItem(KEY_OPERATOR)||"";
@@ -1148,6 +1151,13 @@ def unpack_to_pretty(s: str) -> str:
         localStorage.setItem(KEY_OPERATOR,name);
       }catch{}
     }
+
+    // stato globale dell’app
+    let state = loadLocal() || { v:1, t:today(), b:"", e:"", l:[] };
+    let selectedIndex = null;
+    let operatorName = loadOperator() || "";
+
+    /* === Login overlay === */
     function showLoginOverlay(show){
       const ov=document.getElementById('loginOverlay');
       if(show) ov.classList.remove('hidden'); else ov.classList.add('hidden');
@@ -1156,6 +1166,7 @@ def unpack_to_pretty(s: str) -> str:
       document.getElementById('opInfo').textContent = "Operatore: "+(operatorName||"–");
     }
 
+    // handler per bottone "Entra"
     document.getElementById('opNameConfirm').onclick=()=>{
       const v=document.getElementById('opNameInput').value.trim();
       if(!v){
@@ -1175,7 +1186,6 @@ def unpack_to_pretty(s: str) -> str:
     document.querySelectorAll('[data-go]').forEach(el=>{
       el.onclick=()=>goTab(el.getAttribute('data-go'),true);
     });
-
     function goTab(id,fromUser=false){
       document.querySelectorAll('nav button').forEach(x=>x.classList.remove('active'));
       const nb=[...document.querySelectorAll('nav button[data-tab]')].find(b=>b.dataset.tab===id);
@@ -1185,7 +1195,7 @@ def unpack_to_pretty(s: str) -> str:
       if(fromUser) window.scrollTo({top:0,behavior:'smooth'});
     }
 
-    /* === Stato lista / sincronizzazione meta === */
+    /* === Sync meta campi baule/evento === */
     function syncMeta(){
       state.b=document.getElementById('boxId').value.trim();
       state.e=document.getElementById('eventName').value.trim();
@@ -1196,19 +1206,159 @@ def unpack_to_pretty(s: str) -> str:
       document.getElementById('eventName').value=state.e||"";
     }
 
-    function saveLocal(obj){
-      localStorage.setItem(KEY_STORE, JSON.stringify(obj));
-    }
-    function loadLocal(){
-      try{
-        const s=localStorage.getItem(KEY_STORE);
-        return s?JSON.parse(s):null;
-      }catch{
-        return null;
-      }
+    /* === Tabelle lista e rientro === */
+
+    function escapeHtml(s){
+      return s.replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
     }
 
-    /* === Lista articoli base === */
+    function renderTables(){
+      const tb=document.querySelector('#itemsTbl tbody');
+      tb.innerHTML="";
+      state.l.forEach((it,idx)=>{
+        const tr=document.createElement('tr');
+        tr.innerHTML=`
+          <td>${idx+1}</td>
+          <td>${escapeHtml(it.d)}</td>
+          <td>${it.q}</td>
+          <td class="noprint">
+            <button class="btn sm ghost" data-del="${idx}">Elimina</button>
+          </td>`;
+        tb.appendChild(tr);
+      });
+
+      tb.querySelectorAll('button[data-del]').forEach(b=>{
+        b.onclick=()=>{
+          const i=parseInt(b.dataset.del,10);
+          state.l.splice(i,1);
+          renderTables();
+        };
+      });
+
+      renderRientroTable();
+    }
+
+    function ensureRientroStore(){
+      if(!state.l){ state.l=[]; }
+      state.l = state.l.map(it=>({
+        d:it.d,
+        q:it.q,
+        r: (typeof it.r==="number"?it.r:0)
+      }));
+    }
+
+    function updateSelectedInfo(){
+      const nameEl = document.getElementById('rSelName');
+      const metaEl = document.getElementById('rSelMeta');
+
+      if (selectedIndex == null || !state.l[selectedIndex]) {
+        nameEl.textContent = "Nessun articolo selezionato";
+        metaEl.textContent = "Previsti: — • Rientrati: — • Mancano: —";
+        return;
+      }
+
+      const it   = state.l[selectedIndex];
+      const prev = it.q;
+      const rin  = it.r || 0;
+      const manc = Math.max(0, prev - rin);
+
+      nameEl.textContent = it.d || "(senza descrizione)";
+      metaEl.textContent = `Previsti: ${prev} • Rientrati: ${rin} • Mancano: ${manc}`;
+    }
+
+    function updateProgress(cur=null, tot=null){
+      ensureRientroStore();
+      let totPrev=0, totR=0;
+      if (cur===null || tot===null){
+        state.l.forEach(it=>{
+          totPrev+=it.q;
+          totR+=Math.min(it.q, it.r||0);
+        });
+      } else {
+        totPrev=tot;
+        totR=cur;
+      }
+      const pct = totPrev>0 ? Math.round(100*totR/totPrev) : 0;
+      const bar=document.getElementById('rBar');
+      bar.style.width = pct+'%';
+      document.getElementById('rPct').textContent =
+        `${pct}% • ${totR}/${totPrev}`;
+    }
+
+    function renderRientroTable(){
+      ensureRientroStore();
+
+      const tb=document.querySelector('#rTbl tbody');
+      tb.innerHTML="";
+      let totPrev=0, totR=0;
+
+      state.l.forEach((it,idx)=>{
+        totPrev+=it.q;
+        const r=it.r||0;
+        totR+=Math.min(it.q, r);
+        const manca = Math.max(0, it.q - r);
+
+        const tr=document.createElement('tr');
+        tr.innerHTML=`
+          <td>${idx+1}</td>
+          <td>${escapeHtml(it.d)}</td>
+          <td>${it.q}</td>
+          <td><input class="rQtyInput" type="number" min="0" max="${it.q}" value="${r}" data-r="${idx}"></td>
+          <td>${manca}</td>
+        `;
+
+        if (idx === selectedIndex) {
+          tr.classList.add('selected');
+        }
+
+        tr.addEventListener('click', () => {
+          selectedIndex = idx;
+          updateSelectedInfo();
+          renderRientroTable();
+        });
+
+        tb.appendChild(tr);
+      });
+
+      tb.querySelectorAll('input[data-r]').forEach(inp=>{
+        const idx = +inp.dataset.r;
+        inp.addEventListener('input', () => {
+          let v = parseInt(inp.value || "0", 10);
+          if (Number.isNaN(v)) v = 0;
+          v = Math.max(0, Math.min(state.l[idx].q, v));
+          state.l[idx].r = v;
+
+          if (idx === selectedIndex) {
+            updateSelectedInfo();
+          }
+
+          updateProgress();
+          saveLocal(state);
+        });
+
+        inp.addEventListener('change', () => {
+          let v = parseInt(inp.value || "0", 10);
+          if (Number.isNaN(v)) v = 0;
+          v = Math.max(0, Math.min(state.l[idx].q, v));
+          state.l[idx].r = v;
+
+          if (idx === selectedIndex) {
+            updateSelectedInfo();
+          }
+
+          updateProgress();
+          saveLocal(state);
+          renderRientroTable();
+        });
+      });
+
+      document.getElementById('rInfo').textContent=`Totale previsti: ${totPrev}`;
+      updateProgress(totR, totPrev);
+
+      updateSelectedInfo();
+    }
+
+    /* === Pulsanti lista === */
     document.getElementById('addItem').onclick=()=>{
       const d=document.getElementById('desc').value.trim();
       const q=parseInt(document.getElementById('qty').value||"0",10);
@@ -1253,107 +1403,60 @@ def unpack_to_pretty(s: str) -> str:
       downloadBlob(new Blob([j],{type:'application/json'}),'lista.json');
     };
 
-    function renderTables(){
-      const tb=document.querySelector('#itemsTbl tbody');
-      tb.innerHTML="";
-      state.l.forEach((it,idx)=>{
-        const tr=document.createElement('tr');
-        tr.innerHTML=`
-          <td>${idx+1}</td>
-          <td>${escapeHtml(it.d)}</td>
-          <td>${it.q}</td>
-          <td class="noprint">
-            <button class="btn sm ghost" data-del="${idx}">Elimina</button>
-          </td>`;
-        tb.appendChild(tr);
+    /* === Canonical JSON + util === */
+    function canonicalJSON(obj, includeRientro){
+      const o = {
+        v:1,
+        t: obj.t || today(),
+        b: obj.b||"",
+        e: obj.e||"",
+        l: obj.l.map(x=>({
+          d:x.d,
+          q:x.q,
+          r: (includeRientro ? (x.r||0) : 0)
+        })),
+        op: operatorName || ""
+      };
+      return JSON.stringify(o, (k,v)=>{
+        if (Array.isArray(v)) return v;
+        if (v && typeof v==='object'){
+          const out={};
+          Object.keys(v).sort().forEach(k=>out[k]=v[k]);
+          return out;
+        }
+        return v;
       });
-
-      tb.querySelectorAll('button[data-del]').forEach(b=>{
-        b.onclick=()=>{
-          const i=parseInt(b.dataset.del,10);
-          state.l.splice(i,1);
-          renderTables();
-        };
-      });
-
-      renderRientroTable();
     }
 
-    function escapeHtml(s){
-      return s.replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+    async function sha256hex(s){
+      const buf=new TextEncoder().encode(s);
+      const h=await crypto.subtle.digest('SHA-256', buf);
+      return [...new Uint8Array(h)].map(b=>b.toString(16).padStart(2,'0')).join('');
     }
 
-    /* === QR & Stampa / PDF scheda === */
+    function dataURLtoBlob(dataURL){
+      const b=atob(dataURL.split(',')[1]);
+      const len=b.length;
+      const u8=new Uint8Array(len);
+      for(let i=0;i<len;i++) u8[i]=b.charCodeAt(i);
+      return new Blob([u8],{type:'image/png'});
+    }
+
+    function downloadBlob(blob, name){
+      const a=document.createElement('a');
+      a.href=URL.createObjectURL(blob);
+      a.download=name;
+      a.click();
+      setTimeout(()=>URL.revokeObjectURL(a.href), 4000);
+    }
+
+    /* === GENERAZIONE QR, PRINT, PDF === */
     let lastPayloadText = "";
-
-    document.getElementById('btnGenQR').onclick=async ()=>{
-      syncMeta();
-      if(!state.b || !state.e){
-        alert("Compila ID baule ed Evento.");
-        return;
-      }
-      const canon = canonicalJSON(state,true);
-      document.getElementById('jsonCanon').value = canon;
-      document.getElementById('sha256').textContent = await sha256hex(canon);
-
-      try{
-        lastPayloadText = await pyodide.runPythonAsync(
-          `pack_json_str(${JSON.stringify(canon)})`
-        );
-      }catch(e){
-        alert("Errore pack Python: "+e);
-        return;
-      }
-
-      const sizeMm = parseFloat(document.getElementById('sizeMm').value||"40");
-      const border = parseInt(document.getElementById('borderMods').value||"4",10);
-      currentQRCanvas = makeQrCanvas(lastPayloadText, border);
-
-      const box=document.getElementById('qrBox');
-      box.innerHTML="";
-      box.appendChild(currentQRCanvas);
-      currentQRCanvas.style.width = Math.round(sizeMm*3.78) + "px";
-
-      document.getElementById('encInfo').textContent =
-        `Quiet zone ${border} moduli, ECC=H.`;
-
-      document.getElementById('btnDownloadPNG').disabled=false;
-      document.getElementById('btnPrint').disabled=false;
-      document.getElementById('btnPDFMain').disabled=false;
-
-      prepPrintSheet(border);
-    };
-
-    document.getElementById('btnDownloadPNG').onclick=()=>{
-      if(!currentQRCanvas) return;
-      const sizeMm = parseFloat(document.getElementById('sizeMm').value||"40");
-      const DPI=300;
-      const px=Math.round((sizeMm/25.4)*DPI);
-      const out=document.createElement('canvas');
-      out.width=px;
-      out.height=px;
-      const g=out.getContext('2d');
-      g.imageSmoothingEnabled=false;
-      g.fillStyle='#fff';
-      g.fillRect(0,0,px,px);
-      g.drawImage(currentQRCanvas,0,0,px,px);
-      downloadBlob(dataURLtoBlob(out.toDataURL('image/png')), 'qr_baule.png');
-    };
-
-    // ora "Stampa scheda" deve stampare l'etichetta con data/ora
-    document.getElementById('btnPrint').onclick=()=>{
-      // aggiorna data/ora prima di print()
-      prepPrintSheet(parseInt(document.getElementById('borderMods').value||"4",10));
-      window.print();
-    };
-
-    document.getElementById('btnPDFMain').onclick=()=>{
-      exportPDFScheda(false);
-    };
-
-    document.getElementById('rPDF').onclick=()=>{
-      exportPDFScheda(true);
-    };
+    document.getElementById('btnGenQR').onclick=genQR;
+    document.getElementById('btnDownloadPNG').onclick=dlPng;
+    document.getElementById('btnPrint').onclick=doPrintSheet;
+    document.getElementById('btnPDFMain').onclick=()=>exportPDFScheda(false);
+    document.getElementById('rPDF').onclick=()=>exportPDFScheda(true);
 
     function makeQrCanvas(text, borderMods){
       const typeNumber=0;
@@ -1388,7 +1491,43 @@ def unpack_to_pretty(s: str) -> str:
       return c;
     }
 
-    // Prepara il foglio di stampa A4 landscape (etichetta)
+    async function genQR(){
+      syncMeta();
+      if(!state.b || !state.e){
+        alert("Compila ID baule ed Evento.");
+        return;
+      }
+      const canon = canonicalJSON(state,true);
+      document.getElementById('jsonCanon').value = canon;
+      document.getElementById('sha256').textContent = await sha256hex(canon);
+
+      try{
+        lastPayloadText = await pyodide.runPythonAsync(
+          `pack_json_str(${JSON.stringify(canon)})`
+        );
+      }catch(e){
+        alert("Errore pack Python: "+e);
+        return;
+      }
+
+      const sizeMm = parseFloat(document.getElementById('sizeMm').value||"40");
+      const border = parseInt(document.getElementById('borderMods').value||"4",10);
+      const c = makeQrCanvas(lastPayloadText, border);
+      const box=document.getElementById('qrBox');
+      box.innerHTML="";
+      box.appendChild(c);
+      c.style.width = Math.round(sizeMm*3.78) + "px";
+
+      document.getElementById('encInfo').textContent =
+        `Quiet zone ${border} moduli, ECC=H.`;
+
+      document.getElementById('btnDownloadPNG').disabled=false;
+      document.getElementById('btnPrint').disabled=false;
+      document.getElementById('btnPDFMain').disabled=false;
+
+      prepPrintSheet(border);
+    }
+
     function prepPrintSheet(border){
       document.getElementById('pBox').textContent      = state.b || "";
       document.getElementById('pEvent').textContent    = state.e || "";
@@ -1398,7 +1537,6 @@ def unpack_to_pretty(s: str) -> str:
       const list = state.l.map(x=>`- ${x.d} × ${x.q}`).join('\n');
       document.getElementById('pList').textContent = list;
 
-      // rigenera QR per stampa
       const c=makeQrCanvas(lastPayloadText || "", border||4);
       const target=document.getElementById('printQR');
       target.width=c.width;
@@ -1406,7 +1544,30 @@ def unpack_to_pretty(s: str) -> str:
       target.getContext('2d').drawImage(c,0,0);
     }
 
-    // PDF export: lista e/o rientro
+    function dlPng(){
+      if(!lastPayloadText) return;
+      const sizeMm = parseFloat(document.getElementById('sizeMm').value||"40");
+      const border = parseInt(document.getElementById('borderMods').value||"4",10);
+      const previewCanvas = makeQrCanvas(lastPayloadText, border);
+
+      const DPI=300;
+      const px=Math.round((sizeMm/25.4)*DPI);
+      const out=document.createElement('canvas');
+      out.width=px;
+      out.height=px;
+      const g=out.getContext('2d');
+      g.imageSmoothingEnabled=false;
+      g.fillStyle='#fff';
+      g.fillRect(0,0,px,px);
+      g.drawImage(previewCanvas,0,0,px,px);
+      downloadBlob(dataURLtoBlob(out.toDataURL('image/png')), 'qr_baule.png');
+    }
+
+    function doPrintSheet(){
+      prepPrintSheet(parseInt(document.getElementById('borderMods').value||"4",10));
+      window.print();
+    }
+
     function exportPDFScheda(withRientro){
       if(!jsPDFmod){
         alert("jsPDF non caricato");
@@ -1415,9 +1576,9 @@ def unpack_to_pretty(s: str) -> str:
       const { jsPDF } = jsPDFmod;
 
       const doc = new jsPDF({
-        orientation:"landscape",
-        unit:"mm",
-        format:"a4"
+          orientation:"landscape",
+          unit:"mm",
+          format:"a4"
       });
 
       function slugify(s){
@@ -1427,7 +1588,6 @@ def unpack_to_pretty(s: str) -> str:
           .replace(/[^A-Za-z0-9_\-]+/g,"");
       }
 
-      // calcolo se incompleto
       let incompleto = false;
       if (withRientro) {
         for (const it of state.l) {
@@ -1440,7 +1600,6 @@ def unpack_to_pretty(s: str) -> str:
       const marginT = 20;
       const pageW   = 297;
 
-      // Testata
       doc.setFont("helvetica","bold");
       doc.setFontSize(20);
       doc.text(`Evento: ${state.e || ""}`, marginL, marginT);
@@ -1455,7 +1614,6 @@ def unpack_to_pretty(s: str) -> str:
 
       let curY = marginT + 36;
 
-      // Stato rientro
       if (withRientro && incompleto) {
         doc.setFont("helvetica","bold");
         doc.setFontSize(28);
@@ -1472,10 +1630,8 @@ def unpack_to_pretty(s: str) -> str:
         curY += 10;
       }
 
-      // Lista materiali
       doc.setFont("helvetica","bold");
       doc.setFontSize(14);
-
       if (withRientro) {
         doc.text("Materiali (Previsti / Rientrati / Mancano):", marginL, curY);
       } else {
@@ -1510,7 +1666,6 @@ def unpack_to_pretty(s: str) -> str:
         });
       });
 
-      // QR code in alto a destra
       const canon = canonicalJSON(state,true);
       pyodide.runPythonAsync(
         `pack_json_str(${JSON.stringify(canon)})`
@@ -1533,13 +1688,13 @@ def unpack_to_pretty(s: str) -> str:
       });
     }
 
-    /* === Decode / import da QR o PDF === */
-    const decStatus   = document.getElementById('decStatus');
-    const rawOut      = document.getElementById('rawOut');
-    const jsonDecoded = document.getElementById('jsonDecoded');
-    const btnSetCurrent = document.getElementById('btnSetCurrent');
-    const btnCompare    = document.getElementById('btnCompare');
-    const cmpResult     = document.getElementById('cmpResult');
+    /* === Import/Decode QR e PDF === */
+    const decStatus      = document.getElementById('decStatus');
+    const rawOut         = document.getElementById('rawOut');
+    const jsonDecoded    = document.getElementById('jsonDecoded');
+    const btnSetCurrent  = document.getElementById('btnSetCurrent');
+    const btnCompare     = document.getElementById('btnCompare');
+    const cmpResult      = document.getElementById('cmpResult');
 
     document.getElementById('fileInput').addEventListener('change', async ev=>{
       const f=ev.target.files?.[0];
@@ -1568,7 +1723,6 @@ def unpack_to_pretty(s: str) -> str:
       }
     });
 
-    // direttamente da scatto singolo (no overlay live)
     document.getElementById('cameraShot').addEventListener('change', async ev=>{
       const f=ev.target.files?.[0];
       if(!f) return;
@@ -1590,8 +1744,6 @@ def unpack_to_pretty(s: str) -> str:
     btnSetCurrent.onclick=()=>{
       try{
         const obj=JSON.parse(jsonDecoded.value);
-
-        // normalizza item per avere anche r
         obj.l = (obj.l || []).map(item=>({
           d:item.d,
           q:item.q,
@@ -1646,8 +1798,6 @@ def unpack_to_pretty(s: str) -> str:
         decStatus.innerHTML=`<span class="ok">QRJ1 decodificato.</span>`;
         btnSetCurrent.disabled=false;
         btnCompare.disabled=false;
-
-        // aggiorniamo anche operatorName? NO: QR non definisce operatore.
       }catch{
         jsonDecoded.value="";
         decodedObj=null;
@@ -1657,128 +1807,7 @@ def unpack_to_pretty(s: str) -> str:
       }
     }
 
-    /* === Rientro + progress bar === */
-    function ensureRientroStore(){
-      if(!state.l){ state.l=[]; }
-      state.l = state.l.map(it=>({
-        d:it.d,
-        q:it.q,
-        r: (typeof it.r==="number"?it.r:0)
-      }));
-    }
-
-    function updateSelectedInfo(){
-      const nameEl = document.getElementById('rSelName');
-      const metaEl = document.getElementById('rSelMeta');
-
-      if (selectedIndex == null || !state.l[selectedIndex]) {
-        nameEl.textContent = "Nessun articolo selezionato";
-        metaEl.textContent = "Previsti: — • Rientrati: — • Mancano: —";
-        return;
-      }
-
-      const it   = state.l[selectedIndex];
-      const prev = it.q;
-      const rin  = it.r || 0;
-      const manc = Math.max(0, prev - rin);
-
-      nameEl.textContent = it.d || "(senza descrizione)";
-      metaEl.textContent = `Previsti: ${prev} • Rientrati: ${rin} • Mancano: ${manc}`;
-    }
-
-    function renderRientroTable(){
-      ensureRientroStore();
-
-      const tb=document.querySelector('#rTbl tbody');
-      tb.innerHTML="";
-      let totPrev=0, totR=0;
-
-      state.l.forEach((it,idx)=>{
-        totPrev+=it.q;
-        const r=it.r||0;
-        totR+=Math.min(it.q, r);
-        const manca = Math.max(0, it.q - r);
-
-        const tr=document.createElement('tr');
-        tr.innerHTML=`
-          <td>${idx+1}</td>
-          <td>${escapeHtml(it.d)}</td>
-          <td>${it.q}</td>
-          <td><input class="rQtyInput" type="number" min="0" max="${it.q}" value="${r}" data-r="${idx}"></td>
-          <td>${manca}</td>
-        `;
-
-        if (idx === selectedIndex) {
-          tr.classList.add('selected');
-        }
-
-        tr.addEventListener('click', () => {
-          selectedIndex = idx;
-          updateSelectedInfo();
-          renderRientroTable(); // highlight aggiornata
-        });
-
-        tb.appendChild(tr);
-      });
-
-      // listener sugli <input> quantità rientrati
-      tb.querySelectorAll('input[data-r]').forEach(inp=>{
-        const idx = +inp.dataset.r;
-        inp.addEventListener('input', () => {
-          let v = parseInt(inp.value || "0", 10);
-          if (Number.isNaN(v)) v = 0;
-          v = Math.max(0, Math.min(state.l[idx].q, v));
-          state.l[idx].r = v;
-
-          if (idx === selectedIndex) {
-            updateSelectedInfo();
-          }
-
-          updateProgress();
-          saveLocal(state);
-        });
-
-        inp.addEventListener('change', () => {
-          let v = parseInt(inp.value || "0", 10);
-          if (Number.isNaN(v)) v = 0;
-          v = Math.max(0, Math.min(state.l[idx].q, v));
-          state.l[idx].r = v;
-
-          if (idx === selectedIndex) {
-            updateSelectedInfo();
-          }
-
-          updateProgress();
-          saveLocal(state);
-          renderRientroTable();
-        });
-      });
-
-      document.getElementById('rInfo').textContent=`Totale previsti: ${totPrev}`;
-      updateProgress(totR, totPrev);
-
-      updateSelectedInfo();
-    }
-
-    function updateProgress(cur=null, tot=null){
-      ensureRientroStore();
-      let totPrev=0, totR=0;
-      if (cur===null || tot===null){
-        state.l.forEach(it=>{
-          totPrev+=it.q;
-          totR+=Math.min(it.q, it.r||0);
-        });
-      } else {
-        totPrev=tot;
-        totR=cur;
-      }
-      const pct = totPrev>0 ? Math.round(100*totR/totPrev) : 0;
-      const bar=document.getElementById('rBar');
-      bar.style.width = pct+'%';
-      document.getElementById('rPct').textContent =
-        `${pct}% • ${totR}/${totPrev}`;
-    }
-
+    /* === Toolbar rientro pulsanti rapidi === */
     document.getElementById('rReset').onclick=()=>{
       ensureRientroStore();
       state.l.forEach(it=>{it.r=0;});
@@ -1786,7 +1815,6 @@ def unpack_to_pretty(s: str) -> str:
       renderRientroTable();
       saveLocal(state);
     };
-
     document.getElementById('rAll').onclick=()=>{
       ensureRientroStore();
       state.l.forEach(it=>{it.r=it.q;});
@@ -1794,7 +1822,6 @@ def unpack_to_pretty(s: str) -> str:
       renderRientroTable();
       saveLocal(state);
     };
-
     document.getElementById('rExport').onclick=()=>{
       ensureRientroStore();
       const rows=[
@@ -1813,7 +1840,6 @@ def unpack_to_pretty(s: str) -> str:
       downloadBlob(new Blob([csv],{type:'text/csv'}), 'rientro.csv');
     };
 
-    // Pulsanti grandi toolbar rientro
     document.getElementById('btnIncOne').onclick  = ()=>adjustSelected('inc');
     document.getElementById('btnDecOne').onclick  = ()=>adjustSelected('dec');
     document.getElementById('btnAllOne').onclick  = ()=>adjustSelected('all');
@@ -1839,205 +1865,7 @@ def unpack_to_pretty(s: str) -> str:
       renderRientroTable();
     }
 
-    /* === Utilità comuni === */
-    function canonicalJSON(obj, includeRientro){
-      const o = {
-        v:1,
-        t: obj.t || today(),
-        b: obj.b||"",
-        e: obj.e||"",
-        l: obj.l.map(x=>({
-          d:x.d,
-          q:x.q,
-          r: (includeRientro ? (x.r||0) : 0)
-        })),
-        op: operatorName || ""
-      };
-      return JSON.stringify(o, (k,v)=>{
-        if (Array.isArray(v)) return v;
-        if (v && typeof v==='object'){
-          const out={};
-          Object.keys(v).sort().forEach(k=>out[k]=v[k]);
-          return out;
-        }
-        return v;
-      });
-    }
-
-    async function sha256hex(s){
-      const buf=new TextEncoder().encode(s);
-      const h=await crypto.subtle.digest('SHA-256', buf);
-      return [...new Uint8Array(h)].map(b=>b.toString(16).padStart(2,'0')).join('');
-    }
-
-    function dataURLtoBlob(dataURL){
-      const b=atob(dataURL.split(',')[1]);
-      const len=b.length;
-      const u8=new Uint8Array(len);
-      for(let i=0;i<len;i++) u8[i]=b.charCodeAt(i);
-      return new Blob([u8],{type:'image/png'});
-    }
-
-    function downloadBlob(blob, name){
-      const a=document.createElement('a');
-      a.href=URL.createObjectURL(blob);
-      a.download=name;
-      a.click();
-      setTimeout(()=>URL.revokeObjectURL(a.href), 4000);
-    }
-
-    /* === QR decoding helpers === */
-    function drawToCanvas(img){
-      const c=document.createElement('canvas');
-      c.width=img.naturalWidth||img.videoWidth||img.width;
-      c.height=img.naturalHeight||img.videoHeight||img.height;
-      c.getContext('2d',{willReadFrequently:true}).drawImage(img,0,0,c.width,c.height);
-      return c;
-    }
-
-    function toGray(c){
-      const ctx=c.getContext('2d',{willReadFrequently:true});
-      const d=ctx.getImageData(0,0,c.width,c.height);
-      const a=d.data;
-      for(let i=0;i<a.length;i+=4){
-        const y=(a[i]*0.2126+a[i+1]*0.7152+a[i+2]*0.0722)|0;
-        a[i]=a[i+1]=a[i+2]=y;
-      }
-      const out=document.createElement('canvas');
-      out.width=c.width;
-      out.height=c.height;
-      out.getContext('2d').putImageData(d,0,0);
-      return out;
-    }
-
-    function otsu(c){
-      const ctx=c.getContext('2d',{willReadFrequently:true});
-      const d=ctx.getImageData(0,0,c.width,c.height),
-            a=d.data,
-            hist=new Array(256).fill(0);
-
-      for(let i=0;i<a.length;i+=4) hist[a[i]]++;
-
-      const total=c.width*c.height;
-      let sum=0;
-      for(let t=0;t<256;t++) sum+=t*hist[t];
-      let sumB=0,wB=0,varMax=0,th=128;
-      for(let t=0;t<256;t++){
-        wB+=hist[t];
-        if(!wB) continue;
-        const wF=total-wB;
-        if(!wF) break;
-        sumB+=t*hist[t];
-        const mB=sumB/wB,mF=(sum-sumB)/wF;
-        const between=wB*wF*(mB-mF)*(mB-mF);
-        if(between>varMax){
-          varMax=between;
-          th=t;
-        }
-      }
-      for(let i=0;i<a.length;i+=4){
-        const v=a[i]<th?0:255;
-        a[i]=a[i+1]=a[i+2]=v;
-      }
-      const out=document.createElement('canvas');
-      out.width=c.width;
-      out.height=c.height;
-      out.getContext('2d').putImageData(d,0,0);
-      return out;
-    }
-
-    function rotate(c,deg){
-      const o=document.createElement('canvas'),
-            g=o.getContext('2d');
-      if(deg%180===0){
-        o.width=c.width;
-        o.height=c.height;
-      }else{
-        o.width=c.height;
-        o.height=c.width;
-      }
-      g.translate(o.width/2,o.height/2);
-      g.rotate(deg*Math.PI/180);
-      g.imageSmoothingEnabled=false;
-      g.drawImage(c,-c.width/2,-c.height/2);
-      return o;
-    }
-
-    function scale(c,s){
-      const o=document.createElement('canvas');
-      o.width=Math.max(1,Math.round(c.width*s));
-      o.height=Math.max(1,Math.round(c.height*s));
-      const g=o.getContext('2d');
-      g.imageSmoothingEnabled=false;
-      g.drawImage(c,0,0,o.width,o.height);
-      return o;
-    }
-
-    function getImageData(c){
-      return c.getContext('2d',{willReadFrequently:true}).getImageData(0,0,c.width,c.height);
-    }
-
-    async function tryDecodeCanvas(cnv){
-      if(barcodeDetector){
-        try{
-          const codes=await barcodeDetector.detect(cnv);
-          if(codes?.length && codes[0].rawValue) return codes[0].rawValue;
-        }catch{}
-      }
-      if(zxingReader && typeof zxingReader.decodeFromCanvas==='function'){
-        try{
-          const r=await zxingReader.decodeFromCanvas(cnv);
-          if(r?.text) return r.text;
-        }catch{}
-      }
-      if(typeof jsQR==='function'){
-        try{
-          const id=getImageData(cnv);
-          const r=jsQR(id.data,id.width,id.height,{inversionAttempts:"attemptBoth"});
-          if(r?.data) return r.data;
-        }catch{}
-      }
-      return null;
-    }
-
-    async function robustDecodeFromCanvas(baseCanvas){
-      const vars=[baseCanvas, toGray(baseCanvas), otsu(baseCanvas)];
-      const ang=[0,90,180,270],
-            sc=[1.0,1.4,1.8,2.2];
-      for(const a of ang){
-        const rot=vars.map(v=>a?rotate(v,a):v);
-        for(const s of sc){
-          for(const v of rot){
-            const c=(Math.abs(s-1)<1e-3)?v:scale(v,s);
-            const t=await tryDecodeCanvas(c);
-            if(t) return t;
-          }
-        }
-      }
-      return null;
-    }
-
-    async function robustDecodeFromImage(imgEl){
-      const base=drawToCanvas(imgEl);
-      return robustDecodeFromCanvas(base);
-    }
-
-    async function decodeFromPDF(file){
-      if(!pdfjsLib) throw new Error("pdf.js non caricato");
-      const arrBuf = await file.arrayBuffer();
-      const pdf = await pdfjsLib.getDocument({data:arrBuf}).promise;
-      const page = await pdf.getPage(1);
-      const viewport = page.getViewport({scale:2});
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
-      canvas.width = viewport.width;
-      canvas.height = viewport.height;
-      await page.render({canvasContext:ctx, viewport}).promise;
-      const text = await robustDecodeFromCanvas(canvas);
-      return text;
-    }
-
-    /* === Camera overlay live === */
+    /* === Decodifica live (overlay camera) === */
     const camOverlay   = document.getElementById('camOverlay');
     const camVideo     = document.getElementById('camVideo');
     const camSnap      = document.getElementById('camSnap');
@@ -2069,12 +1897,11 @@ def unpack_to_pretty(s: str) -> str:
           advanced:[{torch:on}]
         });
       }catch(e){
-        // se fallisce lasciamo stare
+        // ignore
       }
     }
 
     async function startCameraOverlay(){
-      // HTTPS check
       const isSecure = (
         location.protocol === 'https:' ||
         location.hostname === 'localhost' ||
@@ -2099,7 +1926,7 @@ def unpack_to_pretty(s: str) -> str:
 
       camVideo.srcObject = camStream;
       scanning = true;
-      // torch support?
+
       torchOn=false;
       trackTorchCapable = null;
       camFlashBtn.disabled = true;
@@ -2117,8 +1944,6 @@ def unpack_to_pretty(s: str) -> str:
       }
 
       camStatus.textContent="Inquadra il QR…";
-
-      // start loop
       tickScanOverlay();
     }
 
@@ -2157,9 +1982,156 @@ def unpack_to_pretty(s: str) -> str:
       }
     }
 
-    /* === HTTPS fallback warning was moved into overlay logic === */
+    /* === robustDecodeFromCanvas / decodeFromPDF etc. (dipendono da pyodide runtime) === */
+    async function robustDecodeFromCanvas(baseCanvas){
+      const vars=[baseCanvas, toGray(baseCanvas), otsu(baseCanvas)];
+      const ang=[0,90,180,270],
+            sc=[1.0,1.4,1.8,2.2];
+      for(const a of ang){
+        const rot=vars.map(v=>a?rotate(v,a):v);
+        for(const s of sc){
+          for(const v of rot){
+            const c=(Math.abs(s-1)<1e-3)?v:scale(v,s);
+            const t=await tryDecodeCanvas(c);
+            if(t) return t;
+          }
+        }
+      }
+      return null;
+    }
 
-    /* === anti double-tap zoom iOS === */
+    function drawToCanvas(img){
+      const c=document.createElement('canvas');
+      c.width=img.naturalWidth||img.videoWidth||img.width;
+      c.height=img.naturalHeight||img.videoHeight||img.height;
+      c.getContext('2d',{willReadFrequently:true}).drawImage(img,0,0,c.width,c.height);
+      return c;
+    }
+    function toGray(c){
+      const ctx=c.getContext('2d',{willReadFrequently:true});
+      const d=ctx.getImageData(0,0,c.width,c.height);
+      const a=d.data;
+      for(let i=0;i<a.length;i+=4){
+        const y=(a[i]*0.2126+a[i+1]*0.7152+a[i+2]*0.0722)|0;
+        a[i]=a[i+1]=a[i+2]=y;
+      }
+      const out=document.createElement('canvas');
+      out.width=c.width;
+      out.height=c.height;
+      out.getContext('2d').putImageData(d,0,0);
+      return out;
+    }
+    function otsu(c){
+      const ctx=c.getContext('2d',{willReadFrequently:true});
+      const d=ctx.getImageData(0,0,c.width,c.height),
+            a=d.data,
+            hist=new Array(256).fill(0);
+
+      for(let i=0;i<a.length;i+=4) hist[a[i]]++;
+
+      const total=c.width*c.height;
+      let sum=0;
+      for(let t=0;t<256;t++) sum+=t*hist[t];
+      let sumB=0,wB=0,varMax=0,th=128;
+      for(let t=0;t<256;t++){
+        wB+=hist[t];
+        if(!wB) continue;
+        const wF=total-wB;
+        if(!wF) break;
+        sumB+=t*hist[t];
+        const mB=sumB/wB,mF=(sum-sumB)/wF;
+        const between=wB*wF*(mB-mF)*(mB-mF);
+        if(between>varMax){
+          varMax=between;
+          th=t;
+        }
+      }
+      for(let i=0;i<a.length;i+=4){
+        const v=a[i]<th?0:255;
+        a[i]=a[i+1]=a[i+2]=v;
+      }
+      const out=document.createElement('canvas');
+      out.width=c.width;
+      out.height=c.height;
+      out.getContext('2d').putImageData(d,0,0);
+      return out;
+    }
+    function rotate(c,deg){
+      const o=document.createElement('canvas'),
+            g=o.getContext('2d');
+      if(deg%180===0){
+        o.width=c.width;
+        o.height=c.height;
+      }else{
+        o.width=c.height;
+        o.height=c.width;
+      }
+      g.translate(o.width/2,o.height/2);
+      g.rotate(deg*Math.PI/180);
+      g.imageSmoothingEnabled=false;
+      g.drawImage(c,-c.width/2,-c.height/2);
+      return o;
+    }
+    function scale(c,s){
+      const o=document.createElement('canvas');
+      o.width=Math.max(1,Math.round(c.width*s));
+      o.height=Math.max(1,Math.round(c.height*s));
+      const g=o.getContext('2d');
+      g.imageSmoothingEnabled=false;
+      g.drawImage(c,0,0,o.width,o.height);
+      return o;
+    }
+    function getImageData(c){
+      return c.getContext('2d',{willReadFrequently:true}).getImageData(0,0,c.width,c.height);
+    }
+    async function tryDecodeCanvas(cnv){
+      if(barcodeDetector){
+        try{
+          const codes=await barcodeDetector.detect(cnv);
+          if(codes?.length && codes[0].rawValue) return codes[0].rawValue;
+        }catch{}
+      }
+      if(zxingReader && typeof zxingReader.decodeFromCanvas==='function'){
+        try{
+          const r=await zxingReader.decodeFromCanvas(cnv);
+          if(r?.text) return r.text;
+        }catch{}
+      }
+      if(typeof jsQR==='function'){
+        try{
+          const id=getImageData(cnv);
+          const r=jsQR(id.data,id.width,id.height,{inversionAttempts:"attemptBoth"});
+          if(r?.data) return r.data;
+        }catch{}
+      }
+      return null;
+    }
+    async function robustDecodeFromImage(imgEl){
+      const base=drawToCanvas(imgEl);
+      return robustDecodeFromCanvas(base);
+    }
+    async function decodeFromPDF(file){
+      if(!pdfjsLib) throw new Error("pdf.js non caricato");
+      const arrBuf = await file.arrayBuffer();
+      const pdf = await pdfjsLib.getDocument({data:arrBuf}).promise;
+      const page = await pdf.getPage(1);
+      const viewport = page.getViewport({scale:2});
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      canvas.width = viewport.width;
+      canvas.height = viewport.height;
+      await page.render({canvasContext:ctx, viewport}).promise;
+      const text = await robustDecodeFromCanvas(canvas);
+      return text;
+    }
+
+    // chiusura camera overlay loop
+    function tickScanOverlay(){
+      // definita sopra dentro start/stopCameraOverlay
+      // ma per scope è già dichiarata in quell'ambito, qui niente
+    }
+
+    /* === anti double tap iOS === */
     (function(){
       let lastTouch = 0;
       document.addEventListener('touchend', function(e){
@@ -2170,6 +2142,21 @@ def unpack_to_pretty(s: str) -> str:
         }
         lastTouch = now;
       }, { passive:false });
+    })();
+
+    /* === BOOT APP ===
+       ora che tutte le funzioni esistono,
+       avviamo il runtime pyodide/zxing ecc., poi inizializziamo UI */
+    (async ()=>{
+      await window.__bootRuntime(); // carica librerie esterne, pyodide ecc.
+      // a questo punto possiamo fare l'init UI finale:
+      applyMeta();
+      renderTables();
+      updateSelectedInfo();
+      updateOperatorLabel();
+      if (!operatorName){
+        showLoginOverlay(true);
+      }
     })();
   </script>
 </body>
