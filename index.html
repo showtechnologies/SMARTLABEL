@@ -6,8 +6,16 @@
   <title>Inventario QR – Mobile</title>
   <style>
     :root{
-      --gap:14px;--muted:#6b7280;--b:#e5e7eb;--ok:#10b981;--warn:#f59e0b;--err:#ef4444;
-      --bg:#0b0f14;--card:#0f141b;--text:#e5e7eb;--accent:#4f46e5;
+      --gap:14px;
+      --muted:#6b7280;
+      --b:#e5e7eb;
+      --ok:#10b981;
+      --warn:#f59e0b;
+      --err:#ef4444;
+      --bg:#0b0f14;
+      --card:#0f141b;
+      --text:#e5e7eb;
+      --accent:#4f46e5;
     }
 
     *{box-sizing:border-box}
@@ -28,7 +36,7 @@
       background:linear-gradient(180deg,#0b0f14 0%, #0b0f14cc 100%);
       backdrop-filter:blur(8px);
       border-bottom:1px solid #1114;
-      z-index:5;
+      z-index:20;
     }
 
     .wrap{
@@ -38,15 +46,34 @@
     }
 
     h1{
-      margin:0 0 6px;
+      margin:0 0 4px;
       font-size:20px;
       letter-spacing:.2px;
+      display:flex;
+      align-items:baseline;
+      gap:8px;
+      flex-wrap:wrap;
+    }
+
+    .brand{
+      font-size:12px;
+      font-weight:500;
+      color:#9aa6b2;
+      line-height:1.2;
+    }
+
+    .op-label{
+      font-size:12px;
+      font-weight:500;
+      color:#9aa6b2;
+      line-height:1.2;
     }
 
     nav{
       display:flex;
       gap:8px;
       flex-wrap:wrap;
+      margin-top:10px;
     }
 
     nav button{
@@ -70,7 +97,7 @@
       font-weight:600;
     }
 
-    /* su schermi piccoli voglio i tasti in due righe più leggibili */
+    /* Home tab prende tutta la linea su schermi stretti */
     nav button[data-tab="tab-home"]{
       flex-basis:100%;
     }
@@ -103,7 +130,9 @@
     }
 
     @media(min-width:900px){
-      .cols-2{grid-template-columns:1fr 1fr}
+      .cols-2{
+        grid-template-columns:1fr 1fr;
+      }
     }
 
     .card{
@@ -111,6 +140,8 @@
       border:1px solid #1b2230;
       border-radius:16px;
       padding:14px;
+      position:relative;
+      z-index:1;
     }
 
     label{
@@ -152,7 +183,6 @@
       vertical-align:top;
     }
 
-    /* su mobile la tabella di rientro spesso è larga → lasciala scrollare orizzontalmente */
     .table-scroll{
       width:100%;
       overflow-x:auto;
@@ -200,6 +230,11 @@
     .btn.ghost{
       background:#121824;
       color:var(--text);
+    }
+
+    .btn.danger{
+      background:#7f1d1d;
+      border-color:#7f1d1d;
     }
 
     .btn.sm{
@@ -254,21 +289,21 @@
       display:grid;
       grid-template-columns:1fr;
       gap:12px;
-      margin-top:8px;
+      margin-top:16px;
     }
 
-    .cta{
+    .cta-main{
       display:flex;
       align-items:center;
       gap:12px;
       border:1px solid #22304a;
       background:#0f141b;
       border-radius:16px;
-      padding:16px;
+      padding:20px;
       cursor:pointer;
     }
 
-    .cta .icon{
+    .cta-main .icon{
       width:44px;
       height:44px;
       border-radius:12px;
@@ -280,22 +315,22 @@
       flex-shrink:0;
     }
 
-    .cta .title{
+    .cta-main .title{
       font-weight:600;
-      font-size:15px;
+      font-size:16px;
       line-height:1.3;
       color:var(--text);
     }
 
-    .cta .desc{
-      font-size:12px;
+    .cta-main .desc{
+      font-size:13px;
       color:#9aa6b2;
       line-height:1.4;
     }
 
-    @media(min-width:760px){
+    @media(min-width:500px){
       .home-cta{
-        grid-template-columns:1fr 1fr 1fr;
+        grid-template-columns:1fr 1fr;
       }
     }
 
@@ -318,7 +353,8 @@
     /* PRINT MODE */
     @media print{
       header,
-      .noprint{
+      .noprint,
+      #camOverlay{
         display:none!important;
       }
       body{
@@ -363,12 +399,12 @@
       white-space:pre-wrap;
     }
 
-    /* FAB (barra flottante) - la togliamo visivamente */
+    /* FAB off */
     .fabbar{
       display:none !important;
     }
 
-    /* Barra rientro sticky-like dentro la card */
+    /* Barra rientro sticky dentro la card */
     .r-toolbar{
       position:sticky;
       top:0;
@@ -376,13 +412,13 @@
       border-bottom:1px solid #1b2230;
       border-radius:16px 16px 0 0;
       padding-bottom:12px;
-      z-index:3;
+      z-index:5;
       display:flex;
       flex-direction:column;
       gap:12px;
     }
 
-    /* Pulsanti grossi per + / - / Tutti / Nessuno */
+    /* Pulsanti grossi (+/-/tutti/nessuno) */
     .r-buttons{
       display:flex;
       flex-wrap:wrap;
@@ -406,7 +442,7 @@
       }
     }
 
-    /* Box informazioni articolo selezionato */
+    /* Info articolo selezionato */
     .r-selected-box{
       background:#182034;
       border:1px solid #253043;
@@ -430,7 +466,7 @@
       color:var(--muted);
     }
 
-    /* Azioni globali (azzera tutto, tutti rientrati...) */
+    /* Azioni globali rientro */
     .r-toolbar-sec{
       display:flex;
       flex-wrap:wrap;
@@ -448,13 +484,13 @@
       }
     }
 
-    /* Blocco avanzamento globale */
+    /* Avanzamento globale */
     .r-progress-block{
       border-top:1px solid #1b2230;
       padding-top:8px;
     }
 
-    /* Wrapper scrollabile della tabella */
+    /* Wrapper scrollabile tabella rientro */
     .r-table-wrap{
       max-height:60vh;
       overflow-y:auto;
@@ -463,12 +499,12 @@
       padding-top:12px;
     }
 
-    /* Riga selezionata nella tabella */
+    /* Riga selezionata tabella */
     tr.selected{
       background:#1a2538;
     }
 
-    /* Input quantità rientrati nella tabella */
+    /* Input quantità rientrati */
     .rQtyInput{
       width:80px;
       max-width:100px;
@@ -480,16 +516,136 @@
       font-size:14px;
       line-height:1.2;
     }
+
+    /* LOGIN overlay */
+    #loginOverlay{
+      position:fixed;
+      inset:0;
+      background:rgba(0,0,0,.75);
+      color:#fff;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:24px;
+      z-index:9999;
+    }
+
+    #loginBox{
+      background:#0f141b;
+      border:1px solid #1b2230;
+      border-radius:16px;
+      padding:20px;
+      width:100%;
+      max-width:320px;
+      box-shadow:0 30px 80px rgba(0,0,0,.8);
+    }
+
+    #loginBox h2{
+      margin-top:0;
+      font-size:18px;
+      color:var(--text);
+    }
+
+    /* CAMERA overlay fullscreen */
+    #camOverlay{
+      position:fixed;
+      inset:0;
+      background:#000;
+      color:#fff;
+      display:none;
+      flex-direction:column;
+      z-index:9998;
+    }
+
+    #camHeader{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      padding:12px 16px;
+      background:rgba(0,0,0,.6);
+      color:#fff;
+      font-size:14px;
+      z-index:2;
+    }
+
+    #camHeader .left,
+    #camHeader .right{
+      display:flex;
+      gap:8px;
+      align-items:center;
+    }
+
+    #camVideoWrap{
+      position:relative;
+      flex:1 1 auto;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      background:#000;
+      overflow:hidden;
+    }
+
+    #camVideo{
+      max-width:100%;
+      max-height:100%;
+      object-fit:contain;
+      background:#000;
+    }
+
+    #camFooter{
+      padding:12px 16px;
+      background:rgba(0,0,0,.6);
+      font-size:13px;
+      color:#ccc;
+      text-align:center;
+      min-height:44px;
+    }
+
+    .camBtn{
+      background:#1f2937;
+      border:1px solid #4b5563;
+      color:#fff;
+      border-radius:10px;
+      padding:8px 10px;
+      font-size:14px;
+      line-height:1.2;
+      min-width:60px;
+      cursor:pointer;
+    }
+
+    .camBtn.danger{
+      background:#7f1d1d;
+      border-color:#7f1d1d;
+    }
+
+    .camBtn.active{
+      background:#facc15;
+      color:#000;
+      border-color:#facc15;
+    }
+
+    /* Sezione etichetta nel printSheet */
+    #printMeta{
+      font-size:11px;
+      line-height:1.4;
+      color:#000;
+      margin-top:8px;
+    }
   </style>
 </head>
 <body>
   <header>
     <div class="wrap">
-      <h1>Inventario QR</h1>
+      <h1>
+        <span>Inventario QR</span>
+        <span class="brand">Show Technologies TM</span>
+      </h1>
+      <div class="op-label" id="opInfo">Operatore: –</div>
+
       <nav class="noprint">
         <button data-tab="tab-home" class="active">Home</button>
         <button data-tab="tab-lista">Crea lista</button>
-        <button data-tab="tab-qr">QR & Stampa</button>
+        <button data-tab="tab-qr">QR &amp; Stampa</button>
         <button data-tab="tab-decode">Leggi lista</button>
         <button data-tab="tab-rientro">Spunta</button>
         <span id="status" class="muted" style="margin-left:auto;flex-grow:0;flex-basis:auto"></span>
@@ -500,26 +656,25 @@
   <div class="wrap">
     <!-- TAB: HOME -->
     <section id="tab-home" class="tab">
+      <h2>Benvenuto</h2>
+      <div class="muted" style="font-size:14px;line-height:1.4;margin-bottom:12px">
+        Scegli cosa vuoi fare.
+      </div>
+
       <div class="home-cta">
-        <div class="cta" data-go="tab-lista">
+        <div class="cta-main" data-go="tab-lista">
           <div class="icon">📝</div>
           <div>
             <div class="title">Crea lista</div>
-            <div class="desc">Aggiungi articoli (descrizione + quantità), ID baule ed evento.</div>
+            <div class="desc">Imposta baule, evento e aggiungi i pezzi.</div>
           </div>
         </div>
-        <div class="cta" data-go="tab-decode">
+
+        <div class="cta-main" data-go="tab-decode">
           <div class="icon">📷</div>
           <div>
             <div class="title">Leggi lista</div>
-            <div class="desc">Carica/scansiona un QR o un PDF e ricostruisci la lista.</div>
-          </div>
-        </div>
-        <div class="cta" data-go="tab-rientro">
-          <div class="icon">☑️</div>
-          <div>
-            <div class="title">Spunta articoli</div>
-            <div class="desc">Segna rientri, vedi progresso e genera report PDF.</div>
+            <div class="desc">Scannerizza un QR o PDF per caricare la lista.</div>
           </div>
         </div>
       </div>
@@ -540,6 +695,7 @@
               <input id="eventName" placeholder="Es. Concerto Piazza">
             </div>
           </div>
+
           <div class="row">
             <div style="flex:3">
               <label>Descrizione</label>
@@ -552,14 +708,17 @@
             <button id="addItem" class="btn">Aggiungi</button>
           </div>
         </div>
+
         <div class="card">
           <div class="row actions-wrap">
             <button id="saveLocal" class="btn ghost">Salva in locale</button>
             <button id="loadLocal" class="btn ghost">Carica da locale</button>
-            <button id="clearList" class="btn ghost">Svuota lista</button>
+            <button id="clearList" class="btn danger">Svuota lista</button>
             <button id="exportJson" class="btn ghost">Esporta JSON</button>
           </div>
-          <div class="muted" style="margin-top:6px">Il salvataggio locale usa <code>localStorage</code>.</div>
+          <div class="muted" style="margin-top:6px">
+            Il salvataggio locale usa <code>localStorage</code>.
+          </div>
         </div>
       </div>
 
@@ -582,7 +741,7 @@
 
     <!-- TAB: QR & STAMPA -->
     <section id="tab-qr" class="tab hidden">
-      <h2>QR & Stampa</h2>
+      <h2>QR &amp; Stampa</h2>
       <div class="grid cols-2">
         <div class="card">
           <div class="row">
@@ -595,24 +754,32 @@
               <input id="borderMods" type="number" value="4" min="1" max="16">
             </div>
           </div>
+
           <div class="row">
             <button id="btnGenQR" class="btn">Genera QR</button>
             <button id="btnDownloadPNG" class="btn ghost" disabled>Scarica PNG</button>
             <button id="btnPrint" class="btn ghost" disabled>Stampa scheda</button>
             <button id="btnPDFMain" class="btn ghost" disabled>PDF scheda</button>
           </div>
-          <div class="muted">ECC=H, schema <code>QRJ1:</code> (zlib + Base45).</div>
+
+          <div class="muted" style="font-size:12px">
+            ECC=H, schema <code>QRJ1:</code> (zlib + Base45).
+          </div>
+
           <div id="qrBox" class="qrbox" aria-live="polite"></div>
-          <div id="encInfo" class="muted"></div>
+          <div id="encInfo" class="muted" style="font-size:12px"></div>
         </div>
+
         <div class="card">
           <label>JSON canonico utilizzato</label>
           <textarea id="jsonCanon" rows="16" class="mono" readonly></textarea>
-          <div class="muted">SHA-256: <span id="sha256" class="mono"></span></div>
+          <div class="muted" style="margin-top:6px">
+            SHA-256: <span id="sha256" class="mono"></span>
+          </div>
         </div>
       </div>
 
-      <!-- foglio di stampa (per window.print) -->
+      <!-- foglio di stampa A4 landscape (usato da print e PDF) -->
       <div id="printSheet" class="print-sheet">
         <h2>Scheda baule</h2>
         <div class="print-grid">
@@ -620,6 +787,10 @@
           <div class="print-list">
             <div><strong>ID baule:</strong> <span id="pBox"></span></div>
             <div><strong>Evento:</strong> <span id="pEvent"></span></div>
+            <div><strong>Operatore:</strong> <span id="pOperatore"></span></div>
+            <div id="printMeta">
+              <div><strong>Data/ora stampa:</strong> <span id="pWhen"></span></div>
+            </div>
             <hr>
             <div id="pList"></div>
           </div>
@@ -639,35 +810,30 @@
             </div>
 
             <div style="flex:1;min-width:180px">
-              <label>Scatta foto QR (solo immagine)</label>
+              <label>Scatta foto QR</label>
               <input id="cameraShot" type="file" accept="image/*" capture="environment">
             </div>
           </div>
 
-          <div id="camBox" style="margin-top:10px">
-            <label>…oppure usa webcam live (desktop / HTTPS)</label>
-            <div class="row">
-              <button id="btnCam" class="btn ghost">Apri webcam</button>
-              <button id="btnShot" class="btn ghost" disabled>Scatta & Decodifica</button>
-              <button id="btnStopCam" class="btn ghost" disabled>Stop</button>
-            </div>
+          <div class="row" style="margin-top:10px">
+            <button id="btnCamFull" class="btn ghost">Apri webcam live</button>
           </div>
-          <div id="decStatus" class="muted" style="margin-bottom:8px"></div>
 
-          <video id="video" autoplay playsinline style="width:100%;max-height:240px;border:1px solid #1b2230;border-radius:12px"></video>
-          <canvas id="snap" class="hidden"></canvas>
+          <div id="decStatus" class="muted" style="margin:8px 0"></div>
 
           <label style="margin-top:12px;display:block;">Testo letto</label>
           <div id="rawOut" class="mono muted"></div>
-          <div class="row">
+
+          <div class="row" style="margin-top:12px">
             <button id="btnSetCurrent" class="btn" disabled>Usa come lista corrente</button>
             <button id="btnCompare" class="btn ghost" disabled>Confronta con lista corrente</button>
           </div>
         </div>
+
         <div class="card">
           <label>JSON ricostruito</label>
           <textarea id="jsonDecoded" rows="16" class="mono"></textarea>
-          <div id="cmpResult" class="muted"></div>
+          <div id="cmpResult" class="muted" style="margin-top:6px"></div>
         </div>
       </div>
     </section>
@@ -676,8 +842,7 @@
     <section id="tab-rientro" class="tab hidden">
       <h2>Spunta articoli</h2>
       <div class="card">
-
-        <!-- TOOLBAR RIENTRO FISSA -->
+        <!-- TOOLBAR RIENTRO -->
         <div class="r-toolbar">
           <!-- Pulsanti grandi -->
           <div class="r-buttons">
@@ -696,7 +861,7 @@
           <!-- Azioni globali -->
           <div class="r-toolbar-sec">
             <button id="rReset" class="btn ghost">Azzera tutto</button>
-            <button id="rAll"   class="btn ghost">Tutti rientrati</button>
+            <button id="rAll" class="btn ghost">Tutti rientrati</button>
             <button id="rExport" class="btn ghost">Esporta CSV</button>
             <button id="rPDF" class="btn">PDF rientro</button>
           </div>
@@ -704,13 +869,15 @@
           <!-- Avanzamento globale -->
           <div class="r-progress-block">
             <div class="muted" style="margin:8px 0 6px">Avanzamento rientro</div>
-            <div class="progress" aria-label="Progresso rientro"><span id="rBar" style="width:0%"></span></div>
+            <div class="progress" aria-label="Progresso rientro">
+              <span id="rBar" style="width:0%"></span>
+            </div>
             <div id="rPct" class="muted" style="margin-top:6px">0% • 0/0</div>
             <div id="rInfo" class="muted"></div>
           </div>
         </div>
 
-        <!-- AREA SCORREVOLE CON LA TABELLA -->
+        <!-- Tabella rientro scrollabile -->
         <div class="r-table-wrap">
           <div class="table-scroll">
             <table id="rTbl">
@@ -727,14 +894,47 @@
             </table>
           </div>
         </div>
-
       </div>
     </section>
   </div>
 
-  <!-- Service worker per offline dopo primo avvio -->
+  <!-- LOGIN OVERLAY -->
+  <div id="loginOverlay" class="hidden">
+    <div id="loginBox">
+      <h2>Inserisci il tuo nome</h2>
+      <div style="font-size:13px;line-height:1.4;color:#9aa6b2;margin-bottom:12px">
+        Lo useremo nei PDF e sulle etichette.
+      </div>
+      <label for="opNameInput" style="margin-bottom:4px">Operatore</label>
+      <input id="opNameInput" placeholder="Es. Marco R.">
+      <button id="opNameConfirm" class="btn" style="width:100%;margin-top:14px">Entra</button>
+    </div>
+  </div>
+
+  <!-- CAMERA OVERLAY FULLSCREEN -->
+  <div id="camOverlay">
+    <div id="camHeader">
+      <div class="left">
+        <button id="camCloseBtn" class="camBtn danger">Chiudi</button>
+      </div>
+      <div class="right">
+        <button id="camFlashBtn" class="camBtn" disabled>Flash</button>
+      </div>
+    </div>
+
+    <div id="camVideoWrap">
+      <video id="camVideo" autoplay playsinline></video>
+      <canvas id="camSnap" class="hidden"></canvas>
+    </div>
+
+    <div id="camFooter">
+      <span id="camStatus">Inizializzazione camera…</span>
+    </div>
+  </div>
+
+  <!-- Service worker per offline -->
   <script>
-    const CACHE_VERSION='qrj1-mobile-v2';
+    const CACHE_VERSION='qrj1-mobile-v3';
     const PRECACHE=[
       'https://cdn.jsdelivr.net/pyodide/v0.25.1/full/pyodide.js',
       'https://cdn.jsdelivr.net/pyodide/v0.25.1/full/pyodide.asm.wasm',
@@ -749,7 +949,6 @@
       'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js',
       'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js'
     ];
-
     if('serviceWorker' in navigator){
       const sw=`
         const C='${CACHE_VERSION}', PREC=${JSON.stringify(PRECACHE)};
@@ -787,7 +986,7 @@
     }
   </script>
 
-  <!-- Runtime esterni (cachati la prima volta) -->
+  <!-- Runtime esterni -->
   <script>
     const PYODIDE_URL="https://cdn.jsdelivr.net/pyodide/v0.25.1/full/pyodide.js";
     const ZXING_URL="https://cdn.jsdelivr.net/npm/@zxing/library@0.21.2/umd/index.min.js";
@@ -805,6 +1004,19 @@
 
     let jsPDFmod=null,
         pdfjsLib=null;
+
+    // camera state
+    let camStream = null;
+    let scanning = false;
+    let trackTorchCapable = null;
+    let torchOn = false;
+
+    // app state
+    const KEY_STORE='qrj1_simple_list_v2';
+    const KEY_OPERATOR='qrj1_operator_name';
+    let state = loadLocal() || { v:1, t:today(), b:"", e:"", l:[] };
+    let selectedIndex = null;
+    let operatorName = loadOperator() || "";
 
     (async()=>{
       setStatus("Carico runtime…");
@@ -829,7 +1041,16 @@
       }
 
       setStatus("Pronto (offline dopo primo avvio).");
+
+      // init UI
+      applyMeta();
       renderTables();
+      updateSelectedInfo();
+      if (!operatorName){
+        showLoginOverlay(true);
+      } else {
+        updateOperatorLabel();
+      }
     })();
 
     function loadScript(src){
@@ -899,18 +1120,55 @@ def unpack_to_pretty(s: str) -> str:
 
   <!-- LOGICA APP -->
   <script>
-    // === Stato (lista corrente) ===
-    // Ogni elemento lista: { d:"descrizione", q:previsti, r:rientrati }
-    const KEY_STORE='qrj1_simple_list_v2';
-    let state = loadLocal() || { v:1, t:today(), b:"", e:"", l:[] };
-    let selectedIndex = null; // indice dell'articolo attualmente selezionato
-
     function today(){
       const d=new Date();
       return d.toISOString().slice(0,10);
     }
 
-    // === Navigazione
+    function nowDateTime(){
+      const d=new Date();
+      const yyyy=d.getFullYear();
+      const mm=String(d.getMonth()+1).padStart(2,'0');
+      const dd=String(d.getDate()).padStart(2,'0');
+      const hh=String(d.getHours()).padStart(2,'0');
+      const mi=String(d.getMinutes()).padStart(2,'0');
+      return `${yyyy}-${mm}-${dd} ${hh}:${mi}`;
+    }
+
+    /* === Operator handling === */
+    function loadOperator(){
+      try{
+        return localStorage.getItem(KEY_OPERATOR)||"";
+      }catch{
+        return "";
+      }
+    }
+    function saveOperator(name){
+      try{
+        localStorage.setItem(KEY_OPERATOR,name);
+      }catch{}
+    }
+    function showLoginOverlay(show){
+      const ov=document.getElementById('loginOverlay');
+      if(show) ov.classList.remove('hidden'); else ov.classList.add('hidden');
+    }
+    function updateOperatorLabel(){
+      document.getElementById('opInfo').textContent = "Operatore: "+(operatorName||"–");
+    }
+
+    document.getElementById('opNameConfirm').onclick=()=>{
+      const v=document.getElementById('opNameInput').value.trim();
+      if(!v){
+        alert("Inserisci un nome operatore.");
+        return;
+      }
+      operatorName = v;
+      saveOperator(operatorName);
+      updateOperatorLabel();
+      showLoginOverlay(false);
+    };
+
+    /* === Navigazione Tabs === */
     document.querySelectorAll('nav button[data-tab]').forEach(b=>{
       b.onclick=()=>goTab(b.dataset.tab,true);
     });
@@ -927,10 +1185,30 @@ def unpack_to_pretty(s: str) -> str:
       if(fromUser) window.scrollTo({top:0,behavior:'smooth'});
     }
 
-    // === LISTA: add/remove/save
-    document.getElementById('boxId').value = state.b || "";
-    document.getElementById('eventName').value = state.e || "";
+    /* === Stato lista / sincronizzazione meta === */
+    function syncMeta(){
+      state.b=document.getElementById('boxId').value.trim();
+      state.e=document.getElementById('eventName').value.trim();
+      state.t=state.t||today();
+    }
+    function applyMeta(){
+      document.getElementById('boxId').value=state.b||"";
+      document.getElementById('eventName').value=state.e||"";
+    }
 
+    function saveLocal(obj){
+      localStorage.setItem(KEY_STORE, JSON.stringify(obj));
+    }
+    function loadLocal(){
+      try{
+        const s=localStorage.getItem(KEY_STORE);
+        return s?JSON.parse(s):null;
+      }catch{
+        return null;
+      }
+    }
+
+    /* === Lista articoli base === */
     document.getElementById('addItem').onclick=()=>{
       const d=document.getElementById('desc').value.trim();
       const q=parseInt(document.getElementById('qty').value||"0",10);
@@ -975,17 +1253,6 @@ def unpack_to_pretty(s: str) -> str:
       downloadBlob(new Blob([j],{type:'application/json'}),'lista.json');
     };
 
-    function syncMeta(){
-      state.b=document.getElementById('boxId').value.trim();
-      state.e=document.getElementById('eventName').value.trim();
-      state.t=state.t||today();
-    }
-
-    function applyMeta(){
-      document.getElementById('boxId').value=state.b||"";
-      document.getElementById('eventName').value=state.e||"";
-    }
-
     function renderTables(){
       const tb=document.querySelector('#itemsTbl tbody');
       tb.innerHTML="";
@@ -1012,43 +1279,11 @@ def unpack_to_pretty(s: str) -> str:
       renderRientroTable();
     }
 
-    function saveLocal(obj){
-      localStorage.setItem(KEY_STORE, JSON.stringify(obj));
-    }
-
-    function loadLocal(){
-      try{
-        const s=localStorage.getItem(KEY_STORE);
-        return s?JSON.parse(s):null;
-      }catch{
-        return null;
-      }
-    }
-
     function escapeHtml(s){
       return s.replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
     }
 
-    function updateSelectedInfo(){
-      const nameEl = document.getElementById('rSelName');
-      const metaEl = document.getElementById('rSelMeta');
-
-      if (selectedIndex == null || !state.l[selectedIndex]) {
-        nameEl.textContent = "Nessun articolo selezionato";
-        metaEl.textContent = "Previsti: — • Rientrati: — • Mancano: —";
-        return;
-      }
-
-      const it   = state.l[selectedIndex];
-      const prev = it.q;
-      const rin  = it.r || 0;
-      const manc = Math.max(0, prev - rin);
-
-      nameEl.textContent = it.d || "(senza descrizione)";
-      metaEl.textContent = `Previsti: ${prev} • Rientrati: ${rin} • Mancano: ${manc}`;
-    }
-
-    // === QR & Stampa / PDF scheda
+    /* === QR & Stampa / PDF scheda === */
     let lastPayloadText = "";
 
     document.getElementById('btnGenQR').onclick=async ()=>{
@@ -1086,7 +1321,7 @@ def unpack_to_pretty(s: str) -> str:
       document.getElementById('btnPrint').disabled=false;
       document.getElementById('btnPDFMain').disabled=false;
 
-      prepPrintSheet(sizeMm, border);
+      prepPrintSheet(border);
     };
 
     document.getElementById('btnDownloadPNG').onclick=()=>{
@@ -1105,7 +1340,13 @@ def unpack_to_pretty(s: str) -> str:
       downloadBlob(dataURLtoBlob(out.toDataURL('image/png')), 'qr_baule.png');
     };
 
-    document.getElementById('btnPrint').onclick=()=>{ window.print(); };
+    // ora "Stampa scheda" deve stampare l'etichetta con data/ora
+    document.getElementById('btnPrint').onclick=()=>{
+      // aggiorna data/ora prima di print()
+      prepPrintSheet(parseInt(document.getElementById('borderMods').value||"4",10));
+      window.print();
+    };
+
     document.getElementById('btnPDFMain').onclick=()=>{
       exportPDFScheda(false);
     };
@@ -1114,7 +1355,6 @@ def unpack_to_pretty(s: str) -> str:
       exportPDFScheda(true);
     };
 
-    // genera canvas QR
     function makeQrCanvas(text, borderMods){
       const typeNumber=0;
       const qr = qrcode(typeNumber, 'H');
@@ -1148,20 +1388,25 @@ def unpack_to_pretty(s: str) -> str:
       return c;
     }
 
-    // per print classico
-    function prepPrintSheet(sizeMm, border){
-      document.getElementById('pBox').textContent = state.b || "";
-      document.getElementById('pEvent').textContent = state.e || "";
+    // Prepara il foglio di stampa A4 landscape (etichetta)
+    function prepPrintSheet(border){
+      document.getElementById('pBox').textContent      = state.b || "";
+      document.getElementById('pEvent').textContent    = state.e || "";
+      document.getElementById('pOperatore').textContent= operatorName||"";
+      document.getElementById('pWhen').textContent     = nowDateTime();
+
       const list = state.l.map(x=>`- ${x.d} × ${x.q}`).join('\n');
       document.getElementById('pList').textContent = list;
-      const c=makeQrCanvas(lastPayloadText, border);
+
+      // rigenera QR per stampa
+      const c=makeQrCanvas(lastPayloadText || "", border||4);
       const target=document.getElementById('printQR');
       target.width=c.width;
       target.height=c.height;
       target.getContext('2d').drawImage(c,0,0);
     }
 
-    // PDF export: lista e rientro
+    // PDF export: lista e/o rientro
     function exportPDFScheda(withRientro){
       if(!jsPDFmod){
         alert("jsPDF non caricato");
@@ -1169,7 +1414,6 @@ def unpack_to_pretty(s: str) -> str:
       }
       const { jsPDF } = jsPDFmod;
 
-      // A4 landscape: 297mm x 210mm
       const doc = new jsPDF({
         orientation:"landscape",
         unit:"mm",
@@ -1183,7 +1427,7 @@ def unpack_to_pretty(s: str) -> str:
           .replace(/[^A-Za-z0-9_\-]+/g,"");
       }
 
-      // calcolo se incompleto (solo se rientro)
+      // calcolo se incompleto
       let incompleto = false;
       if (withRientro) {
         for (const it of state.l) {
@@ -1192,12 +1436,11 @@ def unpack_to_pretty(s: str) -> str:
         }
       }
 
-      // margini base
       const marginL = 15;
       const marginT = 20;
-      const pageW = 297;
+      const pageW   = 297;
 
-      // --- Testata sinistra: Evento e Baule in grande ---
+      // Testata
       doc.setFont("helvetica","bold");
       doc.setFontSize(20);
       doc.text(`Evento: ${state.e || ""}`, marginL, marginT);
@@ -1205,9 +1448,14 @@ def unpack_to_pretty(s: str) -> str:
       doc.setFontSize(24);
       doc.text(`Baule: ${state.b || ""}`, marginL, marginT + 10);
 
-      let curY = marginT + 20;
+      doc.setFontSize(12);
+      doc.setFont("helvetica","normal");
+      doc.text(`Operatore: ${operatorName||""}`, marginL, marginT + 20);
+      doc.text(`Data/ora: ${nowDateTime()}`, marginL, marginT + 26);
 
-      // Se è rientro e mancano pezzi → INCOMPLETO bello rosso
+      let curY = marginT + 36;
+
+      // Stato rientro
       if (withRientro && incompleto) {
         doc.setFont("helvetica","bold");
         doc.setFontSize(28);
@@ -1216,7 +1464,6 @@ def unpack_to_pretty(s: str) -> str:
         doc.setTextColor(0,0,0);
         curY += 15;
       } else if (withRientro && !incompleto) {
-        // opzionale verde "tutto ok"
         doc.setFont("helvetica","bold");
         doc.setFontSize(16);
         doc.setTextColor(16,185,129);
@@ -1225,9 +1472,10 @@ def unpack_to_pretty(s: str) -> str:
         curY += 10;
       }
 
-      // --- Lista materiali ---
+      // Lista materiali
       doc.setFont("helvetica","bold");
       doc.setFontSize(14);
+
       if (withRientro) {
         doc.text("Materiali (Previsti / Rientrati / Mancano):", marginL, curY);
       } else {
@@ -1238,7 +1486,6 @@ def unpack_to_pretty(s: str) -> str:
       doc.setFont("helvetica","normal");
       doc.setFontSize(12);
 
-      // area di testo max larghezza ~ 180mm (lasciamo spazio a destra per il QR)
       const maxTextW = 180;
       state.l.forEach((it)=>{
         const prev = it.q;
@@ -1263,10 +1510,8 @@ def unpack_to_pretty(s: str) -> str:
         });
       });
 
-      // --- QR code in alto a destra ---
-      // sempre QR con stato attuale completo (include rientro)
+      // QR code in alto a destra
       const canon = canonicalJSON(state,true);
-
       pyodide.runPythonAsync(
         `pack_json_str(${JSON.stringify(canon)})`
       ).then(qp=>{
@@ -1288,13 +1533,13 @@ def unpack_to_pretty(s: str) -> str:
       });
     }
 
-    // === Carica/Verifica QR o PDF
-    const decStatus=document.getElementById('decStatus'),
-          rawOut=document.getElementById('rawOut');
-    const jsonDecoded=document.getElementById('jsonDecoded'),
-          btnSetCurrent=document.getElementById('btnSetCurrent'),
-          btnCompare=document.getElementById('btnCompare'),
-          cmpResult=document.getElementById('cmpResult');
+    /* === Decode / import da QR o PDF === */
+    const decStatus   = document.getElementById('decStatus');
+    const rawOut      = document.getElementById('rawOut');
+    const jsonDecoded = document.getElementById('jsonDecoded');
+    const btnSetCurrent = document.getElementById('btnSetCurrent');
+    const btnCompare    = document.getElementById('btnCompare');
+    const cmpResult     = document.getElementById('cmpResult');
 
     document.getElementById('fileInput').addEventListener('change', async ev=>{
       const f=ev.target.files?.[0];
@@ -1323,7 +1568,7 @@ def unpack_to_pretty(s: str) -> str:
       }
     });
 
-    // acquisizione diretta da fotocamera (solo immagine, niente PDF)
+    // direttamente da scatto singolo (no overlay live)
     document.getElementById('cameraShot').addEventListener('change', async ev=>{
       const f=ev.target.files?.[0];
       if(!f) return;
@@ -1342,84 +1587,11 @@ def unpack_to_pretty(s: str) -> str:
       }
     });
 
-    let stream = null;
-    let scanning = false;
-
-    const videoEl = document.getElementById('video');
-    const snapCanvas = document.getElementById('snap');
-    const stopBtn   = document.getElementById('btnStopCam');
-    const camBtn    = document.getElementById('btnCam');
-    const shotBtn   = document.getElementById('btnShot'); // rimane ma lo disabilitiamo in realtime
-
-    async function startCamera(){
-      try {
-        stream = await navigator.mediaDevices.getUserMedia({
-          video:{facingMode:'environment'}
-        });
-        videoEl.srcObject = stream;
-        scanning = true;
-        stopBtn.disabled = false;
-        if (shotBtn){
-          shotBtn.disabled = true;
-          shotBtn.classList.add('hidden');
-        }
-        decStatus.textContent = "Inquadra il QR. Lettura in tempo reale...";
-        tickScan();
-      } catch(e){
-        decStatus.innerHTML = `<span class="err">Webcam non disponibile: ${e}</span>`;
-      }
-    }
-
-    // loop di scansione frame-by-frame
-    async function tickScan(){
-      if(!scanning || !stream) return;
-
-      if (videoEl.readyState === videoEl.HAVE_ENOUGH_DATA){
-        // copia frame corrente su canvas
-        snapCanvas.width  = videoEl.videoWidth;
-        snapCanvas.height = videoEl.videoHeight;
-        const gx = snapCanvas.getContext('2d');
-        gx.drawImage(videoEl,0,0,snapCanvas.width,snapCanvas.height);
-
-        // proviamo a decodificare senza bloccare l'UI
-        robustDecodeFromCanvas(snapCanvas).then(async text=>{
-          if (text && scanning){
-            // trovato qualcosa
-            scanning = false;
-            stopCamera(); // ferma la cam
-            await handleDecodedText(text);
-            decStatus.innerHTML = `<span class="ok">QR rilevato.</span>`;
-          } else {
-            decStatus.textContent = "Inquadra il QR…";
-          }
-        });
-      }
-
-      // throttling leggero
-      if (scanning){
-        setTimeout(()=>{ requestAnimationFrame(tickScan); }, 200);
-      }
-    }
-
-    function stopCamera(){
-      if(stream){
-        stream.getTracks().forEach(t=>t.stop());
-        stream = null;
-      }
-      scanning = false;
-      stopBtn.disabled = true;
-      decStatus.textContent = "Webcam chiusa.";
-    }
-
-    // bind ai bottoni webcam
-    camBtn.onclick = ()=>{ startCamera(); };
-    stopBtn.onclick = ()=>{ stopCamera(); };
-
     btnSetCurrent.onclick=()=>{
       try{
         const obj=JSON.parse(jsonDecoded.value);
 
-        // normalizza gli item per essere sicuri di avere anche r
+        // normalizza item per avere anche r
         obj.l = (obj.l || []).map(item=>({
           d:item.d,
           q:item.q,
@@ -1430,8 +1602,8 @@ def unpack_to_pretty(s: str) -> str:
         applyMeta();
         selectedIndex = null;
         renderTables();
-        updateProgress(); // aggiorna barra rientro subito
-        saveLocal(state); // persistiamo subito
+        updateProgress();
+        saveLocal(state);
         updateSelectedInfo();
 
         alert("Lista impostata come corrente.");
@@ -1474,6 +1646,8 @@ def unpack_to_pretty(s: str) -> str:
         decStatus.innerHTML=`<span class="ok">QRJ1 decodificato.</span>`;
         btnSetCurrent.disabled=false;
         btnCompare.disabled=false;
+
+        // aggiorniamo anche operatorName? NO: QR non definisce operatore.
       }catch{
         jsonDecoded.value="";
         decodedObj=null;
@@ -1483,7 +1657,7 @@ def unpack_to_pretty(s: str) -> str:
       }
     }
 
-    // === Rientro + progress bar
+    /* === Rientro + progress bar === */
     function ensureRientroStore(){
       if(!state.l){ state.l=[]; }
       state.l = state.l.map(it=>({
@@ -1491,6 +1665,25 @@ def unpack_to_pretty(s: str) -> str:
         q:it.q,
         r: (typeof it.r==="number"?it.r:0)
       }));
+    }
+
+    function updateSelectedInfo(){
+      const nameEl = document.getElementById('rSelName');
+      const metaEl = document.getElementById('rSelMeta');
+
+      if (selectedIndex == null || !state.l[selectedIndex]) {
+        nameEl.textContent = "Nessun articolo selezionato";
+        metaEl.textContent = "Previsti: — • Rientrati: — • Mancano: —";
+        return;
+      }
+
+      const it   = state.l[selectedIndex];
+      const prev = it.q;
+      const rin  = it.r || 0;
+      const manc = Math.max(0, prev - rin);
+
+      nameEl.textContent = it.d || "(senza descrizione)";
+      metaEl.textContent = `Previsti: ${prev} • Rientrati: ${rin} • Mancano: ${manc}`;
     }
 
     function renderRientroTable(){
@@ -1515,16 +1708,14 @@ def unpack_to_pretty(s: str) -> str:
           <td>${manca}</td>
         `;
 
-        // evidenzia la riga selezionata
         if (idx === selectedIndex) {
           tr.classList.add('selected');
         }
 
-        // cliccando sulla riga: selezioniamo quell'articolo
         tr.addEventListener('click', () => {
           selectedIndex = idx;
           updateSelectedInfo();
-          renderRientroTable(); // ridisegniamo per aggiornare highlight
+          renderRientroTable(); // highlight aggiornata
         });
 
         tb.appendChild(tr);
@@ -1533,8 +1724,6 @@ def unpack_to_pretty(s: str) -> str:
       // listener sugli <input> quantità rientrati
       tb.querySelectorAll('input[data-r]').forEach(inp=>{
         const idx = +inp.dataset.r;
-
-        // mentre digito
         inp.addEventListener('input', () => {
           let v = parseInt(inp.value || "0", 10);
           if (Number.isNaN(v)) v = 0;
@@ -1549,7 +1738,6 @@ def unpack_to_pretty(s: str) -> str:
           saveLocal(state);
         });
 
-        // su blur/enter aggiorniamo anche la colonna "Manca"
         inp.addEventListener('change', () => {
           let v = parseInt(inp.value || "0", 10);
           if (Number.isNaN(v)) v = 0;
@@ -1569,7 +1757,6 @@ def unpack_to_pretty(s: str) -> str:
       document.getElementById('rInfo').textContent=`Totale previsti: ${totPrev}`;
       updateProgress(totR, totPrev);
 
-      // aggiorna box in alto
       updateSelectedInfo();
     }
 
@@ -1613,6 +1800,8 @@ def unpack_to_pretty(s: str) -> str:
       const rows=[
         ["ID baule", state.b],
         ["Evento", state.e],
+        ["Operatore", operatorName || ""],
+        ["Data/ora export", nowDateTime()],
         [],
         ["Descrizione","Prev","Rientrati","Manca"]
       ];
@@ -1624,11 +1813,11 @@ def unpack_to_pretty(s: str) -> str:
       downloadBlob(new Blob([csv],{type:'text/csv'}), 'rientro.csv');
     };
 
-    // Pulsanti grandi della toolbar rientro
-    const btnDecOne  = document.getElementById('btnDecOne');
-    const btnIncOne  = document.getElementById('btnIncOne');
-    const btnAllOne  = document.getElementById('btnAllOne');
-    const btnZeroOne = document.getElementById('btnZeroOne');
+    // Pulsanti grandi toolbar rientro
+    document.getElementById('btnIncOne').onclick  = ()=>adjustSelected('inc');
+    document.getElementById('btnDecOne').onclick  = ()=>adjustSelected('dec');
+    document.getElementById('btnAllOne').onclick  = ()=>adjustSelected('all');
+    document.getElementById('btnZeroOne').onclick = ()=>adjustSelected('zero');
 
     function adjustSelected(mode){
       if (selectedIndex == null || !state.l[selectedIndex]) return;
@@ -1650,14 +1839,8 @@ def unpack_to_pretty(s: str) -> str:
       renderRientroTable();
     }
 
-    btnIncOne.onclick  = ()=>adjustSelected('inc');
-    btnDecOne.onclick  = ()=>adjustSelected('dec');
-    btnAllOne.onclick  = ()=>adjustSelected('all');
-    btnZeroOne.onclick = ()=>adjustSelected('zero');
-
-    // === Utilità comuni
+    /* === Utilità comuni === */
     function canonicalJSON(obj, includeRientro){
-      // includiamo sempre r nel QR per avere lo stato di rientro
       const o = {
         v:1,
         t: obj.t || today(),
@@ -1667,7 +1850,8 @@ def unpack_to_pretty(s: str) -> str:
           d:x.d,
           q:x.q,
           r: (includeRientro ? (x.r||0) : 0)
-        }))
+        })),
+        op: operatorName || ""
       };
       return JSON.stringify(o, (k,v)=>{
         if (Array.isArray(v)) return v;
@@ -1702,7 +1886,7 @@ def unpack_to_pretty(s: str) -> str:
       setTimeout(()=>URL.revokeObjectURL(a.href), 4000);
     }
 
-    // === QR decoding robusto (immagine/canvas)
+    /* === QR decoding helpers === */
     function drawToCanvas(img){
       const c=document.createElement('canvas');
       c.width=img.naturalWidth||img.videoWidth||img.width;
@@ -1838,73 +2022,149 @@ def unpack_to_pretty(s: str) -> str:
       return robustDecodeFromCanvas(base);
     }
 
-    // Decodifica da PDF: prendo la prima pagina e provo a leggere il QR
     async function decodeFromPDF(file){
       if(!pdfjsLib) throw new Error("pdf.js non caricato");
-
       const arrBuf = await file.arrayBuffer();
       const pdf = await pdfjsLib.getDocument({data:arrBuf}).promise;
-      const page = await pdf.getPage(1); // prima pagina basta
-
+      const page = await pdf.getPage(1);
       const viewport = page.getViewport({scale:2});
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d');
       canvas.width = viewport.width;
       canvas.height = viewport.height;
-
       await page.render({canvasContext:ctx, viewport}).promise;
-
       const text = await robustDecodeFromCanvas(canvas);
       return text;
     }
 
-    // HTTPS / webcam fallback per iPhone
-    (function(){
+    /* === Camera overlay live === */
+    const camOverlay   = document.getElementById('camOverlay');
+    const camVideo     = document.getElementById('camVideo');
+    const camSnap      = document.getElementById('camSnap');
+    const camStatus    = document.getElementById('camStatus');
+    const camCloseBtn  = document.getElementById('camCloseBtn');
+    const camFlashBtn  = document.getElementById('camFlashBtn');
+    const btnCamFull   = document.getElementById('btnCamFull');
+
+    btnCamFull.onclick = async ()=>{
+      await startCameraOverlay();
+    };
+
+    camCloseBtn.onclick = ()=>{
+      stopCameraOverlay("Chiuso");
+    };
+
+    camFlashBtn.onclick = async ()=>{
+      if(!trackTorchCapable) return;
+      torchOn = !torchOn;
+      await setTorch(trackTorchCapable, torchOn);
+      camFlashBtn.classList.toggle("active", torchOn);
+      camFlashBtn.textContent = torchOn ? "Flash ON" : "Flash OFF";
+    };
+
+    async function setTorch(track, on){
+      if(!track) return;
+      try{
+        await track.applyConstraints({
+          advanced:[{torch:on}]
+        });
+      }catch(e){
+        // se fallisce lasciamo stare
+      }
+    }
+
+    async function startCameraOverlay(){
+      // HTTPS check
       const isSecure = (
         location.protocol === 'https:' ||
         location.hostname === 'localhost' ||
         location.hostname === '127.0.0.1'
       );
+      if (!isSecure){
+        alert("Per la webcam live serve HTTPS o localhost.");
+        return;
+      }
 
-      const camBox   = document.getElementById('camBox');
-      const camBtn   = document.getElementById('btnCam');
-      const shotBtn  = document.getElementById('btnShot');
-      const stopBtn  = document.getElementById('btnStopCam');
-      const decStat  = document.getElementById('decStatus');
+      camOverlay.style.display="flex";
+      camStatus.textContent="Avvio camera…";
 
-      if (!isSecure) {
-        // niente webcam live
-        if (camBox) camBox.classList.add('hidden');
-        if (camBtn) camBtn.disabled = true;
-        if (shotBtn){
-          shotBtn.disabled = true;
-          shotBtn.classList.add('hidden');
-        }
-        if (stopBtn){
-          stopBtn.disabled = true;
-          stopBtn.classList.add('hidden');
-        }
+      try{
+        camStream = await navigator.mediaDevices.getUserMedia({
+          video:{facingMode:'environment'}
+        });
+      }catch(e){
+        camStatus.textContent="Webcam non disponibile";
+        return;
+      }
 
-        if (decStat && !decStat.innerHTML.trim()){
-          decStat.innerHTML =
-            '<span class="warn">Modalità senza HTTPS: usa "Scatta foto QR" oppure "Carica immagine o PDF". La webcam live è bloccata dal browser.</span>';
-        }
-      } else {
-        if (decStat && !decStat.innerHTML.trim()){
-          decStat.textContent = "Puoi usare webcam live o caricare immagine/PDF.";
+      camVideo.srcObject = camStream;
+      scanning = true;
+      // torch support?
+      torchOn=false;
+      trackTorchCapable = null;
+      camFlashBtn.disabled = true;
+      camFlashBtn.classList.remove("active");
+      camFlashBtn.textContent = "Flash";
+
+      const tracks = camStream.getVideoTracks();
+      if (tracks && tracks[0]){
+        const track = tracks[0];
+        const caps = track.getCapabilities?.();
+        if(caps && 'torch' in caps){
+          trackTorchCapable = track;
+          camFlashBtn.disabled = false;
         }
       }
-    })();
-  </script>
 
-  <script>
-    // anti double-tap zoom iOS
+      camStatus.textContent="Inquadra il QR…";
+
+      // start loop
+      tickScanOverlay();
+    }
+
+    function stopCameraOverlay(msg){
+      if(camStream){
+        camStream.getTracks().forEach(t=>t.stop());
+        camStream=null;
+      }
+      scanning=false;
+      camOverlay.style.display="none";
+      camStatus.textContent = msg || "";
+    }
+
+    async function tickScanOverlay(){
+      if(!scanning || !camStream) return;
+
+      if (camVideo.readyState === camVideo.HAVE_ENOUGH_DATA){
+        camSnap.width  = camVideo.videoWidth;
+        camSnap.height = camVideo.videoHeight;
+        const gx = camSnap.getContext('2d');
+        gx.drawImage(camVideo,0,0,camSnap.width,camSnap.height);
+
+        robustDecodeFromCanvas(camSnap).then(async text=>{
+          if (text && scanning){
+            scanning=false;
+            stopCameraOverlay("QR rilevato.");
+            await handleDecodedText(text);
+          } else {
+            camStatus.textContent = "Inquadra il QR…";
+          }
+        });
+      }
+
+      if (scanning){
+        setTimeout(()=>{ requestAnimationFrame(tickScanOverlay); }, 200);
+      }
+    }
+
+    /* === HTTPS fallback warning was moved into overlay logic === */
+
+    /* === anti double-tap zoom iOS === */
     (function(){
       let lastTouch = 0;
       document.addEventListener('touchend', function(e){
         const now = Date.now();
         const dt = now - lastTouch;
-        // se due tap ravvicinati (<300ms), blocca default (che sarebbe zoommare)
         if (dt > 0 && dt < 300) {
           e.preventDefault();
         }
