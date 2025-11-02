@@ -803,7 +803,7 @@
 
   <!-- SERVICE WORKER -->
   <script>
-    const CACHE_VERSION='qrj1-mobile-v4';
+    const CACHE_VERSION='qrj1-mobile-v5';
     const PRECACHE=[
       'https://cdn.jsdelivr.net/pyodide/v0.25.1/full/pyodide.js',
       'https://cdn.jsdelivr.net/pyodide/v0.25.1/full/pyodide.asm.wasm',
@@ -827,11 +827,11 @@
           await c.addAll(PREC);
           self.skipWaiting();
         })()));
-        self.addEventListener('activate',e=>e.waitUntil((async(()=>{
+        self.addEventListener('activate',e=>e.waitUntil((async()=>{
           const ks=await caches.keys();
           await Promise.all(ks.map(k=>{if(k!==C)return caches.delete(k)}));
           self.clients.claim();
-        })())));
+        })()));
         self.addEventListener('fetch',e=>{
           const u=e.request.url;
           if (PREC.some(p=>u.startsWith(p.split('/').slice(0,5).join('/'))||u===p)){
@@ -882,7 +882,7 @@
     let torchEnabled=false;
 
     // stato globale
-    const KEY_STORE='qrj1_simple_list_v4';
+    const KEY_STORE='qrj1_simple_list_v5';
     const KEY_OP='qrj1_operator';
     let state = loadLocal() || {
       v:1,
@@ -1396,7 +1396,7 @@ def unpack_to_pretty(s: str) -> str:
       return c;
     }
 
-    // === PDF UNICO (etichetta / rientro) con footer e tabelle arrotondate ===
+    // === PDF con bordi esterni arrotondati, tabella materiali più stretta e vicina ===
     function ensureRientroStore(){
       if(!state.l){ state.l=[]; }
       state.l = state.l.map(it=>({
@@ -1428,10 +1428,7 @@ def unpack_to_pretty(s: str) -> str:
 
       // calcolo rientro
       let incompleto = false;
-      let totPrev=0, totR=0;
       state.l.forEach(it=>{
-        totPrev += it.q;
-        totR += Math.min(it.q, it.r||0);
         if ((it.r||0) < it.q) incompleto=true;
       });
 
@@ -1454,7 +1451,7 @@ def unpack_to_pretty(s: str) -> str:
         d.setTextColor(0,0,0);
       }
 
-      // disegna header stato rientro (solo in modalità rientro)
+      // HEADER STATO RIENTRO (solo se rientro)
       let curY = marginT;
       if (mode === "rientro"){
         if (incompleto){
@@ -1472,7 +1469,7 @@ def unpack_to_pretty(s: str) -> str:
         curY += 14;
       }
 
-      // TABELLINA DATI BAULE (bordi arrotondati)
+      // === TABELLA DATI BAULE con bordi esterni arrotondati ===
       doc.setFont("helvetica","normal");
       doc.setFontSize(12);
 
@@ -1481,9 +1478,9 @@ def unpack_to_pretty(s: str) -> str:
       const rowH   = 7;
       const labelW = 35;
       const valueW = 100;
-      const radius = 1.5;
+      const radius = 2.0;
 
-      const rows = [
+      const rowsMeta = [
         ["Operatore:", operatorName || ""],
         ["Produzione:", state.p || ""],
         ["Posizione:", state.pos || ""],
@@ -1491,42 +1488,48 @@ def unpack_to_pretty(s: str) -> str:
         ["Note:", state.note || ""],
         ["Stampato:", nowStamp()]
       ];
+      const metaTableW = labelW + valueW;
+      const metaTableH = rowsMeta.length * rowH;
 
-      function drawRoundedCell(x,y,w,h,r){
-        doc.roundedRect(x,y,w,h,r,r,"S");
-      }
+      // bordo esterno arrotondato
+      doc.setDrawColor(150);
+      doc.setLineWidth(0.2);
+      doc.roundedRect(tableX, tableY, metaTableW, metaTableH, radius, radius, "S");
 
-      rows.forEach((row, i)=>{
+      // linee interne orizzontali
+      for(let i=1;i<rowsMeta.length;i++){
         const y = tableY + i*rowH;
+        doc.line(tableX, y, tableX+metaTableW, y);
+      }
+      // linea interna verticale (fra label e value)
+      doc.line(tableX+labelW, tableY, tableX+labelW, tableY+metaTableH);
 
-        doc.setDrawColor(150);
-        doc.setLineWidth(0.2);
+      // testo celle
+      rowsMeta.forEach((row,i)=>{
+        const yTextBase = tableY + i*rowH + (rowH-2);
+        doc.text(row[0], tableX+2, yTextBase);
 
-        // label cell
-        drawRoundedCell(tableX, y, labelW, rowH, radius);
-        doc.text(row[0], tableX+2, y+rowH-2);
-
-        // value cell
-        drawRoundedCell(tableX+labelW, y, valueW, rowH, radius);
+        // campo valore multilinea se serve
         const vLines = doc.splitTextToSize(row[1], valueW-4);
-        doc.text(vLines, tableX+labelW+2, y+rowH-2);
+        doc.text(vLines, tableX+labelW+2, yTextBase);
       });
 
-      // QR gigante in alto a destra con bordo colorato
+      // === QR GIGANTE in alto a destra con bordo colorato ===
       const qrSizeMm = 80;
       const qrX = pageW - qrSizeMm - 20;
       const qrY = marginT;
 
+      // Canonical JSON con rientro
       const canon = canonicalJSON(state,true);
 
-      // disegniamo il resto SOLO dopo aver ottenuto il QR packato, perché ci serve per addImage
+      // generiamo QR packato e poi continuiamo il rendering
       pyodide.runPythonAsync(
         `pack_json_str(${JSON.stringify(canon)})`
       ).then(qp=>{
         const qrCanvas = makeQrCanvas(qp, 4);
         const qrDataURL = qrCanvas.toDataURL("image/png");
 
-        // bordo colorato intorno al QR
+        // bordo colorato SOLO esterno attorno al QR
         const rgb = colorFromIndex(state.c || 0);
         doc.setDrawColor(rgb[0], rgb[1], rgb[2]);
         doc.setLineWidth(3);
@@ -1539,26 +1542,27 @@ def unpack_to_pretty(s: str) -> str:
           3,3,"S"
         );
 
-        // disegna QR
+        // immagine QR
         doc.addImage(qrDataURL, "PNG", qrX, qrY, qrSizeMm, qrSizeMm);
 
-        // TABELLA MATERIALI (bordi arrotondati, font più grande)
-        let listY = tableY + rows.length*rowH + 10;
-        const afterQR = qrY + qrSizeMm + 10;
-        if (listY < afterQR) listY = afterQR;
+        // === TABELLA MATERIALI, stretta e vicina alla tabella meta ===
+        // vogliamo avvicinarla subito sotto i dati, SENZA aspettare che finisca il QR.
+        // limite larghezza = vicino al QR (un po' di margine)
+        const maxRightBeforeQR = qrX - 10; // non invadere l'area QR
+        const matStartY = tableY + metaTableH + 8; // subito sotto la tabella meta
 
         drawMaterialsTable(doc, {
-          startY: listY,
+          startY: matStartY,
           leftX: marginL,
-          rightMaxW: pageW - marginL*2,
+          maxRight: maxRightBeforeQR,
           mode: mode,
-          radius: radius,
           marginT: marginT,
           pageW: pageW,
-          pageH: pageH
+          pageH: pageH,
+          addFooterFn: addFooter
         });
 
-        // footer pagina finale
+        // footer finale sulla pagina corrente
         addFooter(doc);
 
         const baseName =
@@ -1574,137 +1578,238 @@ def unpack_to_pretty(s: str) -> str:
         }
       });
 
-      // funzione tabella materiali arrotondata
+      // === Funzione tabella materiali con bordo esterno arrotondato ===
       function drawMaterialsTable(doc, cfg){
-        let y = cfg.startY;
-        const startX = cfg.leftX;
-        const r = cfg.radius;
-        const lineH = 8;        // riga materiale
-        const headH = 9;        // header
-        const maxW  = cfg.rightMaxW;
-        const colDescW = cfg.mode==="rientro" ? 140 : 160;
-        const colPrevW = 20;
-        const colRientroW = 25;
-        const colMancaW = 25;
+        let yCursor = cfg.startY;
 
-        // titolo sezione
+        // titolo sezione (senza parentesi)
         doc.setFont("helvetica","bold");
         doc.setFontSize(16);
         if (cfg.mode === "rientro"){
-          doc.text("Materiali (Previsto / Rientrati / Mancano):", startX, y);
+          doc.text("Rientro materiali:", cfg.leftX, yCursor);
         } else {
-          doc.text("Materiali (Quantità previste):", startX, y);
+          doc.text("Materiali:", cfg.leftX, yCursor);
         }
-        y += 10;
+        yCursor += 8;
 
-        // header tabella
-        doc.setFont("helvetica","bold");
-        doc.setFontSize(14);
+        // colonne: tabella più stretta per stare prima del QR
+        // riduciamo la descrizione per recuperare larghezza
+        const colDescW      = (cfg.mode==="rientro") ? 110 : 120;
+        const colPrevW      = 18;
+        const colRientroW   = 22;
+        const colMancaW     = 22;
+
+        let colWidths, headers;
 
         if (cfg.mode === "rientro"){
-          // Descrizione | Prev. | Rientrati | Mancano
-          headerRow([
-            "Descrizione",
-            "Prev.",
-            "Rientrati",
-            "Manca"
-          ], [colDescW,colPrevW,colRientroW,colMancaW]);
+          headers   = ["Descrizione","Prev.","Rientrati","Manca"];
+          colWidths = [colDescW, colPrevW, colRientroW, colMancaW];
         } else {
-          // Descrizione | Previsto
-          headerRow([
-            "Descrizione",
-            "Prev."
-          ], [colDescW,colPrevW]);
+          headers   = ["Descrizione","Q.tà"];
+          colWidths = [colDescW, colPrevW];
         }
 
-        // corpo tabella
-        doc.setFont("helvetica","normal");
-        doc.setFontSize(14);
+        const tableW = colWidths.reduce((a,b)=>a+b,0);
 
-        state.l.forEach(it=>{
-          const prev = it.q;
-          const rin  = it.r || 0;
-          const manc = Math.max(0, prev - rin);
+        // Se la tabella sforasse l'area concessa prima del QR, la stringiamo ancora un filo
+        if (cfg.leftX + tableW > cfg.maxRight){
+          // riduciamo solo la descrizione per stare dentro
+          const overflow = (cfg.leftX + tableW) - cfg.maxRight;
+          colWidths[0] = colWidths[0] - overflow - 2;
+        }
 
-          // preparazione celle testo (wrapping descrizione)
-          const descLines = doc.splitTextToSize(it.d || "", colDescW-4);
+        // Ora ricalcoliamo la larghezza finale tabella
+        const finalTableW = colWidths.reduce((a,b)=>a+b,0);
 
-          let rowNeededH = lineH;
-          const dynH = 4 + (descLines.length*6);
-          if (dynH > rowNeededH) rowNeededH = dynH;
+        // Costruiamo tutte le righe (header + materiali) per calcolare altezze e gestire page break
+        const headH = 9;     // altezza header
+        const baseLineH = 8; // altezza minima riga materiale
+        const textLineStep = 6;
 
-          // salto pagina se non c'è spazio
-          if (y + rowNeededH + 20 > cfg.pageH){
-            addFooter(doc);
-            doc.addPage("a4","landscape");
-            y = cfg.marginT;
-            // ridisegno header su nuova pagina
-            doc.setFont("helvetica","bold");
-            doc.setFontSize(14);
-            if (cfg.mode === "rientro"){
-              headerRow([
-                "Descrizione",
-                "Prev.",
-                "Rientrati",
-                "Manca"
-              ], [colDescW,colPrevW,colRientroW,colMancaW]);
-            } else {
-              headerRow([
-                "Descrizione",
-                "Prev."
-              ], [colDescW,colPrevW]);
-            }
-            doc.setFont("helvetica","normal");
-            doc.setFontSize(14);
-          }
+        function buildRowObjects(){
+          const rowsOut=[];
 
-          // disegno riga materiale
-          let cx = startX;
-          drawCellRounded(cx,y,colDescW,rowNeededH,r);
-          drawMultiline(descLines, cx+2,y+6);
-          cx += colDescW;
-
-          drawCellRounded(cx,y,colPrevW,rowNeededH,r);
-          doc.text(String(prev), cx+2, y+6);
-          cx += colPrevW;
-
-          if (cfg.mode === "rientro"){
-            drawCellRounded(cx,y,colRientroW,rowNeededH,r);
-            doc.text(String(rin), cx+2, y+6);
-            cx += colRientroW;
-
-            drawCellRounded(cx,y,colMancaW,rowNeededH,r);
-            doc.text(String(manc), cx+2, y+6);
-            cx += colMancaW;
-          }
-
-          y += rowNeededH;
-        });
-
-        // helper per celle
-        function headerRow(titles,widths){
-          let cx = startX;
-          titles.forEach((txt,i)=>{
-            const w = widths[i];
-            drawCellRounded(cx,y,w,headH,r);
-            doc.text(txt, cx+2, y+headH-3);
-            cx+=w;
+          // header row (bold)
+          rowsOut.push({
+            type:"header",
+            cells: headers,
+            h: headH,
+            descLines: null
           });
-          y += headH;
+
+          // data rows
+          state.l.forEach(it=>{
+            const prev = it.q;
+            const rin  = it.r || 0;
+            const manc = Math.max(0, prev - rin);
+
+            const descCell = it.d || "";
+            // split su descrizione
+            const descLines = doc.splitTextToSize(descCell, colWidths[0]-4);
+            // calcolo altezza riga dinamica
+            let rowH = baseLineH;
+            const dynH = 4 + (descLines.length * textLineStep);
+            if (dynH > rowH) rowH = dynH;
+
+            let cells;
+            if (cfg.mode === "rientro"){
+              cells = [
+                descLines,            // multiline
+                String(prev),
+                String(rin),
+                String(manc)
+              ];
+            } else {
+              cells = [
+                descLines,
+                String(prev)
+              ];
+            }
+
+            rowsOut.push({
+              type:"data",
+              cells,
+              h: rowH,
+              descLines
+            });
+          });
+
+          return rowsOut;
         }
 
-        function drawCellRounded(x,y,w,h,r){
+        const allRows = buildRowObjects();
+
+        // Funzione che disegna UNA PAGINA di tabella a partire da rowIndex,
+        // e ritorna il prossimo rowIndex non disegnato + nuova yCursor.
+        function drawTablePage(rowIndex, startY){
+          let yTopTable = startY;
+          let curRow = rowIndex;
+
+          // Calcoliamo l'altezza totale che starà in questa pagina (fino a saturazione)
+          // ma dobbiamo spezzare quando va oltre pageH-20 circa (lasciamo spazio footer).
+          let rowsThisPage = [];
+          let totalH = 0;
+          for(let i=curRow;i<allRows.length;i++){
+            const h = allRows[i].h;
+            if (yTopTable + totalH + h + 20 > cfg.pageH){
+              break;
+            }
+            rowsThisPage.push(allRows[i]);
+            totalH += h;
+          }
+
+          // Se non ci sta nemmeno la riga corrente (patologico), forziamo almeno una riga
+          if(rowsThisPage.length===0 && curRow<allRows.length){
+            rowsThisPage.push(allRows[curRow]);
+            totalH += allRows[curRow].h;
+          }
+
+          // disegna bordo esterno arrotondato SOLO per il blocco di queste righe
+          const radiusOuter = 2.0;
           doc.setDrawColor(0,0,0);
           doc.setLineWidth(0.2);
-          doc.roundedRect(x,y,w,h,r,r,"S");
+          doc.roundedRect(
+            cfg.leftX,
+            yTopTable,
+            finalTableW,
+            totalH,
+            radiusOuter,
+            radiusOuter,
+            "S"
+          );
+
+          // linee interne orizzontali + verticali
+          // verticali: colonne (tranne i bordi esterni)
+          let xCursor = cfg.leftX;
+          for(let c=0;c<colWidths.length-1;c++){
+            xCursor += colWidths[c];
+            doc.line(
+              xCursor,
+              yTopTable,
+              xCursor,
+              yTopTable+totalH
+            );
+          }
+
+          // adesso scriviamo riga per riga e tracciamo linee orizzontali interne
+          let drawY = yTopTable;
+          for(let r=0;r<rowsThisPage.length;r++){
+            const row = rowsThisPage[r];
+
+            // testo
+            if(row.type==="header"){
+              doc.setFont("helvetica","bold");
+              doc.setFontSize(14);
+            }else{
+              doc.setFont("helvetica","normal");
+              doc.setFontSize(14);
+            }
+
+            let cellX = cfg.leftX;
+            for(let c=0;c<colWidths.length;c++){
+              const cellW = colWidths[c];
+
+              const cellVal = row.cells[c];
+              if (Array.isArray(cellVal)){
+                // multiline (descrizione)
+                let textY = drawY + 6;
+                cellVal.forEach(line=>{
+                  doc.text(line, cellX+2, textY);
+                  textY += textLineStep;
+                });
+              } else {
+                // singola stringa
+                doc.text(String(cellVal||""), cellX+2, drawY+6);
+              }
+
+              cellX += cellW;
+            }
+
+            // linea orizzontale interna (non dopo l'ultima riga della pagina)
+            const rowH = row.h;
+            drawY += rowH;
+            if(r < rowsThisPage.length-1){
+              doc.line(
+                cfg.leftX,
+                drawY,
+                cfg.leftX+finalTableW,
+                drawY
+              );
+            }
+          }
+
+          // ritorno info per eventuale pagina successiva
+          return {
+            nextRowIndex: curRow + rowsThisPage.length,
+            nextY: drawY
+          };
         }
 
-        function drawMultiline(lines, x,yStart){
-          let yy = yStart;
-          lines.forEach(line=>{
-            doc.text(line, x, yy);
-            yy += 6;
-          });
+        // Ciclo pagine per la tabella materiali
+        let rowIdx = 0;
+        let localY = yCursor;
+
+        while(rowIdx < allRows.length){
+          const res = drawTablePage(rowIdx, localY);
+          rowIdx = res.nextRowIndex;
+          localY = res.nextY;
+
+          if(rowIdx < allRows.length){
+            // abbiamo ancora righe => nuova pagina
+            cfg.addFooterFn(doc);
+            doc.addPage("a4","landscape");
+            // su nuova pagina, reset top
+            localY = cfg.marginT;
+            // ridisegniamo il titolo su nuova pagina
+            doc.setFont("helvetica","bold");
+            doc.setFontSize(16);
+            if (cfg.mode === "rientro"){
+              doc.text("Rientro materiali:", cfg.leftX, localY);
+            } else {
+              doc.text("Materiali:", cfg.leftX, localY);
+            }
+            localY += 8;
+          }
         }
       }
     }
