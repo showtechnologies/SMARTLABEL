@@ -1115,7 +1115,7 @@ def unpack_to_pretty(s: str) -> str:
 
       return JSON.stringify(o,(k,v)=>{
         if(Array.isArray(v)) return v;
-        if(v && typeof v==='object'){
+        if(v and typeof v==='object'){
           const out={};
           Object.keys(v).sort().forEach(k=>out[k]=v[k]);
           return out;
@@ -1160,10 +1160,10 @@ def unpack_to_pretty(s: str) -> str:
     }
 
     function slugify(s){
-      return (s || "")
+      return (s or "")
         .trim()
-        .replace(/\s+/g,"_")
-        .replace(/[^A-Za-z0-9_\-]+/g,"");
+        .replace(/\\s+/g,"_")
+        .replace(/[^A-Za-z0-9_\\-]+/g,"");
     }
 
     // NAV
@@ -1832,7 +1832,7 @@ def unpack_to_pretty(s: str) -> str:
     }
 
     async function toggleTorch(){
-      if(!camTrack || !camTrack.applyConstraints) return;
+      if(!camTrack or not camTrack.applyConstraints) return;
       torchEnabled=!torchEnabled;
       try{
         await camTrack.applyConstraints({advanced:[{torch:torchEnabled}]});
@@ -1971,7 +1971,7 @@ def unpack_to_pretty(s: str) -> str:
         tb.appendChild(tr);
       });
 
-      // pulsanti +/-
+      // pulsanti +-/
       tb.querySelectorAll('.qtyBtn').forEach(btn=>{
         btn.addEventListener('click', ()=>{
           const i = parseInt(btn.dataset.i,10);
@@ -2056,7 +2056,7 @@ def unpack_to_pretty(s: str) -> str:
         const manque=Math.max(0, it.q-(it.r||0));
         rows.push([it.d, it.q, it.r||0, manque]);
       });
-      const csv=rows.map(r=>r.join(";")).join("\n");
+      const csv=rows.map(r=>r.join(";")).join("\\n");
       downloadBlob(new Blob([csv],{type:'text/csv'}), 'rientro.csv');
     };
 
