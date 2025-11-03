@@ -8,8 +8,7 @@
     :root{
       --gap:14px;--muted:#6b7280;--b:#e5e7eb;--ok:#10b981;--warn:#f59e0b;--err:#ef4444;
       --bg:#0b0f14;--card:#0f141b;--text:#e5e7eb;--accent:#4f46e5;
-      /* usata per altezza iOS 100vh corretta */
-      --vh: 1vh;
+      --vh:1vh; /* iOS 100vh fix */
     }
 
     *{box-sizing:border-box}
@@ -157,24 +156,26 @@
       color:#94a3b8;
     }
 
-    table{
-      width:100%;
-      border-collapse:collapse;
+    /* === TABELLE UNIFICATE === */
+    .table-scroll{width:100%;overflow-x:auto}
+    table.tbl{width:100%;border-collapse:collapse;table-layout:fixed}
+    .tbl th,.tbl td{
+      padding:10px;border-bottom:1px solid #1b2230;font-size:14px;line-height:1.3;vertical-align:top
     }
+    .tbl th{text-align:right;font-weight:600}
+    .tbl th:first-child,.tbl td:first-child{text-align:left}
+    .tbl thead tr{border-bottom:1px solid #243044}
 
-    th,
-    td{
-      padding:10px;
-      border-bottom:1px solid #1b2230;
-      text-align:left;
-      font-size:14px;
-      vertical-align:top;
-    }
-
-    .table-scroll{
-      width:100%;
-      overflow-x:auto;
-    }
+    /* larghezze coerenti */
+    #itemsTbl colgroup col:nth-child(1){width:52px}
+    #itemsTbl colgroup col:nth-child(2){width:auto}
+    #itemsTbl colgroup col:nth-child(3){width:90px}
+    #itemsTbl colgroup col:nth-child(4){width:120px}
+    #rTbl     colgroup col:nth-child(1){width:52px}
+    #rTbl     colgroup col:nth-child(2){width:auto}
+    #rTbl     colgroup col:nth-child(3){width:80px}
+    #rTbl     colgroup col:nth-child(4){width:170px}
+    #rTbl     colgroup col:nth-child(5){width:90px}
 
     .row{
       display:flex;
@@ -435,16 +436,61 @@
       padding:10px;
     }
 
-    /* ----------- WEBCAM (PATCH) ----------- */
+    #loginOverlay{
+      position:fixed;
+      inset:0;
+      background:rgba(0,0,0,.8);
+      color:#fff;
+      z-index:2000;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:24px;
+    }
+    #loginCard{
+      background:#0f141b;
+      border:1px solid #1b2230;
+      border-radius:16px;
+      max-width:360px;
+      width:100%;
+      padding:20px 16px 16px;
+      box-shadow:0 30px 80px rgba(0,0,0,.8);
+    }
+    #loginCard h2{
+      margin:0 0 4px;
+      font-size:18px;
+      line-height:1.3;
+      color:var(--text);
+      font-weight:600;
+      text-align:center;
+    }
+    #loginCard p{
+      margin:0 0 16px;
+      font-size:13px;
+      line-height:1.4;
+      color:#9aa6b2;
+      text-align:center;
+    }
+    #loginCard .row{
+      flex-wrap:nowrap;
+      align-items:flex-start;
+    }
+    #loginNameInput{
+      flex:1 1 auto;
+    }
+    #loginBtn{
+      flex:0 0 auto;
+    }
+
     #cameraOverlay{
       position:fixed;
       inset:0;
       background:#000;
       color:#fff;
       z-index:3000;
-      display:none;             /* diventa flex in startCameraOverlay */
+      display:none;
       flex-direction:column;
-      height:calc(var(--vh, 1vh) * 100); /* iOS vh reale */
+      height:calc(var(--vh,1vh)*100);
     }
 
     #cameraHeader{
@@ -478,43 +524,34 @@
     }
 
     #cameraVideoWrap{
-      flex:1;                 /* occupa tutto lo spazio sotto l’header */
+      flex:1;
       min-height:0;
       position:relative;
-      overflow:hidden;
-      background:#000;
-      display:block;
-    }
-
-    #cameraVideo{
-      position:absolute;
-      inset:0;
-      width:100%;
-      height:100%;
-      object-fit:cover;       /* full-bleed stabile; usa 'contain' se preferisci vedere tutto */
-      background:#000;
-      border-radius:0;
-    }
-
-    #cameraCanvas{
-      display:none;
-    }
-    /* --------- FINE PATCH WEBCAM ----------- */
-
-    /* ----------- LOGIN OVERLAY (PATCH) ----------- */
-    #loginOverlay{
-      position:fixed !important;
-      inset:0;
-      height:calc(var(--vh, 1vh) * 100);
-      background:rgba(0,0,0,.8);
-      color:#fff;
-      z-index:4000;           /* sopra a cameraOverlay */
       display:flex;
       align-items:center;
       justify-content:center;
-      padding:24px;
+      background:#000;
     }
-    /* --------- FINE LOGIN OVERLAY ----------- */
+    #cameraVideo{
+      max-width:100%;
+      max-height:100%;
+      background:#000;
+      border-radius:12px;
+    }
+    #cameraCanvas{ display:none; }
+
+    /* Frame guides overlay */
+    .frame-guides{
+      position:absolute; inset:10% 10%;
+      pointer-events:none;
+    }
+    .frame-guides .corner{
+      position:absolute; width:32px; height:32px; border:3px solid #fff3; border-radius:4px;
+    }
+    .frame-guides .tl{left:0;top:0;border-right:none;border-bottom:none}
+    .frame-guides .tr{right:0;top:0;border-left:none;border-bottom:none}
+    .frame-guides .bl{left:0;bottom:0;border-right:none;border-top:none}
+    .frame-guides .br{right:0;bottom:0;border-left:none;border-top:none}
   </style>
 </head>
 <body>
@@ -596,7 +633,8 @@
 
       <div class="card">
         <div class="table-scroll">
-          <table id="itemsTbl">
+          <table id="itemsTbl" class="tbl">
+            <colgroup><col><col><col><col></colgroup>
             <thead>
               <tr>
                 <th>#</th>
@@ -733,7 +771,8 @@
 
         <div class="r-table-wrap">
           <div class="table-scroll">
-            <table id="rTbl">
+            <table id="rTbl" class="tbl">
+              <colgroup><col><col><col><col><col></colgroup>
               <thead>
                 <tr>
                   <th>#</th>
@@ -775,13 +814,17 @@
     </div>
     <div id="cameraVideoWrap">
       <video id="cameraVideo" autoplay playsinline muted></video>
+      <div class="frame-guides">
+        <div class="corner tl"></div><div class="corner tr"></div>
+        <div class="corner bl"></div><div class="corner br"></div>
+      </div>
       <canvas id="cameraCanvas"></canvas>
     </div>
   </div>
 
   <!-- SERVICE WORKER -->
   <script>
-    const CACHE_VERSION='qrj1-mobile-v5';
+    const CACHE_VERSION='qrj1-mobile-v6';
     const PRECACHE=[
       'https://cdn.jsdelivr.net/pyodide/v0.25.1/full/pyodide.js',
       'https://cdn.jsdelivr.net/pyodide/v0.25.1/full/pyodide.asm.wasm',
@@ -860,7 +903,7 @@
     let torchEnabled=false;
 
     // stato globale
-    const KEY_STORE='qrj1_simple_list_v5';
+    const KEY_STORE='qrj1_simple_list_v6';
     const KEY_OP='qrj1_operator';
     let state = loadLocal() || {
       v:1,
@@ -874,6 +917,10 @@
       l:[]
     };
     let operatorName = loadOperatorName() || "";
+
+    // ---- iOS 100vh reale ----
+    function setVH(){ document.documentElement.style.setProperty('--vh', (window.innerHeight * 0.01) + 'px'); }
+    window.addEventListener('resize', setVH); window.addEventListener('orientationchange', setVH); setVH();
 
     // LOGIN
     document.addEventListener('DOMContentLoaded', ()=>{
@@ -903,7 +950,6 @@
     function showLoginOverlay(show){
       const ov=document.getElementById('loginOverlay');
       ov.style.display = show ? 'flex':'none';
-      // blocca lo scroll quando il login è visibile
       document.documentElement.style.overflow = show ? 'hidden' : '';
       document.body.style.overflow = show ? 'hidden' : '';
     }
@@ -932,15 +978,6 @@
         tag.classList.add('hidden');
       }
     }
-
-    // ------- PATCH iOS 100vh reale -------
-    function setVH(){
-      document.documentElement.style.setProperty('--vh', (window.innerHeight * 0.01) + 'px');
-    }
-    window.addEventListener('resize', setVH);
-    window.addEventListener('orientationchange', setVH);
-    setVH();
-    // -------------------------------------
 
     // BOOT
     ;(async()=>{
@@ -1056,7 +1093,7 @@ def unpack_to_pretty(s: str) -> str:
       const dd=String(d.getDate()).padStart(2,"0");
       const hh=String(d.getHours()).padStart(2,"0");
       const mi=String(d.getMinutes()).padStart(2,"0");
-      return `${yy}-${mm}-${dd} ${hh}:${mi}`;
+      return \`\${yy}-\${mm}-\${dd} \${hh}:\${mi}\`;
     }
 
     function loadLocal(){
@@ -1152,8 +1189,8 @@ def unpack_to_pretty(s: str) -> str:
     function slugify(s){
       return (s || "")
         .trim()
-        .replace(/\s+/g,"_")
-        .replace(/[^A-Za-z0-9_\-]+/g,"");
+        .replace(/\\s+/g,"_")
+        .replace(/[^A-Za-z0-9_\\-]+/g,"");
     }
 
     // NAV
@@ -1256,13 +1293,13 @@ def unpack_to_pretty(s: str) -> str:
       tb.innerHTML="";
       state.l.forEach((it,idx)=>{
         const tr=document.createElement('tr');
-        tr.innerHTML=`
-          <td>${idx+1}</td>
-          <td>${escapeHtml(it.d)}</td>
-          <td>${it.q}</td>
+        tr.innerHTML=\`
+          <td>\${idx+1}</td>
+          <td>\${escapeHtml(it.d)}</td>
+          <td>\${it.q}</td>
           <td class="noprint">
-            <button class="btn sm ghost" data-del="${idx}">Elimina</button>
-          </td>`;
+            <button class="btn sm ghost" data-del="\${idx}">Elimina</button>
+          </td>\`;
         tb.appendChild(tr);
       });
       tb.querySelectorAll('button[data-del]').forEach(b=>{
@@ -1302,7 +1339,7 @@ def unpack_to_pretty(s: str) -> str:
       let packed;
       try{
         packed = await pyodide.runPythonAsync(
-          `pack_json_str(${JSON.stringify(canon)})`
+          \`pack_json_str(\${JSON.stringify(canon)})\`
         );
       }catch(e){
         alert("Errore pack Python: "+e);
@@ -1318,7 +1355,7 @@ def unpack_to_pretty(s: str) -> str:
       box.appendChild(currentQRCanvas);
 
       document.getElementById('encInfo').textContent =
-        `ECC=H. Quiet zone ${border} moduli.`;
+        \`ECC=H. Quiet zone \${border} moduli.\`;
 
       btnDownloadPNG.disabled=false;
       btnPrint.disabled=false;
@@ -1386,7 +1423,7 @@ def unpack_to_pretty(s: str) -> str:
       return c;
     }
 
-    // === PDF (omesso: identico alla tua versione, tranne fix minori dove servono) ===
+    // === PDF con bordi esterni arrotondati, tabella materiali più stretta e vicina ===
     function ensureRientroStore(){
       if(!state.l){ state.l=[]; }
       state.l = state.l.map(it=>({
@@ -1416,16 +1453,19 @@ def unpack_to_pretty(s: str) -> str:
       ensureRientroStore();
       syncMeta();
 
+      // calcolo rientro
       let incompleto = false;
       state.l.forEach(it=>{
         if ((it.r||0) < it.q) incompleto=true;
       });
 
+      // costanti pagina
       const marginL = 15;
       const marginT = 20;
       const pageW   = 297;
       const pageH   = 210;
 
+      // footer helper
       function addFooter(d){
         d.setFont("helvetica","normal");
         d.setFontSize(10);
@@ -1437,6 +1477,10 @@ def unpack_to_pretty(s: str) -> str:
         d.text(footerText, x, y);
         d.setTextColor(0,0,0);
       }
+
+      // HEADER STATO RIENTRO (solo se rientro) + BORDO PAGINA
+      doc.setDrawColor(60,60,60); doc.setLineWidth(0.6);
+      doc.roundedRect(7,7, pageW-14, pageH-14, 5,5, "S");
 
       let curY = marginT;
       if (mode === "rientro"){
@@ -1455,6 +1499,7 @@ def unpack_to_pretty(s: str) -> str:
         curY += 14;
       }
 
+      // === TABELLA DATI BAULE con bordi esterni arrotondati ===
       doc.setFont("helvetica","normal");
       doc.setFontSize(12);
 
@@ -1466,45 +1511,56 @@ def unpack_to_pretty(s: str) -> str:
       const radius = 2.0;
 
       const rowsMeta = [
-        ["Operatore:", operatorName || ""],
+        ["Evento:",     state.e || ""],
+        ["Operatore:",  operatorName || ""],
         ["Produzione:", state.p || ""],
-        ["Posizione:", state.pos || ""],
-        ["ID Baule:", state.b || ""],
-        ["Note:", state.note || ""],
-        ["Stampato:", nowStamp()]
+        ["Posizione:",  state.pos || ""],
+        ["ID Baule:",   state.b || ""],
+        ["Note:",       state.note || ""],
+        ["Stampato:",   nowStamp()]
       ];
       const metaTableW = labelW + valueW;
       const metaTableH = rowsMeta.length * rowH;
 
+      // bordo esterno arrotondato
       doc.setDrawColor(150);
       doc.setLineWidth(0.2);
       doc.roundedRect(tableX, tableY, metaTableW, metaTableH, radius, radius, "S");
 
+      // linee interne orizzontali
       for(let i=1;i<rowsMeta.length;i++){
         const y = tableY + i*rowH;
         doc.line(tableX, y, tableX+metaTableW, y);
       }
+      // linea interna verticale (fra label e value)
       doc.line(tableX+labelW, tableY, tableX+labelW, tableY+metaTableH);
 
+      // testo celle
       rowsMeta.forEach((row,i)=>{
         const yTextBase = tableY + i*rowH + (rowH-2);
         doc.text(row[0], tableX+2, yTextBase);
+
+        // campo valore multilinea se serve
         const vLines = doc.splitTextToSize(row[1], valueW-4);
         doc.text(vLines, tableX+labelW+2, yTextBase);
       });
 
+      // === QR GIGANTE in alto a destra con bordo colorato ===
       const qrSizeMm = 80;
       const qrX = pageW - qrSizeMm - 20;
       const qrY = marginT;
 
+      // Canonical JSON con rientro
       const canon = canonicalJSON(state,true);
 
+      // generiamo QR packato e poi continuiamo il rendering
       pyodide.runPythonAsync(
-        `pack_json_str(${JSON.stringify(canon)})`
+        \`pack_json_str(\${JSON.stringify(canon)})\`
       ).then(qp=>{
         const qrCanvas = makeQrCanvas(qp, 4);
         const qrDataURL = qrCanvas.toDataURL("image/png");
 
+        // bordo colorato SOLO esterno attorno al QR
         const rgb = colorFromIndex(state.c || 0);
         doc.setDrawColor(rgb[0], rgb[1], rgb[2]);
         doc.setLineWidth(3);
@@ -1517,10 +1573,12 @@ def unpack_to_pretty(s: str) -> str:
           3,3,"S"
         );
 
+        // immagine QR
         doc.addImage(qrDataURL, "PNG", qrX, qrY, qrSizeMm, qrSizeMm);
 
-        const maxRightBeforeQR = qrX - 10;
-        const matStartY = tableY + metaTableH + 8;
+        // === TABELLA MATERIALI, stretta e vicina alla tabella meta ===
+        const maxRightBeforeQR = qrX - 10; // non invadere l'area QR
+        const matStartY = tableY + metaTableH + 8; // subito sotto la tabella meta
 
         drawMaterialsTable(doc, {
           startY: matStartY,
@@ -1533,12 +1591,16 @@ def unpack_to_pretty(s: str) -> str:
           addFooterFn: addFooter
         });
 
+        // footer finale sulla pagina corrente + nome file
         addFooter(doc);
-
-        const baseName =
-          slugify(state.p || state.e || "Evento") + "_" +
-          slugify(state.b || "Baule") +
-          (mode==="rientro" ? "_RIENTRO" : "");
+        const ts = nowStamp().replace(":","-").replace(":","-").replace(" ","_");
+        const baseName = [
+          slugify(state.e || "Evento"),
+          slugify(state.b || "Baule"),
+          ts,
+          slugify(operatorName || "Operatore"),
+          (mode==="rientro"?"RIENTRO":null)
+        ].filter(Boolean).join("_");
 
         if(action === "download"){
           doc.save(baseName + ".pdf");
@@ -1548,9 +1610,11 @@ def unpack_to_pretty(s: str) -> str:
         }
       });
 
+      // === Funzione tabella materiali con bordo esterno arrotondato ===
       function drawMaterialsTable(doc, cfg){
         let yCursor = cfg.startY;
 
+        // titolo sezione
         doc.setFont("helvetica","bold");
         doc.setFontSize(16);
         if (cfg.mode === "rientro"){
@@ -1560,6 +1624,7 @@ def unpack_to_pretty(s: str) -> str:
         }
         yCursor += 8;
 
+        // colonne strette per stare prima del QR
         const colDescW      = (cfg.mode==="rientro") ? 110 : 120;
         const colPrevW      = 18;
         const colRientroW   = 22;
@@ -1575,7 +1640,7 @@ def unpack_to_pretty(s: str) -> str:
           colWidths = [colDescW, colPrevW];
         }
 
-        const tableW = colWidths.reduce((a,b)=>a+b,0);
+        let tableW = colWidths.reduce((a,b)=>a+b,0);
 
         if (cfg.leftX + tableW > cfg.maxRight){
           const overflow = (cfg.leftX + tableW) - cfg.maxRight;
@@ -1590,7 +1655,6 @@ def unpack_to_pretty(s: str) -> str:
 
         function buildRowObjects(){
           const rowsOut=[];
-
           rowsOut.push({
             type:"header",
             cells: headers,
@@ -1611,17 +1675,9 @@ def unpack_to_pretty(s: str) -> str:
 
             let cells;
             if (cfg.mode === "rientro"){
-              cells = [
-                descLines,
-                String(prev),
-                String(rin),
-                String(manc)
-              ];
+              cells = [ descLines, String(prev), String(rin), String(manc) ];
             } else {
-              cells = [
-                descLines,
-                String(prev)
-              ];
+              cells = [ descLines, String(prev) ];
             }
 
             rowsOut.push({
@@ -1673,12 +1729,7 @@ def unpack_to_pretty(s: str) -> str:
           let xCursor = cfg.leftX;
           for(let c=0;c<colWidths.length-1;c++){
             xCursor += colWidths[c];
-            doc.line(
-              xCursor,
-              yTopTable,
-              xCursor,
-              yTopTable+totalH
-            );
+            doc.line(xCursor, yTopTable, xCursor, yTopTable+totalH);
           }
 
           let drawY = yTopTable;
@@ -1696,6 +1747,7 @@ def unpack_to_pretty(s: str) -> str:
             let cellX = cfg.leftX;
             for(let c=0;c<colWidths.length;c++){
               const cellW = colWidths[c];
+
               const cellVal = row.cells[c];
               if (Array.isArray(cellVal)){
                 let textY = drawY + 6;
@@ -1706,18 +1758,14 @@ def unpack_to_pretty(s: str) -> str:
               } else {
                 doc.text(String(cellVal||""), cellX+2, drawY+6);
               }
+
               cellX += cellW;
             }
 
             const rowH = row.h;
             drawY += rowH;
             if(r < rowsThisPage.length-1){
-              doc.line(
-                cfg.leftX,
-                drawY,
-                cfg.leftX+finalTableW,
-                drawY
-              );
+              doc.line(cfg.leftX, drawY, cfg.leftX+finalTableW, drawY);
             }
           }
 
@@ -1770,7 +1818,7 @@ def unpack_to_pretty(s: str) -> str:
           const text = await decodeFromPDF(f);
           await handleDecodedText(text);
         }catch(e){
-          decStatus.innerHTML=`<span class="err">${e}</span>`;
+          decStatus.innerHTML=\`<span class="err">\${e}</span>\`;
         }
       } else {
         const url=URL.createObjectURL(f);
@@ -1782,7 +1830,7 @@ def unpack_to_pretty(s: str) -> str:
           await handleDecodedText(text);
         }catch(e){
           URL.revokeObjectURL(url);
-          decStatus.innerHTML=`<span class="err">${e}</span>`;
+          decStatus.innerHTML=\`<span class="err">\${e}</span>\`;
         }
       }
     });
@@ -1801,7 +1849,7 @@ def unpack_to_pretty(s: str) -> str:
         await handleDecodedText(text);
       }catch(e){
         URL.revokeObjectURL(url);
-        decStatus.innerHTML=`<span class="err">${e}</span>`;
+        decStatus.innerHTML=\`<span class="err">\${e}</span>\`;
       }
     });
 
@@ -1822,30 +1870,23 @@ def unpack_to_pretty(s: str) -> str:
       toggleTorch();
     };
 
-    // ------- PATCH start/stop camera -------
     async function startCameraOverlay(){
       camOverlay.style.display='flex';
       camStatusEl.textContent="Apertura camera…";
       torchEnabled=false;
 
       try{
-        // primo tentativo: camera posteriore "exact"
         camStream = await navigator.mediaDevices.getUserMedia({
           video:{
             facingMode:{ exact:'environment' },
-            width:{ ideal:1280 },
-            height:{ ideal:720 },
+            width:{ ideal:1280 }, height:{ ideal:720 },
             aspectRatio:{ ideal: window.innerWidth / window.innerHeight }
           },
           audio:false
         });
       }catch(e){
-        // fallback: qualunque posteriore disponibile
         try{
-          camStream = await navigator.mediaDevices.getUserMedia({
-            video:{ facingMode:'environment' },
-            audio:false
-          });
+          camStream = await navigator.mediaDevices.getUserMedia({ video:{ facingMode:'environment' }, audio:false });
         }catch(e2){
           camStatusEl.textContent="Webcam non disponibile.";
           return;
@@ -1853,20 +1894,21 @@ def unpack_to_pretty(s: str) -> str:
       }
 
       camVideo.srcObject = camStream;
-
-      // avvio esplicito per Safari/iOS
-      try { await camVideo.play(); } catch {}
-
       camTrack = camStream.getVideoTracks()[0] || null;
       camScanning = true;
 
       let torchCapable=false;
       if (camTrack && camTrack.getCapabilities) {
         const caps = camTrack.getCapabilities();
-        torchCapable = !!caps.torch;
+        if (caps.torch){
+          torchCapable=true;
+        }
       }
-      toggleFlashBtn.disabled = !torchCapable;
-      toggleFlashBtn.classList.toggle('hidden', !torchCapable);
+      if (torchCapable){
+        toggleFlashBtn.classList.remove('hidden');
+      }else{
+        toggleFlashBtn.classList.add('hidden');
+      }
 
       camStatusEl.textContent="Inquadra il QR…";
       tickLiveScan();
@@ -1883,7 +1925,6 @@ def unpack_to_pretty(s: str) -> str:
       camStatusEl.textContent = msg || "";
       torchEnabled=false;
     }
-    // ------- FINE PATCH -------
 
     async function toggleTorch(){
       if(!camTrack || !camTrack.applyConstraints) return;
@@ -1922,7 +1963,7 @@ def unpack_to_pretty(s: str) -> str:
 
     async function handleDecodedText(text){
       if(!text){
-        decStatus.innerHTML=`<span class="warn">Nessun QR leggibile.</span>`;
+        decStatus.innerHTML=\`<span class="warn">Nessun QR leggibile.</span>\`;
         rawOut.textContent="";
         jsonDecoded.value="";
         btnSetCurrent.disabled=true;
@@ -1932,7 +1973,7 @@ def unpack_to_pretty(s: str) -> str:
       rawOut.textContent=text;
       try{
         const pretty=await pyodide.runPythonAsync(
-          `unpack_to_pretty(${JSON.stringify(text)})`
+          \`unpack_to_pretty(\${JSON.stringify(text)})\`
         );
         jsonDecoded.value=pretty;
         decodedObj=JSON.parse(pretty);
@@ -1947,13 +1988,13 @@ def unpack_to_pretty(s: str) -> str:
         if(decodedObj.note===undefined)decodedObj.note="";
         if(decodedObj.c===undefined)   decodedObj.c=0;
 
-        decStatus.innerHTML=`<span class="ok">QRJ1 decodificato.</span>`;
+        decStatus.innerHTML=\`<span class="ok">QRJ1 decodificato.</span>\`;
         btnSetCurrent.disabled=false;
         btnCompare.disabled=false;
       }catch{
         jsonDecoded.value="";
         decodedObj=null;
-        decStatus.innerHTML=`<span class="warn">QR letto ma non QRJ1.</span>`;
+        decStatus.innerHTML=\`<span class="warn">QR letto ma non QRJ1.</span>\`;
         btnSetCurrent.disabled=true;
         btnCompare.disabled=true;
       }
@@ -1993,7 +2034,7 @@ def unpack_to_pretty(s: str) -> str:
           ? '<span class="ok">La lista coincide.</span>'
           : '<span class="warn">Le liste sono diverse.</span>';
       }catch(e){
-        cmpResult.innerHTML=`<span class="err">${e}</span>`;
+        cmpResult.innerHTML=\`<span class="err">\${e}</span>\`;
       }
     };
 
@@ -2011,17 +2052,17 @@ def unpack_to_pretty(s: str) -> str:
         const manca=Math.max(0, it.q - r);
 
         const tr=document.createElement('tr');
-        tr.innerHTML=`
-          <td>${idx+1}</td>
-          <td>${escapeHtml(it.d)}</td>
-          <td>${it.q}</td>
+        tr.innerHTML=\`
+          <td>\${idx+1}</td>
+          <td>\${escapeHtml(it.d)}</td>
+          <td>\${it.q}</td>
           <td class="rCtrl">
-            <button class="qtyBtn minus" data-act="dec" data-i="${idx}">−</button>
-            <input class="rQtyInputBig" type="number" min="0" max="${it.q}" value="${r}" data-i="${idx}">
-            <button class="qtyBtn plus" data-act="inc" data-i="${idx}">+</button>
+            <button class="qtyBtn minus" data-act="dec" data-i="\${idx}">−</button>
+            <input class="rQtyInputBig" type="number" min="0" max="\${it.q}" value="\${r}" data-i="\${idx}">
+            <button class="qtyBtn plus" data-act="inc" data-i="\${idx}">+</button>
           </td>
-          <td>${manca}</td>
-        `;
+          <td>\${manca}</td>
+        \`;
         tb.appendChild(tr);
       });
 
@@ -2057,7 +2098,7 @@ def unpack_to_pretty(s: str) -> str:
         });
       });
 
-      document.getElementById('rInfo').textContent=`Totale previsti: ${totPrev}`;
+      document.getElementById('rInfo').textContent=\`Totale previsti: \${totPrev}\`;
       updateProgress();
     }
 
@@ -2072,7 +2113,7 @@ def unpack_to_pretty(s: str) -> str:
       const bar=document.getElementById('rBar');
       bar.style.width = pct+'%';
       document.getElementById('rPct').textContent =
-        `${pct}% • ${totR}/${totPrev}`;
+        \`\${pct}% • \${totR}/\${totPrev}\`;
     }
 
     document.getElementById('rReset').onclick=()=>{
