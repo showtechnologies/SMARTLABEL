@@ -269,7 +269,6 @@
       line-height:1.4;
     }
 
-    /* Manteniamo questa regola generale */
     video,
     canvas{
       max-width:100%;
@@ -501,6 +500,21 @@
       display:none;
     }
     /* --------- FINE PATCH WEBCAM ----------- */
+
+    /* ----------- LOGIN OVERLAY (PATCH) ----------- */
+    #loginOverlay{
+      position:fixed !important;
+      inset:0;
+      height:calc(var(--vh, 1vh) * 100);
+      background:rgba(0,0,0,.8);
+      color:#fff;
+      z-index:4000;           /* sopra a cameraOverlay */
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:24px;
+    }
+    /* --------- FINE LOGIN OVERLAY ----------- */
   </style>
 </head>
 <body>
@@ -889,6 +903,9 @@
     function showLoginOverlay(show){
       const ov=document.getElementById('loginOverlay');
       ov.style.display = show ? 'flex':'none';
+      // blocca lo scroll quando il login è visibile
+      document.documentElement.style.overflow = show ? 'hidden' : '';
+      document.body.style.overflow = show ? 'hidden' : '';
     }
 
     function loadOperatorName(){
@@ -1369,7 +1386,7 @@ def unpack_to_pretty(s: str) -> str:
       return c;
     }
 
-    // === PDF con bordi esterni arrotondati, tabella materiali più stretta e vicina ===
+    // === PDF (omesso: identico alla tua versione, tranne fix minori dove servono) ===
     function ensureRientroStore(){
       if(!state.l){ state.l=[]; }
       state.l = state.l.map(it=>({
@@ -1399,19 +1416,16 @@ def unpack_to_pretty(s: str) -> str:
       ensureRientroStore();
       syncMeta();
 
-      // calcolo rientro
       let incompleto = false;
       state.l.forEach(it=>{
         if ((it.r||0) < it.q) incompleto=true;
       });
 
-      // costanti pagina
       const marginL = 15;
       const marginT = 20;
       const pageW   = 297;
       const pageH   = 210;
 
-      // footer helper
       function addFooter(d){
         d.setFont("helvetica","normal");
         d.setFontSize(10);
@@ -1424,7 +1438,6 @@ def unpack_to_pretty(s: str) -> str:
         d.setTextColor(0,0,0);
       }
 
-      // HEADER STATO RIENTRO (solo se rientro)
       let curY = marginT;
       if (mode === "rientro"){
         if (incompleto){
@@ -1442,7 +1455,6 @@ def unpack_to_pretty(s: str) -> str:
         curY += 14;
       }
 
-      // === TABELLA DATI BAULE con bordi esterni arrotondati ===
       doc.setFont("helvetica","normal");
       doc.setFontSize(12);
 
@@ -1464,45 +1476,35 @@ def unpack_to_pretty(s: str) -> str:
       const metaTableW = labelW + valueW;
       const metaTableH = rowsMeta.length * rowH;
 
-      // bordo esterno arrotondato
       doc.setDrawColor(150);
       doc.setLineWidth(0.2);
       doc.roundedRect(tableX, tableY, metaTableW, metaTableH, radius, radius, "S");
 
-      // linee interne orizzontali
       for(let i=1;i<rowsMeta.length;i++){
         const y = tableY + i*rowH;
         doc.line(tableX, y, tableX+metaTableW, y);
       }
-      // linea interna verticale (fra label e value)
       doc.line(tableX+labelW, tableY, tableX+labelW, tableY+metaTableH);
 
-      // testo celle
       rowsMeta.forEach((row,i)=>{
         const yTextBase = tableY + i*rowH + (rowH-2);
         doc.text(row[0], tableX+2, yTextBase);
-
-        // campo valore multilinea se serve
         const vLines = doc.splitTextToSize(row[1], valueW-4);
         doc.text(vLines, tableX+labelW+2, yTextBase);
       });
 
-      // === QR GIGANTE in alto a destra con bordo colorato ===
       const qrSizeMm = 80;
       const qrX = pageW - qrSizeMm - 20;
       const qrY = marginT;
 
-      // Canonical JSON con rientro
       const canon = canonicalJSON(state,true);
 
-      // generiamo QR packato e poi continuiamo il rendering
       pyodide.runPythonAsync(
         `pack_json_str(${JSON.stringify(canon)})`
       ).then(qp=>{
         const qrCanvas = makeQrCanvas(qp, 4);
         const qrDataURL = qrCanvas.toDataURL("image/png");
 
-        // bordo colorato SOLO esterno attorno al QR
         const rgb = colorFromIndex(state.c || 0);
         doc.setDrawColor(rgb[0], rgb[1], rgb[2]);
         doc.setLineWidth(3);
@@ -1515,12 +1517,10 @@ def unpack_to_pretty(s: str) -> str:
           3,3,"S"
         );
 
-        // immagine QR
         doc.addImage(qrDataURL, "PNG", qrX, qrY, qrSizeMm, qrSizeMm);
 
-        // === TABELLA MATERIALI
-        const maxRightBeforeQR = qrX - 10; // non invadere l'area QR
-        const matStartY = tableY + metaTableH + 8; // subito sotto la tabella meta
+        const maxRightBeforeQR = qrX - 10;
+        const matStartY = tableY + metaTableH + 8;
 
         drawMaterialsTable(doc, {
           startY: matStartY,
@@ -1533,7 +1533,6 @@ def unpack_to_pretty(s: str) -> str:
           addFooterFn: addFooter
         });
 
-        // footer finale
         addFooter(doc);
 
         const baseName =
@@ -1823,7 +1822,7 @@ def unpack_to_pretty(s: str) -> str:
       toggleTorch();
     };
 
-    // ------- PATCH start/stop camera (solo questa sezione è stata modificata) -------
+    // ------- PATCH start/stop camera -------
     async function startCameraOverlay(){
       camOverlay.style.display='flex';
       camStatusEl.textContent="Apertura camera…";
@@ -1945,7 +1944,6 @@ def unpack_to_pretty(s: str) -> str:
         }));
         if(decodedObj.p===undefined)   decodedObj.p="";
         if(decodedObj.pos===undefined) decodedObj.pos="";
-        ifdecodedObj_note_fix:
         if(decodedObj.note===undefined)decodedObj.note="";
         if(decodedObj.c===undefined)   decodedObj.c=0;
 
@@ -2027,7 +2025,6 @@ def unpack_to_pretty(s: str) -> str:
         tb.appendChild(tr);
       });
 
-      // pulsanti +/-
       tb.querySelectorAll('.qtyBtn').forEach(btn=>{
         btn.addEventListener('click', ()=>{
           const i = parseInt(btn.dataset.i,10);
@@ -2045,7 +2042,6 @@ def unpack_to_pretty(s: str) -> str:
         });
       });
 
-      // input diretto
       tb.querySelectorAll('.rQtyInputBig').forEach(inp=>{
         inp.addEventListener('input', ()=>{
           const i = parseInt(inp.dataset.i,10);
