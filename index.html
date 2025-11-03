@@ -8,6 +8,8 @@
     :root{
       --gap:14px;--muted:#6b7280;--b:#e5e7eb;--ok:#10b981;--warn:#f59e0b;--err:#ef4444;
       --bg:#0b0f14;--card:#0f141b;--text:#e5e7eb;--accent:#4f46e5;
+      /* usata per altezza iOS 100vh corretta */
+      --vh: 1vh;
     }
 
     *{box-sizing:border-box}
@@ -267,6 +269,7 @@
       line-height:1.4;
     }
 
+    /* Manteniamo questa regola generale */
     video,
     canvas{
       max-width:100%;
@@ -433,60 +436,16 @@
       padding:10px;
     }
 
-    #loginOverlay{
-      position:fixed;
-      inset:0;
-      background:rgba(0,0,0,.8);
-      color:#fff;
-      z-index:2000;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      padding:24px;
-    }
-    #loginCard{
-      background:#0f141b;
-      border:1px solid #1b2230;
-      border-radius:16px;
-      max-width:360px;
-      width:100%;
-      padding:20px 16px 16px;
-      box-shadow:0 30px 80px rgba(0,0,0,.8);
-    }
-    #loginCard h2{
-      margin:0 0 4px;
-      font-size:18px;
-      line-height:1.3;
-      color:var(--text);
-      font-weight:600;
-      text-align:center;
-    }
-    #loginCard p{
-      margin:0 0 16px;
-      font-size:13px;
-      line-height:1.4;
-      color:#9aa6b2;
-      text-align:center;
-    }
-    #loginCard .row{
-      flex-wrap:nowrap;
-      align-items:flex-start;
-    }
-    #loginNameInput{
-      flex:1 1 auto;
-    }
-    #loginBtn{
-      flex:0 0 auto;
-    }
-
+    /* ----------- WEBCAM (PATCH) ----------- */
     #cameraOverlay{
       position:fixed;
       inset:0;
       background:#000;
       color:#fff;
       z-index:3000;
-      display:none;
+      display:none;             /* diventa flex in startCameraOverlay */
       flex-direction:column;
+      height:calc(var(--vh, 1vh) * 100); /* iOS vh reale */
     }
 
     #cameraHeader{
@@ -520,23 +479,28 @@
     }
 
     #cameraVideoWrap{
-      flex:1;
+      flex:1;                 /* occupa tutto lo spazio sotto l’header */
       min-height:0;
       position:relative;
-      display:flex;
-      align-items:center;
-      justify-content:center;
+      overflow:hidden;
       background:#000;
+      display:block;
     }
+
     #cameraVideo{
-      max-width:100%;
-      max-height:100%;
+      position:absolute;
+      inset:0;
+      width:100%;
+      height:100%;
+      object-fit:cover;       /* full-bleed stabile; usa 'contain' se preferisci vedere tutto */
       background:#000;
-      border-radius:12px;
+      border-radius:0;
     }
+
     #cameraCanvas{
       display:none;
     }
+    /* --------- FINE PATCH WEBCAM ----------- */
   </style>
 </head>
 <body>
@@ -951,6 +915,15 @@
         tag.classList.add('hidden');
       }
     }
+
+    // ------- PATCH iOS 100vh reale -------
+    function setVH(){
+      document.documentElement.style.setProperty('--vh', (window.innerHeight * 0.01) + 'px');
+    }
+    window.addEventListener('resize', setVH);
+    window.addEventListener('orientationchange', setVH);
+    setVH();
+    // -------------------------------------
 
     // BOOT
     ;(async()=>{
@@ -1545,9 +1518,7 @@ def unpack_to_pretty(s: str) -> str:
         // immagine QR
         doc.addImage(qrDataURL, "PNG", qrX, qrY, qrSizeMm, qrSizeMm);
 
-        // === TABELLA MATERIALI, stretta e vicina alla tabella meta ===
-        // vogliamo avvicinarla subito sotto i dati, SENZA aspettare che finisca il QR.
-        // limite larghezza = vicino al QR (un po' di margine)
+        // === TABELLA MATERIALI
         const maxRightBeforeQR = qrX - 10; // non invadere l'area QR
         const matStartY = tableY + metaTableH + 8; // subito sotto la tabella meta
 
@@ -1562,7 +1533,7 @@ def unpack_to_pretty(s: str) -> str:
           addFooterFn: addFooter
         });
 
-        // footer finale sulla pagina corrente
+        // footer finale
         addFooter(doc);
 
         const baseName =
@@ -1578,11 +1549,9 @@ def unpack_to_pretty(s: str) -> str:
         }
       });
 
-      // === Funzione tabella materiali con bordo esterno arrotondato ===
       function drawMaterialsTable(doc, cfg){
         let yCursor = cfg.startY;
 
-        // titolo sezione (senza parentesi)
         doc.setFont("helvetica","bold");
         doc.setFontSize(16);
         if (cfg.mode === "rientro"){
@@ -1592,8 +1561,6 @@ def unpack_to_pretty(s: str) -> str:
         }
         yCursor += 8;
 
-        // colonne: tabella più stretta per stare prima del QR
-        // riduciamo la descrizione per recuperare larghezza
         const colDescW      = (cfg.mode==="rientro") ? 110 : 120;
         const colPrevW      = 18;
         const colRientroW   = 22;
@@ -1611,25 +1578,20 @@ def unpack_to_pretty(s: str) -> str:
 
         const tableW = colWidths.reduce((a,b)=>a+b,0);
 
-        // Se la tabella sforasse l'area concessa prima del QR, la stringiamo ancora un filo
         if (cfg.leftX + tableW > cfg.maxRight){
-          // riduciamo solo la descrizione per stare dentro
           const overflow = (cfg.leftX + tableW) - cfg.maxRight;
           colWidths[0] = colWidths[0] - overflow - 2;
         }
 
-        // Ora ricalcoliamo la larghezza finale tabella
         const finalTableW = colWidths.reduce((a,b)=>a+b,0);
 
-        // Costruiamo tutte le righe (header + materiali) per calcolare altezze e gestire page break
-        const headH = 9;     // altezza header
-        const baseLineH = 8; // altezza minima riga materiale
+        const headH = 9;
+        const baseLineH = 8;
         const textLineStep = 6;
 
         function buildRowObjects(){
           const rowsOut=[];
 
-          // header row (bold)
           rowsOut.push({
             type:"header",
             cells: headers,
@@ -1637,16 +1599,13 @@ def unpack_to_pretty(s: str) -> str:
             descLines: null
           });
 
-          // data rows
           state.l.forEach(it=>{
             const prev = it.q;
             const rin  = it.r || 0;
             const manc = Math.max(0, prev - rin);
 
             const descCell = it.d || "";
-            // split su descrizione
             const descLines = doc.splitTextToSize(descCell, colWidths[0]-4);
-            // calcolo altezza riga dinamica
             let rowH = baseLineH;
             const dynH = 4 + (descLines.length * textLineStep);
             if (dynH > rowH) rowH = dynH;
@@ -1654,7 +1613,7 @@ def unpack_to_pretty(s: str) -> str:
             let cells;
             if (cfg.mode === "rientro"){
               cells = [
-                descLines,            // multiline
+                descLines,
                 String(prev),
                 String(rin),
                 String(manc)
@@ -1679,14 +1638,10 @@ def unpack_to_pretty(s: str) -> str:
 
         const allRows = buildRowObjects();
 
-        // Funzione che disegna UNA PAGINA di tabella a partire da rowIndex,
-        // e ritorna il prossimo rowIndex non disegnato + nuova yCursor.
         function drawTablePage(rowIndex, startY){
           let yTopTable = startY;
           let curRow = rowIndex;
 
-          // Calcoliamo l'altezza totale che starà in questa pagina (fino a saturazione)
-          // ma dobbiamo spezzare quando va oltre pageH-20 circa (lasciamo spazio footer).
           let rowsThisPage = [];
           let totalH = 0;
           for(let i=curRow;i<allRows.length;i++){
@@ -1698,13 +1653,11 @@ def unpack_to_pretty(s: str) -> str:
             totalH += h;
           }
 
-          // Se non ci sta nemmeno la riga corrente (patologico), forziamo almeno una riga
           if(rowsThisPage.length===0 && curRow<allRows.length){
             rowsThisPage.push(allRows[curRow]);
             totalH += allRows[curRow].h;
           }
 
-          // disegna bordo esterno arrotondato SOLO per il blocco di queste righe
           const radiusOuter = 2.0;
           doc.setDrawColor(0,0,0);
           doc.setLineWidth(0.2);
@@ -1718,8 +1671,6 @@ def unpack_to_pretty(s: str) -> str:
             "S"
           );
 
-          // linee interne orizzontali + verticali
-          // verticali: colonne (tranne i bordi esterni)
           let xCursor = cfg.leftX;
           for(let c=0;c<colWidths.length-1;c++){
             xCursor += colWidths[c];
@@ -1731,12 +1682,10 @@ def unpack_to_pretty(s: str) -> str:
             );
           }
 
-          // adesso scriviamo riga per riga e tracciamo linee orizzontali interne
           let drawY = yTopTable;
           for(let r=0;r<rowsThisPage.length;r++){
             const row = rowsThisPage[r];
 
-            // testo
             if(row.type==="header"){
               doc.setFont("helvetica","bold");
               doc.setFontSize(14);
@@ -1748,24 +1697,19 @@ def unpack_to_pretty(s: str) -> str:
             let cellX = cfg.leftX;
             for(let c=0;c<colWidths.length;c++){
               const cellW = colWidths[c];
-
               const cellVal = row.cells[c];
               if (Array.isArray(cellVal)){
-                // multiline (descrizione)
                 let textY = drawY + 6;
                 cellVal.forEach(line=>{
                   doc.text(line, cellX+2, textY);
                   textY += textLineStep;
                 });
               } else {
-                // singola stringa
                 doc.text(String(cellVal||""), cellX+2, drawY+6);
               }
-
               cellX += cellW;
             }
 
-            // linea orizzontale interna (non dopo l'ultima riga della pagina)
             const rowH = row.h;
             drawY += rowH;
             if(r < rowsThisPage.length-1){
@@ -1778,14 +1722,12 @@ def unpack_to_pretty(s: str) -> str:
             }
           }
 
-          // ritorno info per eventuale pagina successiva
           return {
             nextRowIndex: curRow + rowsThisPage.length,
             nextY: drawY
           };
         }
 
-        // Ciclo pagine per la tabella materiali
         let rowIdx = 0;
         let localY = yCursor;
 
@@ -1795,12 +1737,9 @@ def unpack_to_pretty(s: str) -> str:
           localY = res.nextY;
 
           if(rowIdx < allRows.length){
-            // abbiamo ancora righe => nuova pagina
             cfg.addFooterFn(doc);
             doc.addPage("a4","landscape");
-            // su nuova pagina, reset top
             localY = cfg.marginT;
-            // ridisegniamo il titolo su nuova pagina
             doc.setFont("helvetica","bold");
             doc.setFontSize(16);
             if (cfg.mode === "rientro"){
@@ -1884,41 +1823,51 @@ def unpack_to_pretty(s: str) -> str:
       toggleTorch();
     };
 
+    // ------- PATCH start/stop camera (solo questa sezione è stata modificata) -------
     async function startCameraOverlay(){
       camOverlay.style.display='flex';
       camStatusEl.textContent="Apertura camera…";
       torchEnabled=false;
 
       try{
+        // primo tentativo: camera posteriore "exact"
         camStream = await navigator.mediaDevices.getUserMedia({
           video:{
-            facingMode:'environment',
-            width:{ideal:1280},
-            height:{ideal:720}
+            facingMode:{ exact:'environment' },
+            width:{ ideal:1280 },
+            height:{ ideal:720 },
+            aspectRatio:{ ideal: window.innerWidth / window.innerHeight }
           },
           audio:false
         });
       }catch(e){
-        camStatusEl.textContent="Webcam non disponibile.";
-        return;
+        // fallback: qualunque posteriore disponibile
+        try{
+          camStream = await navigator.mediaDevices.getUserMedia({
+            video:{ facingMode:'environment' },
+            audio:false
+          });
+        }catch(e2){
+          camStatusEl.textContent="Webcam non disponibile.";
+          return;
+        }
       }
 
       camVideo.srcObject = camStream;
+
+      // avvio esplicito per Safari/iOS
+      try { await camVideo.play(); } catch {}
+
       camTrack = camStream.getVideoTracks()[0] || null;
       camScanning = true;
 
       let torchCapable=false;
       if (camTrack && camTrack.getCapabilities) {
         const caps = camTrack.getCapabilities();
-        if (caps.torch){
-          torchCapable=true;
-        }
+        torchCapable = !!caps.torch;
       }
-      if (torchCapable){
-        toggleFlashBtn.classList.remove('hidden');
-      }else{
-        toggleFlashBtn.classList.add('hidden');
-      }
+      toggleFlashBtn.disabled = !torchCapable;
+      toggleFlashBtn.classList.toggle('hidden', !torchCapable);
 
       camStatusEl.textContent="Inquadra il QR…";
       tickLiveScan();
@@ -1935,6 +1884,7 @@ def unpack_to_pretty(s: str) -> str:
       camStatusEl.textContent = msg || "";
       torchEnabled=false;
     }
+    // ------- FINE PATCH -------
 
     async function toggleTorch(){
       if(!camTrack || !camTrack.applyConstraints) return;
@@ -1995,6 +1945,7 @@ def unpack_to_pretty(s: str) -> str:
         }));
         if(decodedObj.p===undefined)   decodedObj.p="";
         if(decodedObj.pos===undefined) decodedObj.pos="";
+        ifdecodedObj_note_fix:
         if(decodedObj.note===undefined)decodedObj.note="";
         if(decodedObj.c===undefined)   decodedObj.c=0;
 
