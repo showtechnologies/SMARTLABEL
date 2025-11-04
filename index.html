@@ -2413,17 +2413,28 @@ const maxRightBeforeQR = qrX - 10;
     let lastPayloadText="";
   </script>
 
+
 <script>
 // --- Robust global login handler (fallback + Enter key) ---
 (function(){
   function _byId(id){ return document.getElementById(id); }
   function _hideOverlay(){
     var ov=_byId('loginOverlay');
-    if(ov){ ov.style.display='none'; }
+    if(ov){
+      ov.style.display='none';
+      try{ ov.classList.remove('active'); }catch(_){}
+    }
     document.documentElement.style.overflow='';
     document.body.style.overflow='';
   }
   function _updateTag(name){
+    try{
+      if (typeof updateOperatorLabel === 'function') {
+        // use app's own label updater if available
+        updateOperatorLabel();
+        return;
+      }
+    }catch(_){}
     var tag=_byId('opNameTag');
     if(tag){
       if(name){
@@ -2445,7 +2456,13 @@ const maxRightBeforeQR = qrX - 10;
         return false;
       }
       try{ localStorage.setItem('qrj1_operator', name); }catch(e){}
-      if(typeof operatorName!=='undefined'){ operatorName = name; }
+      try{ window.operatorName = name; }catch(_){}
+
+      // Call app initializers to ensure all buttons/UI are enabled and metadata is applied
+      try{ if (typeof applyMeta === 'function') applyMeta(); }catch(_){}
+      try{ if (typeof renderTables === 'function') renderTables(); }catch(_){}
+      try{ if (typeof unlockButtons === 'function') unlockButtons(); }catch(_){}
+
       _updateTag(name);
       _hideOverlay();
       return true;
@@ -2469,5 +2486,6 @@ const maxRightBeforeQR = qrX - 10;
   });
 })();
 </script>
+
 </body>
 </html>
