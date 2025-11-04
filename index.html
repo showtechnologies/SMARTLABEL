@@ -632,13 +632,6 @@
               <label>Note</label>
               <input id="noteField" placeholder="es. FOH / wedge spare">
             </div>
-<div class="row" style="margin-top:10px">
-  <div style="flex:1;min-width:140px">
-    <label>Nota diagonale (watermark)</label>
-    <input id="diagNote" placeholder="Testo grande diagonale trasparente">
-  </div>
-</div>
-
             <div style="flex:1;min-width:140px">
               <label>Colore etichetta</label>
               <select id="colorSel">
@@ -652,6 +645,13 @@
               </select>
             </div>
           </div>
+<div class="row" style="margin-top:10px">
+  <div style="flex:1;min-width:140px">
+    <label>Nota diagonale (watermark)</label>
+    <input id="diagNote" placeholder="Testo grande diagonale trasparente">
+  </div>
+</div>
+
 
           <div class="row" style="margin-top:10px">
             <button id="btnGenQR" class="btn">Genera QR / Aggiorna anteprima</button>
@@ -768,7 +768,7 @@
       <p>Metti il tuo nome. Verrà stampato sull'etichetta e sul PDF.<br>Rimane salvato in questo dispositivo.</p>
       <div class="row" style="gap:10px">
         <input id="loginNameInput" placeholder="Es. Luca R." autocomplete="name">
-        <button id="loginBtn" class="btn">Entra</button>
+        <button id="loginBtn" class="btn" onclick="_doLogin && _doLogin();">Entra</button>
       </div>
     </div>
   </div>
@@ -880,8 +880,8 @@
       pos:"",
       note:"",
       c:0,
-      l:[]
-      ,nd:""};
+       nd:\"\",
+      l:[]};
     let operatorName = loadOperatorName() || "";
 
     // LOGIN
@@ -1104,8 +1104,8 @@ def unpack_to_pretty(s: str) -> str:
         p: obj.p || "",
         pos: obj.pos || "",
         note: obj.note || "",
-        nd: obj.nd || "",
-        c: (typeof obj.c==="number"?obj.c:0),
+        nd: obj.nd || \"\",
+        c: (typeof obj.c===\"number\"?obj.c:0),
         l: (obj.l||[]).map(x=>({
           d:x.d,
           q:x.q,
@@ -1147,17 +1147,16 @@ def unpack_to_pretty(s: str) -> str:
     }
 
     function colorFromIndex(i){
-const palette = [
-    {name:"Rosso",    hex:"#DC2626", rgb:[220,38,38]},
-    {name:"Arancione",hex:"#F59E0B", rgb:[245,158,11]},
-    {name:"Giallo",   hex:"#FACC15", rgb:[250,204,21]},
-    {name:"Verde",    hex:"#10B981", rgb:[16,185,129]},
-    {name:"Blu",      hex:"#3B82F6", rgb:[59,130,246]},
-    {name:"Viola",    hex:"#8B5CF6", rgb:[139,92,246]},
-    {name:"Nessuno",  hex:"#FFFFFF", rgb:[255,255,255]}
-  ];
-  return palette[i] || palette[6];
-}
+      switch(i){
+        case 0: return [220,38,38];
+        case 1: return [245,158,11];
+        case 2: return [250,204,21];
+        case 3: return [16,185,129];
+        case 4: return [59,130,246];
+        case 5: return [139,92,246];
+        case 6: return [255,255,255];
+        default:return [255,255,255];
+      }
     }
 
     function slugify(s){
@@ -1192,8 +1191,7 @@ const palette = [
     const noteFieldEl  = document.getElementById('noteField');
     const colorSelEl   = document.getElementById('colorSel');
 
-    const diagNoteEl = document.getElementById('diagNote');
-boxIdEl.value     = state.b || "";
+    boxIdEl.value     = state.b || "";
     eventNameEl.value = state.e || "";
 
     function syncMeta(){
@@ -1205,7 +1203,7 @@ boxIdEl.value     = state.b || "";
       state.c = parseInt(colorSelEl.value||"0",10);
       state.t = state.t || today();
     
-  if (typeof diagNoteEl!=="undefined" && diagNoteEl) state.nd = (diagNoteEl.value||"").trim();
+  try{ state.nd = (document.getElementById("diagNote").value||"").trim(); }catch(e){}
 }
 
     function applyMeta(){
@@ -1216,7 +1214,7 @@ boxIdEl.value     = state.b || "";
       noteFieldEl.value = state.note || "";
       colorSelEl.value  = (typeof state.c==="number"?state.c:0);
     
-  if (typeof diagNoteEl!=="undefined" && diagNoteEl) diagNoteEl.value = state.nd || "";
+  try{ document.getElementById("diagNote").value = state.nd || ""; }catch(e){}
 }
 
     // LISTA HANDLERS
@@ -1334,17 +1332,26 @@ boxIdEl.value     = state.b || "";
       box.appendChild(currentQRCanvas);
 
       
-
 try{
   (function(){
     var el = document.getElementById('qrColorText');
-    var cf = colorFromIndex((state && typeof state.c==='number') ? state.c : 0);
-    if(el){
-      el.textContent = "BORDO QR: " + cf.name + " – " + cf.hex + " – RGB " + cf.rgb.join(" ");
-    }
+    if(!el) return;
+    var rgb = colorFromIndex((state && typeof state.c==='number') ? state.c : 0);
+    // derive simple HEX + name map without touching existing colorFromIndex
+    var palette = {
+      "220,38,38":   {name:"Rosso",    hex:"#DC2626"},
+      "245,158,11":  {name:"Arancione",hex:"#F59E0B"},
+      "250,204,21":  {name:"Giallo",   hex:"#FACC15"},
+      "16,185,129":  {name:"Verde",    hex:"#10B981"},
+      "59,130,246":  {name:"Blu",      hex:"#3B82F6"},
+      "139,92,246":  {name:"Viola",    hex:"#8B5CF6"},
+      "255,255,255": {name:"Nessuno",  hex:"#FFFFFF"}
+    };
+    var key = rgb.join(',');
+    var info = palette[key] || {name:"Custom", hex:"#FFFFFF"};
+    el.textContent = "BORDO QR: " + info.name + " – " + info.hex + " – RGB " + rgb.join(" ");
   })();
 }catch(e){}
-
 document.getElementById('encInfo').textContent =
         `ECC=H. Quiet zone ${border} moduli.`;
 
@@ -1464,6 +1471,19 @@ ensureRientroStore();
       const pageW   = 297;
       const pageH   = 210;
 
+      
+// === Page rounded border ===
+try{
+  var pageW2 = doc.internal.pageSize.getWidth();
+  var pageH2 = doc.internal.pageSize.getHeight();
+  var pagePadX = 8, pagePadY = 8;
+  doc.setDrawColor(120);
+  doc.setLineWidth(0.6);
+  doc.roundedRect(pagePadX, pagePadY, pageW2 - 2*pagePadX, pageH2 - 2*pagePadY, 6, 6, "S");
+  doc.setDrawColor(0,0,0);
+  doc.setLineWidth(LINE_W);
+}catch(e){}
+
 // === Diagonal watermark (nota diagonale) ===
 try{
   if(state && state.nd && String(state.nd).trim()){
@@ -1485,24 +1505,7 @@ try{
     doc.setFontSize(12);
   }
 }catch(e){}
-
-
-
-// === Page rounded border ===
-try{
-  var pageW = doc.internal.pageSize.getWidth();
-  var pageH = doc.internal.pageSize.getHeight();
-  var pagePadX = 8, pagePadY = 8;
-  doc.setDrawColor(120);
-  doc.setLineWidth(0.6);
-  doc.roundedRect(pagePadX, pagePadY, pageW - 2*pagePadX, pageH - 2*pagePadY, 6, 6, "S");
-  doc.setDrawColor(0,0,0);
-  doc.setLineWidth(LINE_W);
-}catch(e){}
-
-
-
-      function addFooter(d){
+function addFooter(d){
         d.setFont("helvetica","normal");
         d.setFontSize(10);
         d.setTextColor(100,100,100);
@@ -1595,19 +1598,28 @@ const qrSizeMm = 80;
         doc.addImage(qrDataURL, "PNG", qrX, qrY, qrSizeMm, qrSizeMm);
 
         
-
 // === QR border + color text ===
 try{
-  var cf = colorFromIndex((state && typeof state.c==='number') ? state.c : 0);
-  doc.setDrawColor(cf.rgb[0], cf.rgb[1], cf.rgb[2]);
+  var rgbc = colorFromIndex((state && typeof state.c==='number') ? state.c : 0);
+  doc.setDrawColor(rgbc[0], rgbc[1], rgbc[2]);
   doc.setLineWidth(3);
   var pad = 4;
   doc.roundedRect(qrX - pad/2, qrY - pad/2, qrSizeMm + pad, qrSizeMm + pad, 3, 3, "S");
-  // color text below QR
   doc.setFont("helvetica","bold");
   doc.setFontSize(11);
   doc.setTextColor(0,0,0);
-  var colorLine = "BORDO QR: " + cf.name + " – " + cf.hex + " – RGB " + cf.rgb.join(" ");
+  var pal = {
+    "220,38,38":   {name:"Rosso",    hex:"#DC2626"},
+    "245,158,11":  {name:"Arancione",hex:"#F59E0B"},
+    "250,204,21":  {name:"Giallo",   hex:"#FACC15"},
+    "16,185,129":  {name:"Verde",    hex:"#10B981"},
+    "59,130,246":  {name:"Blu",      hex:"#3B82F6"},
+    "139,92,246":  {name:"Viola",    hex:"#8B5CF6"},
+    "255,255,255": {name:"Nessuno",  hex:"#FFFFFF"}
+  };
+  var keyc = rgbc.join(',');
+  var info = pal[keyc] || {name:"Custom", hex:"#FFFFFF"};
+  var colorLine = "BORDO QR: " + info.name + " – " + info.hex + " – RGB " + rgbc.join(" ");
   var colorTextW = doc.getTextWidth(colorLine);
   var colorX = qrX + (qrSizeMm - colorTextW)/2;
   var colorY = qrY + qrSizeMm + 7;
@@ -1615,7 +1627,6 @@ try{
   doc.setFont("helvetica","normal");
   doc.setFontSize(12);
 }catch(e){}
-
 const maxRightBeforeQR = qrX - 10;
         const matStartY = tableY + metaTableH + 8;
 
@@ -2400,22 +2411,63 @@ const maxRightBeforeQR = qrX - 10;
     })();
 
     let lastPayloadText="";
-  
+  </script>
 
-// --- Login button ENTER key support ---
+<script>
+// --- Robust global login handler (fallback + Enter key) ---
 (function(){
-  var loginBtn = document.getElementById('loginBtn');
-  var loginInput = document.getElementById('loginNameInput');
-  if(loginBtn && loginInput){
-    loginInput.addEventListener('keydown', function(ev){
-      if(ev.key === 'Enter'){
-        ev.preventDefault();
-        loginBtn.click();
-      }
-    });
+  function _byId(id){ return document.getElementById(id); }
+  function _hideOverlay(){
+    var ov=_byId('loginOverlay');
+    if(ov){ ov.style.display='none'; }
+    document.documentElement.style.overflow='';
+    document.body.style.overflow='';
   }
-})();
+  function _updateTag(name){
+    var tag=_byId('opNameTag');
+    if(tag){
+      if(name){
+        tag.textContent=name;
+        tag.classList.remove('hidden');
+      }else{
+        tag.textContent='';
+        tag.classList.add('hidden');
+      }
+    }
+  }
+  window._doLogin = function(){
+    try{
+      var inp=_byId('loginNameInput');
+      var name=(inp && inp.value || '').trim();
+      if(!name){
+        alert('Inserisci un nome.');
+        if(inp) inp.focus();
+        return false;
+      }
+      try{ localStorage.setItem('qrj1_operator', name); }catch(e){}
+      if(typeof operatorName!=='undefined'){ operatorName = name; }
+      _updateTag(name);
+      _hideOverlay();
+      return true;
+    }catch(e){
+      console && console.warn && console.warn('Login fallback error:', e);
+      return false;
+    }
+  };
 
+  // Enter key triggers login
+  document.addEventListener('DOMContentLoaded', function(){
+    var inp=_byId('loginNameInput');
+    if(inp){
+      inp.addEventListener('keydown', function(ev){
+        if(ev.key==='Enter'){
+          ev.preventDefault();
+          if(typeof window._doLogin==='function'){ window._doLogin(); }
+        }
+      });
+    }
+  });
+})();
 </script>
 </body>
 </html>
