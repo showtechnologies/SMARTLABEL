@@ -645,44 +645,6 @@
               </select>
             </div>
           </div>
-          <div class="row" style="margin-top:10px">
-            <div style="flex:0 0 auto;min-width:120px">
-              <label>Etichetta diagonale</label>
-              <select id="dgiEn">
-                <option value="0">Disattiva</option>
-                <option value="1">Attiva</option>
-              </select>
-            </div>
-            <div style="flex:1;min-width:160px">
-              <label>Testo fascia</label>
-              <input id="dgiText" placeholder="es. SPARE / RISERVA / FOH">
-            </div>
-            <div style="flex:0 0 auto;min-width:120px">
-              <label>Colore fascia</label>
-              <select id="dgiColor">
-                <option value="0">Rosso</option>
-                <option value="1">Arancione</option>
-                <option value="2">Giallo</option>
-                <option value="3">Verde</option>
-                <option value="4">Blu</option>
-                <option value="5">Viola</option>
-                <option value="6" selected>Bianco (trasparente)</option>
-              </select>
-            </div>
-            <div style="flex:0 0 auto;min-width:110px">
-              <label>Angolo (°)</label>
-              <input id="dgiAngle" type="number" value="-35" step="1">
-            </div>
-            <div style="flex:0 0 auto;min-width:110px">
-              <label>Opacità</label>
-              <input id="dgiOp" type="number" value="0.14" step="0.01" min="0" max="1">
-            </div>
-            <div style="flex:0 0 auto;min-width:110px">
-              <label>Font pt</label>
-              <input id="dgiSize" type="number" value="48" step="1" min="10" max="200">
-            </div>
-          </div>
-
 
           <div class="row" style="margin-top:10px">
             <button id="btnGenQR" class="btn">Genera QR / Aggiorna anteprima</button>
@@ -910,8 +872,6 @@
       note:"",
       c:0,
       l:[]
-    ,
-      dgi:{ en:0, t:"", c:6, a:-35, op:0.14, sz:48 } // NEW
     };
     let operatorName = loadOperatorName() || "";
 
@@ -1109,18 +1069,6 @@ def unpack_to_pretty(s: str) -> str:
         if(obj.note===undefined)obj.note="";
         if(obj.c===undefined)   obj.c=0;
         if(!obj.l) obj.l=[];
-        
-        if(obj.dgi===undefined){
-          obj.dgi = { en:0, t:"", c:6, a:-35, op:0.14, sz:48 };
-        } else {
-          if(obj.dgi.en===undefined) obj.dgi.en = 0;
-          if(obj.dgi.t===undefined)  obj.dgi.t  = "";
-          if(obj.dgi.c===undefined)  obj.dgi.c  = 6;
-          if(obj.dgi.a===undefined)  obj.dgi.a  = -35;
-          if(obj.dgi.op===undefined) obj.dgi.op = 0.14;
-          if(obj.dgi.sz===undefined) obj.dgi.sz = 48;
-        }
-
         return obj;
       }catch{
         return null;
@@ -1148,14 +1096,6 @@ def unpack_to_pretty(s: str) -> str:
         pos: obj.pos || "",
         note: obj.note || "",
         c: (typeof obj.c==="number"?obj.c:0),
-        dgi: {
-          en: (obj.dgi?.en??0),
-          t:  (obj.dgi?.t ??""),
-          c:  (obj.dgi?.c ??6),
-          a:  (obj.dgi?.a ??-35),
-          op: (obj.dgi?.op??0.14),
-          sz: (obj.dgi?.sz??48)
-        },
         l: (obj.l||[]).map(x=>({
           d:x.d,
           q:x.q,
@@ -1241,14 +1181,7 @@ def unpack_to_pretty(s: str) -> str:
     const noteFieldEl  = document.getElementById('noteField');
     const colorSelEl   = document.getElementById('colorSel');
 
-    
-    const dgiEnEl    = document.getElementById('dgiEn');
-    const dgiTextEl  = document.getElementById('dgiText');
-    const dgiColorEl = document.getElementById('dgiColor');
-    const dgiAngleEl = document.getElementById('dgiAngle');
-    const dgiOpEl    = document.getElementById('dgiOp');
-    const dgiSizeEl  = document.getElementById('dgiSize');
-boxIdEl.value     = state.b || "";
+    boxIdEl.value     = state.b || "";
     eventNameEl.value = state.e || "";
 
     function syncMeta(){
@@ -1259,16 +1192,6 @@ boxIdEl.value     = state.b || "";
       state.note = noteFieldEl.value.trim()|| state.note||"";
       state.c = parseInt(colorSelEl.value||"0",10);
       state.t = state.t || today();
-    
-      state.dgi = {
-        en: parseInt(dgiEnEl.value||"0",10),
-        t:  dgiTextEl.value.trim(),
-        c:  parseInt(dgiColorEl.value||"6",10),
-        a:  parseFloat(dgiAngleEl.value||"-35"),
-        op: Math.max(0, Math.min(1, parseFloat(dgiOpEl.value||"0.14"))),
-        sz: Math.max(8, parseInt(dgiSizeEl.value||"48",10))
-      };
-
     }
 
     function applyMeta(){
@@ -1278,12 +1201,6 @@ boxIdEl.value     = state.b || "";
       posNameEl.value   = state.pos || "";
       noteFieldEl.value = state.note || "";
       colorSelEl.value  = (typeof state.c==="number"?state.c:0);
-      dgiEnEl.value    = String((state.dgi?.en??0));
-      dgiTextEl.value  = state.dgi?.t ?? "";
-      dgiColorEl.value = String((state.dgi?.c??6));
-      dgiAngleEl.value = String((state.dgi?.a??-35));
-      dgiOpEl.value    = String((state.dgi?.op??0.14));
-      dgiSizeEl.value  = String((state.dgi?.sz??48));
     }
 
     // LISTA HANDLERS
@@ -1509,31 +1426,7 @@ boxIdEl.value     = state.b || "";
       const pageW   = 297;
       const pageH   = 210;
 
-      
-      function drawDiagonalIfEnabled(d, pgW, pgH){
-        const dgi = state.dgi || { en:0 };
-        if(!dgi.en || !dgi.t) return;
-        const rgb = colorFromIndex(dgi.c||6).slice();
-        const text = dgi.t;
-        const ang  = Number.isFinite(dgi.a)? dgi.a : -35;
-        const op   = (typeof dgi.op===\"number\")? Math.max(0,Math.min(1,dgi.op)) : 0.14;
-        const fpt  = (typeof dgi.sz===\"number\")? Math.max(8, dgi.sz) : 48;
-        const cx = pgW/2, cy = pgH/2;
-        if (d.GState && d.setGState){
-          d.saveGraphicsState();
-          d.setGState(new d.GState({ opacity: op }));
-        } else {
-          rgb[0]=Math.round(255 - (255-rgb[0])*op);
-          rgb[1]=Math.round(255 - (255-rgb[1])*op);
-          rgb[2]=Math.round(255 - (255-rgb[2])*op);
-        }
-        d.setFont(\"helvetica\",\"bold\");
-        d.setFontSize(fpt);
-        d.setTextColor(rgb[0], rgb[1], rgb[2]);
-        d.text(text, cx, cy, { align:\"center\", angle: ang });
-        if (d.restoreGraphicsState) d.restoreGraphicsState();
-      }
-function addFooter(d){
+      function addFooter(d){
         d.setFont("helvetica","normal");
         d.setFontSize(10);
         d.setTextColor(100,100,100);
@@ -1546,9 +1439,7 @@ function addFooter(d){
       }
 
       let curY = marginT;
-      
-      drawDiagonalIfEnabled(doc, pageW, pageH);
-if (mode === "rientro"){
+      if (mode === "rientro"){
         if (incompleto){
           doc.setFont("helvetica","bold");
           doc.setFontSize(32);
@@ -1847,9 +1738,7 @@ if (mode === "rientro"){
           if(rowIdx < allRows.length){
             cfg.addFooterFn(doc);
             doc.addPage("a4","landscape");
-            
-            drawDiagonalIfEnabled(doc, cfg.pageW, cfg.pageH);
-localY = cfg.marginT;
+            localY = cfg.marginT;
             doc.setFont("helvetica","bold");
             doc.setFontSize(16);
             if (cfg.mode === "rientro"){
@@ -2058,18 +1947,7 @@ localY = cfg.marginT;
         if(decodedObj.note===undefined)decodedObj.note="";
         if(decodedObj.c===undefined)   decodedObj.c=0;
 
-        
-        if(decodedObj.dgi===undefined){
-          decodedObj.dgi = { en:0, t:"", c:6, a:-35, op:0.14, sz:48 };
-        } else {
-          if(decodedObj.dgi.en===undefined) decodedObj.dgi.en=0;
-          if(decodedObj.dgi.t===undefined)  decodedObj.dgi.t="";
-          if(decodedObj.dgi.c===undefined)  decodedObj.dgi.c=6;
-          if(decodedObj.dgi.a===undefined)  decodedObj.dgi.a=-35;
-          if(decodedObj.dgi.op===undefined) decodedObj.dgi.op=0.14;
-          if(decodedObj.dgi.sz===undefined) decodedObj.dgi.sz=48;
-        }
-decStatus.innerHTML=`<span class="ok">QRJ1 decodificato.</span>`;
+        decStatus.innerHTML=`<span class="ok">QRJ1 decodificato.</span>`;
         btnSetCurrent.disabled=false;
         btnCompare.disabled=false;
       }catch{
