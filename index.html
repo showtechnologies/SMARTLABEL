@@ -531,7 +531,6 @@
         <button data-tab="tab-decode">Leggi lista</button>
         <button data-tab="tab-rientro">Spunta</button>
         <span id="status" class="muted" style="margin-left:auto;flex-grow:0;flex-basis:auto"></span>
-<div id="depsDiag" class="muted" style="margin-top:6px;font-size:12px;line-height:1.3"></div>
       </nav>
     </div>
   </header>
@@ -646,12 +645,43 @@
               </select>
             </div>
           </div>
-<div class="row" style="margin-top:10px">
-  <div style="flex:1;min-width:140px">
-    <label>Nota diagonale (watermark)</label>
-    <input id="diagNote" placeholder="Testo grande diagonale trasparente">
-  </div>
-</div>
+          <div class="row" style="margin-top:10px">
+            <div style="flex:0 0 auto;min-width:120px">
+              <label>Etichetta diagonale</label>
+              <select id="dgiEn">
+                <option value="0">Disattiva</option>
+                <option value="1">Attiva</option>
+              </select>
+            </div>
+            <div style="flex:1;min-width:160px">
+              <label>Testo fascia</label>
+              <input id="dgiText" placeholder="es. SPARE / RISERVA / FOH">
+            </div>
+            <div style="flex:0 0 auto;min-width:120px">
+              <label>Colore fascia</label>
+              <select id="dgiColor">
+                <option value="0">Rosso</option>
+                <option value="1">Arancione</option>
+                <option value="2">Giallo</option>
+                <option value="3">Verde</option>
+                <option value="4">Blu</option>
+                <option value="5">Viola</option>
+                <option value="6" selected>Bianco (trasparente)</option>
+              </select>
+            </div>
+            <div style="flex:0 0 auto;min-width:110px">
+              <label>Angolo (°)</label>
+              <input id="dgiAngle" type="number" value="-35" step="1">
+            </div>
+            <div style="flex:0 0 auto;min-width:110px">
+              <label>Opacità</label>
+              <input id="dgiOp" type="number" value="0.14" step="0.01" min="0" max="1">
+            </div>
+            <div style="flex:0 0 auto;min-width:110px">
+              <label>Font pt</label>
+              <input id="dgiSize" type="number" value="48" step="1" min="10" max="200">
+            </div>
+          </div>
 
 
           <div class="row" style="margin-top:10px">
@@ -666,8 +696,6 @@
           </div>
 
           <div id="qrBox" class="qrbox" aria-live="polite"></div>
-<div id="qrColorText" style="margin-top:8px;font-weight:700"></div>
-
           <div id="encInfo" class="muted"></div>
         </div>
 
@@ -769,7 +797,7 @@
       <p>Metti il tuo nome. Verrà stampato sull'etichetta e sul PDF.<br>Rimane salvato in questo dispositivo.</p>
       <div class="row" style="gap:10px">
         <input id="loginNameInput" placeholder="Es. Luca R." autocomplete="name">
-        <button id="loginBtn" class="btn" onclick="_doLogin && _doLogin();">Entra</button>
+        <button id="loginBtn" class="btn">Entra</button>
       </div>
     </div>
   </div>
@@ -881,8 +909,10 @@
       pos:"",
       note:"",
       c:0,
-       nd:\"\",
-      l:[]};
+      l:[]
+    ,
+      dgi:{ en:0, t:"", c:6, a:-35, op:0.14, sz:48 } // NEW
+    };
     let operatorName = loadOperatorName() || "";
 
     // LOGIN
@@ -983,11 +1013,11 @@
     })();
 
     function unlockButtons(){
-  ['btnGenQR','btnDownloadPNG','btnPrint','btnPDFMain','btnCam','btnSetCurrent','btnCompare','rReset','rAll','rExport','rPDF'].forEach(id=>{
-    const el=document.getElementById(id);
-    if(el) el.disabled=false;
-  });
-}
+      document.getElementById('btnGenQR').disabled=false;
+      document.getElementById('btnDownloadPNG').disabled=true;
+      document.getElementById('btnPrint').disabled=true;
+      document.getElementById('btnPDFMain').disabled=true;
+    }
 
     function loadScript(src){
       return new Promise((res,rej)=>{
@@ -1079,6 +1109,18 @@ def unpack_to_pretty(s: str) -> str:
         if(obj.note===undefined)obj.note="";
         if(obj.c===undefined)   obj.c=0;
         if(!obj.l) obj.l=[];
+        
+        if(obj.dgi===undefined){
+          obj.dgi = { en:0, t:"", c:6, a:-35, op:0.14, sz:48 };
+        } else {
+          if(obj.dgi.en===undefined) obj.dgi.en = 0;
+          if(obj.dgi.t===undefined)  obj.dgi.t  = "";
+          if(obj.dgi.c===undefined)  obj.dgi.c  = 6;
+          if(obj.dgi.a===undefined)  obj.dgi.a  = -35;
+          if(obj.dgi.op===undefined) obj.dgi.op = 0.14;
+          if(obj.dgi.sz===undefined) obj.dgi.sz = 48;
+        }
+
         return obj;
       }catch{
         return null;
@@ -1105,8 +1147,15 @@ def unpack_to_pretty(s: str) -> str:
         p: obj.p || "",
         pos: obj.pos || "",
         note: obj.note || "",
-        nd: obj.nd || \"\",
-        c: (typeof obj.c===\"number\"?obj.c:0),
+        c: (typeof obj.c==="number"?obj.c:0),
+        dgi: {
+          en: (obj.dgi?.en??0),
+          t:  (obj.dgi?.t ??""),
+          c:  (obj.dgi?.c ??6),
+          a:  (obj.dgi?.a ??-35),
+          op: (obj.dgi?.op??0.14),
+          sz: (obj.dgi?.sz??48)
+        },
         l: (obj.l||[]).map(x=>({
           d:x.d,
           q:x.q,
@@ -1192,7 +1241,14 @@ def unpack_to_pretty(s: str) -> str:
     const noteFieldEl  = document.getElementById('noteField');
     const colorSelEl   = document.getElementById('colorSel');
 
-    boxIdEl.value     = state.b || "";
+    
+    const dgiEnEl    = document.getElementById('dgiEn');
+    const dgiTextEl  = document.getElementById('dgiText');
+    const dgiColorEl = document.getElementById('dgiColor');
+    const dgiAngleEl = document.getElementById('dgiAngle');
+    const dgiOpEl    = document.getElementById('dgiOp');
+    const dgiSizeEl  = document.getElementById('dgiSize');
+boxIdEl.value     = state.b || "";
     eventNameEl.value = state.e || "";
 
     function syncMeta(){
@@ -1204,8 +1260,16 @@ def unpack_to_pretty(s: str) -> str:
       state.c = parseInt(colorSelEl.value||"0",10);
       state.t = state.t || today();
     
-  try{ state.nd = (document.getElementById("diagNote").value||"").trim(); }catch(e){}
-}
+      state.dgi = {
+        en: parseInt(dgiEnEl.value||"0",10),
+        t:  dgiTextEl.value.trim(),
+        c:  parseInt(dgiColorEl.value||"6",10),
+        a:  parseFloat(dgiAngleEl.value||"-35"),
+        op: Math.max(0, Math.min(1, parseFloat(dgiOpEl.value||"0.14"))),
+        sz: Math.max(8, parseInt(dgiSizeEl.value||"48",10))
+      };
+
+    }
 
     function applyMeta(){
       boxIdEl.value     = state.b || "";
@@ -1214,9 +1278,13 @@ def unpack_to_pretty(s: str) -> str:
       posNameEl.value   = state.pos || "";
       noteFieldEl.value = state.note || "";
       colorSelEl.value  = (typeof state.c==="number"?state.c:0);
-    
-  try{ document.getElementById("diagNote").value = state.nd || ""; }catch(e){}
-}
+      dgiEnEl.value    = String((state.dgi?.en??0));
+      dgiTextEl.value  = state.dgi?.t ?? "";
+      dgiColorEl.value = String((state.dgi?.c??6));
+      dgiAngleEl.value = String((state.dgi?.a??-35));
+      dgiOpEl.value    = String((state.dgi?.op??0.14));
+      dgiSizeEl.value  = String((state.dgi?.sz??48));
+    }
 
     // LISTA HANDLERS
     document.getElementById('addItem').onclick=()=>{
@@ -1298,7 +1366,7 @@ def unpack_to_pretty(s: str) -> str:
     const btnPrint        = document.getElementById('btnPrint');
     const btnPDFMain      = document.getElementById('btnPDFMain');
 
-    btnGenQR.onclick = async ()=>{ if(!window.qrcode){ alert('Manca qrcode-generator. Premi "Forza caricamento dipendenze".'); return; }
+    btnGenQR.onclick = async ()=>{
       if(!pyodide){
         alert("Runtime non pronto, ricarica la pagina.");
         return;
@@ -1332,28 +1400,7 @@ def unpack_to_pretty(s: str) -> str:
       box.innerHTML="";
       box.appendChild(currentQRCanvas);
 
-      
-try{
-  (function(){
-    var el = document.getElementById('qrColorText');
-    if(!el) return;
-    var rgb = colorFromIndex((state && typeof state.c==='number') ? state.c : 0);
-    // derive simple HEX + name map without touching existing colorFromIndex
-    var palette = {
-      "220,38,38":   {name:"Rosso",    hex:"#DC2626"},
-      "245,158,11":  {name:"Arancione",hex:"#F59E0B"},
-      "250,204,21":  {name:"Giallo",   hex:"#FACC15"},
-      "16,185,129":  {name:"Verde",    hex:"#10B981"},
-      "59,130,246":  {name:"Blu",      hex:"#3B82F6"},
-      "139,92,246":  {name:"Viola",    hex:"#8B5CF6"},
-      "255,255,255": {name:"Nessuno",  hex:"#FFFFFF"}
-    };
-    var key = rgb.join(',');
-    var info = palette[key] || {name:"Custom", hex:"#FFFFFF"};
-    el.textContent = "BORDO QR: " + info.name + " – " + info.hex + " – RGB " + rgb.join(" ");
-  })();
-}catch(e){}
-document.getElementById('encInfo').textContent =
+      document.getElementById('encInfo').textContent =
         `ECC=H. Quiet zone ${border} moduli.`;
 
       btnDownloadPNG.disabled=false;
@@ -1449,17 +1496,7 @@ document.getElementById('encInfo').textContent =
         format:"a4"
       });
 
-      
-// === Uniform PDF styles ===
-try{
-  doc.setFont("helvetica","normal");
-  doc.setFontSize(12);
-  var LINE_W = 0.3;
-  var RADIUS = 2.0;
-  doc.setLineWidth(LINE_W);
-  doc.setDrawColor(0,0,0);
-}catch(e){}
-ensureRientroStore();
+      ensureRientroStore();
       syncMeta();
 
       let incompleto = false;
@@ -1473,39 +1510,29 @@ ensureRientroStore();
       const pageH   = 210;
 
       
-// === Page rounded border ===
-try{
-  var pageW2 = doc.internal.pageSize.getWidth();
-  var pageH2 = doc.internal.pageSize.getHeight();
-  var pagePadX = 8, pagePadY = 8;
-  doc.setDrawColor(120);
-  doc.setLineWidth(0.6);
-  doc.roundedRect(pagePadX, pagePadY, pageW2 - 2*pagePadX, pageH2 - 2*pagePadY, 6, 6, "S");
-  doc.setDrawColor(0,0,0);
-  doc.setLineWidth(LINE_W);
-}catch(e){}
-
-// === Diagonal watermark (nota diagonale) ===
-try{
-  if(state && state.nd && String(state.nd).trim()){
-    var savedLW = doc.getLineWidth();
-    if (doc.GState) {
-      var gs = new doc.GState({ opacity: 0.12 });
-      doc.setGState(gs);
-    } else {
-      doc.setTextColor(190,190,190);
-    }
-    doc.setFont("helvetica","bold");
-    doc.setFontSize(80);
-    var cx = doc.internal.pageSize.getWidth()/2;
-    var cy = doc.internal.pageSize.getHeight()/2;
-    doc.text(String(state.nd), cx, cy, { angle: 45, align: "center" });
-    doc.setTextColor(0,0,0);
-    doc.setLineWidth(savedLW);
-    doc.setFont("helvetica","normal");
-    doc.setFontSize(12);
-  }
-}catch(e){}
+      function drawDiagonalIfEnabled(d, pgW, pgH){
+        const dgi = state.dgi || { en:0 };
+        if(!dgi.en || !dgi.t) return;
+        const rgb = colorFromIndex(dgi.c||6).slice();
+        const text = dgi.t;
+        const ang  = Number.isFinite(dgi.a)? dgi.a : -35;
+        const op   = (typeof dgi.op===\"number\")? Math.max(0,Math.min(1,dgi.op)) : 0.14;
+        const fpt  = (typeof dgi.sz===\"number\")? Math.max(8, dgi.sz) : 48;
+        const cx = pgW/2, cy = pgH/2;
+        if (d.GState && d.setGState){
+          d.saveGraphicsState();
+          d.setGState(new d.GState({ opacity: op }));
+        } else {
+          rgb[0]=Math.round(255 - (255-rgb[0])*op);
+          rgb[1]=Math.round(255 - (255-rgb[1])*op);
+          rgb[2]=Math.round(255 - (255-rgb[2])*op);
+        }
+        d.setFont(\"helvetica\",\"bold\");
+        d.setFontSize(fpt);
+        d.setTextColor(rgb[0], rgb[1], rgb[2]);
+        d.text(text, cx, cy, { align:\"center\", angle: ang });
+        if (d.restoreGraphicsState) d.restoreGraphicsState();
+      }
 function addFooter(d){
         d.setFont("helvetica","normal");
         d.setFontSize(10);
@@ -1519,7 +1546,9 @@ function addFooter(d){
       }
 
       let curY = marginT;
-      if (mode === "rientro"){
+      
+      drawDiagonalIfEnabled(doc, pageW, pageH);
+if (mode === "rientro"){
         if (incompleto){
           doc.setFont("helvetica","bold");
           doc.setFontSize(32);
@@ -1567,12 +1596,13 @@ function addFooter(d){
       doc.line(tableX+labelW, tableY, tableX+labelW, tableY+metaTableH);
 
       rowsMeta.forEach((row,i)=>{
-  const yTextBase = tableY + i*rowH + (rowH-2);
-  doc.text(row[0], tableX + labelW - 2, yTextBase, { align: "right" });
-  const vLines = doc.splitTextToSize(row[1], valueW-4);
-  doc.text(vLines, tableX + labelW + 2, yTextBase);
-});
-const qrSizeMm = 80;
+        const yTextBase = tableY + i*rowH + (rowH-2);
+        doc.text(row[0], tableX+2, yTextBase);
+        const vLines = doc.splitTextToSize(row[1], valueW-4);
+        doc.text(vLines, tableX+labelW+2, yTextBase);
+      });
+
+      const qrSizeMm = 80;
       const qrX = pageW - qrSizeMm - 20;
       const qrY = marginT;
 
@@ -1598,37 +1628,7 @@ const qrSizeMm = 80;
 
         doc.addImage(qrDataURL, "PNG", qrX, qrY, qrSizeMm, qrSizeMm);
 
-        
-// === QR border + color text ===
-try{
-  var rgbc = colorFromIndex((state && typeof state.c==='number') ? state.c : 0);
-  doc.setDrawColor(rgbc[0], rgbc[1], rgbc[2]);
-  doc.setLineWidth(3);
-  var pad = 4;
-  doc.roundedRect(qrX - pad/2, qrY - pad/2, qrSizeMm + pad, qrSizeMm + pad, 3, 3, "S");
-  doc.setFont("helvetica","bold");
-  doc.setFontSize(11);
-  doc.setTextColor(0,0,0);
-  var pal = {
-    "220,38,38":   {name:"Rosso",    hex:"#DC2626"},
-    "245,158,11":  {name:"Arancione",hex:"#F59E0B"},
-    "250,204,21":  {name:"Giallo",   hex:"#FACC15"},
-    "16,185,129":  {name:"Verde",    hex:"#10B981"},
-    "59,130,246":  {name:"Blu",      hex:"#3B82F6"},
-    "139,92,246":  {name:"Viola",    hex:"#8B5CF6"},
-    "255,255,255": {name:"Nessuno",  hex:"#FFFFFF"}
-  };
-  var keyc = rgbc.join(',');
-  var info = pal[keyc] || {name:"Custom", hex:"#FFFFFF"};
-  var colorLine = "BORDO QR: " + info.name + " – " + info.hex + " – RGB " + rgbc.join(" ");
-  var colorTextW = doc.getTextWidth(colorLine);
-  var colorX = qrX + (qrSizeMm - colorTextW)/2;
-  var colorY = qrY + qrSizeMm + 7;
-  doc.text(colorLine, colorX, colorY);
-  doc.setFont("helvetica","normal");
-  doc.setFontSize(12);
-}catch(e){}
-const maxRightBeforeQR = qrX - 10;
+        const maxRightBeforeQR = qrX - 10;
         const matStartY = tableY + metaTableH + 8;
 
         drawMaterialsTable(doc, {
@@ -1847,7 +1847,9 @@ const maxRightBeforeQR = qrX - 10;
           if(rowIdx < allRows.length){
             cfg.addFooterFn(doc);
             doc.addPage("a4","landscape");
-            localY = cfg.marginT;
+            
+            drawDiagonalIfEnabled(doc, cfg.pageW, cfg.pageH);
+localY = cfg.marginT;
             doc.setFont("helvetica","bold");
             doc.setFontSize(16);
             if (cfg.mode === "rientro"){
@@ -1921,7 +1923,7 @@ const maxRightBeforeQR = qrX - 10;
     const closeCamBtn  = document.getElementById('closeCamBtn');
     const toggleFlashBtn = document.getElementById('toggleFlashBtn');
 
-    document.getElementById('btnCam').onclick = ()=>{ if(!(window.ZXing||window.BrowserMultiFormatReader||window.BarcodeDetector)){ alert('Manca ZXing/BarcodeDetector. Premi "Forza caricamento dipendenze".'); return; }
+    document.getElementById('btnCam').onclick = ()=>{
       startCameraOverlay();
     };
     closeCamBtn.onclick = ()=>{
@@ -1932,7 +1934,7 @@ const maxRightBeforeQR = qrX - 10;
     };
 
     // ------- PATCH start/stop camera -------
-    async function startCameraOverlay(){ if(!window.requireZXing||!requireZXing()) return;
+    async function startCameraOverlay(){
       camOverlay.style.display='flex';
       camStatusEl.textContent="Apertura camera…";
       torchEnabled=false;
@@ -2056,7 +2058,18 @@ const maxRightBeforeQR = qrX - 10;
         if(decodedObj.note===undefined)decodedObj.note="";
         if(decodedObj.c===undefined)   decodedObj.c=0;
 
-        decStatus.innerHTML=`<span class="ok">QRJ1 decodificato.</span>`;
+        
+        if(decodedObj.dgi===undefined){
+          decodedObj.dgi = { en:0, t:"", c:6, a:-35, op:0.14, sz:48 };
+        } else {
+          if(decodedObj.dgi.en===undefined) decodedObj.dgi.en=0;
+          if(decodedObj.dgi.t===undefined)  decodedObj.dgi.t="";
+          if(decodedObj.dgi.c===undefined)  decodedObj.dgi.c=6;
+          if(decodedObj.dgi.a===undefined)  decodedObj.dgi.a=-35;
+          if(decodedObj.dgi.op===undefined) decodedObj.dgi.op=0.14;
+          if(decodedObj.dgi.sz===undefined) decodedObj.dgi.sz=48;
+        }
+decStatus.innerHTML=`<span class="ok">QRJ1 decodificato.</span>`;
         btnSetCurrent.disabled=false;
         btnCompare.disabled=false;
       }catch{
@@ -2413,195 +2426,5 @@ const maxRightBeforeQR = qrX - 10;
 
     let lastPayloadText="";
   </script>
-
-
-<script>
-// --- Robust global login handler (fallback + Enter key) ---
-(function(){
-  function _byId(id){ return document.getElementById(id); }
-  function _hideOverlay(){
-    var ov=_byId('loginOverlay');
-    if(ov){
-      ov.style.display='none';
-      try{ ov.classList.remove('active'); }catch(_){}
-    }
-    document.documentElement.style.overflow='';
-    document.body.style.overflow='';
-  }
-  function _updateTag(name){
-    try{
-      if (typeof updateOperatorLabel === 'function') {
-        // use app's own label updater if available
-        updateOperatorLabel();
-        return;
-      }
-    }catch(_){}
-    var tag=_byId('opNameTag');
-    if(tag){
-      if(name){
-        tag.textContent=name;
-        tag.classList.remove('hidden');
-      }else{
-        tag.textContent='';
-        tag.classList.add('hidden');
-      }
-    }
-  }
-  window._doLogin = function(){
-    try{
-      var inp=_byId('loginNameInput');
-      var name=(inp && inp.value || '').trim();
-      if(!name){
-        alert('Inserisci un nome.');
-        if(inp) inp.focus();
-        return false;
-      }
-      try{ localStorage.setItem('qrj1_operator', name); }catch(e){}
-      try{ window.operatorName = name; }catch(_){}
-
-      // Call app initializers to ensure all buttons/UI are enabled and metadata is applied
-      try{ if (typeof applyMeta === 'function') applyMeta(); }catch(_){}
-      try{ if (typeof renderTables === 'function') renderTables(); }catch(_){}
-      try{ if (typeof unlockButtons === 'function') unlockButtons(); }catch(_){}
-
-      _updateTag(name);
-      _hideOverlay();
-      return true;
-    }catch(e){
-      console && console.warn && console.warn('Login fallback error:', e);
-      return false;
-    }
-  };
-
-  // Enter key triggers login
-  document.addEventListener('DOMContentLoaded', function(){
-    var inp=_byId('loginNameInput');
-    if(inp){
-      inp.addEventListener('keydown', function(ev){
-        if(ev.key==='Enter'){
-          ev.preventDefault();
-          if(typeof window._doLogin==='function'){ window._doLogin(); }
-        }
-      });
-    }
-  });
-})();
-</script>
-
-
-<script>
-// ===== Robust dependency loader with multi-CDN fallback + diagnostics =====
-(function(){
-  const DIAG = document.getElementById('depsDiag');
-  function log(msg){ if(DIAG){ DIAG.innerHTML += (DIAG.innerHTML?'<br>':'') + msg; } }
-
-  function loadScriptSeq(urls, {globalCheck,timeout=10000}){
-    return new Promise((resolve,reject)=>{
-      let i=0, done=false;
-      function tryNext(){
-        if(done) return;
-        if(i>=urls.length){ reject(new Error('All sources failed: '+urls.join(', '))); return; }
-        const src = urls[i++];
-        const s = document.createElement('script');
-        s.src = src;
-        s.async = true;
-        let to = setTimeout(()=>{
-          s.onload = s.onerror = null;
-          log('Timeout: '+src);
-          tryNext();
-        }, timeout);
-        s.onerror = ()=>{
-          clearTimeout(to);
-          log('Errore: '+src);
-          tryNext();
-        };
-        s.onload = ()=>{
-          clearTimeout(to);
-          const ok = (typeof globalCheck === 'function') ? !!globalCheck() : true;
-          if(ok){ log('OK: '+src); done=true; resolve(true); }
-          else { log('Non trovato dopo load: '+src); tryNext(); }
-        };
-        document.head.appendChild(s);
-      }
-      tryNext();
-    });
-  }
-
-  // Mirrors
-  const ZXING = [
-    "https://cdn.jsdelivr.net/npm/@zxing/library@0.21.2/umd/index.min.js",
-    "https://unpkg.com/@zxing/library@0.21.2/umd/index.min.js",
-    "https://cdnjs.cloudflare.com/ajax/libs/zxing/0.21.2/zxing.min.js"
-  ];
-  const PDFJS_WORKER = [
-    "https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js",
-    "https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js",
-    "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js"
-  ];
-  const PYODIDE = [
-    "https://cdn.jsdelivr.net/pyodide/v0.25.1/full/pyodide.js",
-    "https://pyodide-cdn2.iodide.io/v0.25.1/full/pyodide.js"
-  ];
-
-  async function loadDeps(){
-    log("Caricamento dipendenze…");
-    // ZXing (QR decoder)
-    await loadScriptSeq(ZXING, { globalCheck:()=>window.ZXing||window.BrowserMultiFormatReader });
-    // PDF.js worker (PDF reading / decoding)
-    await loadScriptSeq(PDFJS_WORKER, { globalCheck:()=>true });
-    // Pyodide (se usato per OCR/extra; se non serve, non bloccare)
-    try{
-      await loadScriptSeq(PYODIDE, { globalCheck:()=>window.loadPyodide });
-    }catch(e){
-      log("Pyodide non essenziale: continuo senza.");
-    }
-    log("Dipendenze caricate.");
-    try{ if (typeof unlockButtons === 'function') unlockButtons(); }catch(_){}
-  }
-
-  // Expose reload button
-  window.reloadDeps = function(){
-    DIAG && (DIAG.innerHTML = "");
-    loadDeps().catch(e=> log("Errore generale loader: "+(e && e.message || e)));
-  };
-
-  // Start automatically after login overlay is closed (or immediately if non visibile)
-  document.addEventListener('DOMContentLoaded', function(){
-    // se non c'è overlay visibile, carica subito
-    const ov = document.getElementById('loginOverlay');
-    const isVisible = ov && window.getComputedStyle(ov).display !== 'none';
-    if(!isVisible){
-      reloadDeps();
-    }else{
-      // anche se visibile, partiremo comunque: qualche utente può già essere loggato
-      reloadDeps();
-    }
-  });
-
-  // Guard inside buttons: if library missing, show clear message instead of "non fa nulla"
-  function guardLib(check, name){
-    if(check()) return true;
-    alert("La libreria \""+name+"\" non è caricata. Premi in alto su \"Forza caricamento dipendenze\" oppure controlla la connessione.");
-    return false;
-  }
-
-  // Augment existing handlers without replacing them
-  window.requireZXing = function(){
-    return guardLib(()=> !!(window.ZXing||window.BrowserMultiFormatReader), "ZXing");
-  };
-  window.requirePDFJS = function(){
-    return guardLib(()=> true, "PDF.js worker");
-  };
-
-  // Add a small control button to force reload
-  const btn = document.createElement('button');
-  btn.textContent = "Forza caricamento dipendenze";
-  btn.className = "btn ghost";
-  btn.style.marginLeft = "8px";
-  btn.onclick = ()=> reloadDeps();
-  const statusBar = document.getElementById('status');
-  if(statusBar) statusBar.appendChild(btn);
-})();
-</script>
-
-</body></html>
+</body>
+</html>
