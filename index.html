@@ -645,13 +645,6 @@
               </select>
             </div>
           </div>
-<div class="row" style="margin-top:10px">
-  <div style="flex:1;min-width:140px">
-    <label>Nota diagonale (watermark)</label>
-    <input id="diagNote" placeholder="Testo grande diagonale trasparente">
-  </div>
-</div>
-
 
           <div class="row" style="margin-top:10px">
             <button id="btnGenQR" class="btn">Genera QR / Aggiorna anteprima</button>
@@ -665,8 +658,6 @@
           </div>
 
           <div id="qrBox" class="qrbox" aria-live="polite"></div>
-<div id="qrColorText" style="margin-top:8px;font-weight:700"></div>
-
           <div id="encInfo" class="muted"></div>
         </div>
 
@@ -768,7 +759,7 @@
       <p>Metti il tuo nome. Verrà stampato sull'etichetta e sul PDF.<br>Rimane salvato in questo dispositivo.</p>
       <div class="row" style="gap:10px">
         <input id="loginNameInput" placeholder="Es. Luca R." autocomplete="name">
-        <button id="loginBtn" class="btn" onclick="_doLogin && _doLogin();">Entra</button>
+        <button id="loginBtn" class="btn">Entra</button>
       </div>
     </div>
   </div>
@@ -880,8 +871,8 @@
       pos:"",
       note:"",
       c:0,
-       nd:\"\",
-      l:[]};
+      l:[]
+    };
     let operatorName = loadOperatorName() || "";
 
     // LOGIN
@@ -1104,8 +1095,7 @@ def unpack_to_pretty(s: str) -> str:
         p: obj.p || "",
         pos: obj.pos || "",
         note: obj.note || "",
-        nd: obj.nd || \"\",
-        c: (typeof obj.c===\"number\"?obj.c:0),
+        c: (typeof obj.c==="number"?obj.c:0),
         l: (obj.l||[]).map(x=>({
           d:x.d,
           q:x.q,
@@ -1202,9 +1192,7 @@ def unpack_to_pretty(s: str) -> str:
       state.note = noteFieldEl.value.trim()|| state.note||"";
       state.c = parseInt(colorSelEl.value||"0",10);
       state.t = state.t || today();
-    
-  try{ state.nd = (document.getElementById("diagNote").value||"").trim(); }catch(e){}
-}
+    }
 
     function applyMeta(){
       boxIdEl.value     = state.b || "";
@@ -1213,9 +1201,7 @@ def unpack_to_pretty(s: str) -> str:
       posNameEl.value   = state.pos || "";
       noteFieldEl.value = state.note || "";
       colorSelEl.value  = (typeof state.c==="number"?state.c:0);
-    
-  try{ document.getElementById("diagNote").value = state.nd || ""; }catch(e){}
-}
+    }
 
     // LISTA HANDLERS
     document.getElementById('addItem').onclick=()=>{
@@ -1331,28 +1317,7 @@ def unpack_to_pretty(s: str) -> str:
       box.innerHTML="";
       box.appendChild(currentQRCanvas);
 
-      
-try{
-  (function(){
-    var el = document.getElementById('qrColorText');
-    if(!el) return;
-    var rgb = colorFromIndex((state && typeof state.c==='number') ? state.c : 0);
-    // derive simple HEX + name map without touching existing colorFromIndex
-    var palette = {
-      "220,38,38":   {name:"Rosso",    hex:"#DC2626"},
-      "245,158,11":  {name:"Arancione",hex:"#F59E0B"},
-      "250,204,21":  {name:"Giallo",   hex:"#FACC15"},
-      "16,185,129":  {name:"Verde",    hex:"#10B981"},
-      "59,130,246":  {name:"Blu",      hex:"#3B82F6"},
-      "139,92,246":  {name:"Viola",    hex:"#8B5CF6"},
-      "255,255,255": {name:"Nessuno",  hex:"#FFFFFF"}
-    };
-    var key = rgb.join(',');
-    var info = palette[key] || {name:"Custom", hex:"#FFFFFF"};
-    el.textContent = "BORDO QR: " + info.name + " – " + info.hex + " – RGB " + rgb.join(" ");
-  })();
-}catch(e){}
-document.getElementById('encInfo').textContent =
+      document.getElementById('encInfo').textContent =
         `ECC=H. Quiet zone ${border} moduli.`;
 
       btnDownloadPNG.disabled=false;
@@ -1448,17 +1413,7 @@ document.getElementById('encInfo').textContent =
         format:"a4"
       });
 
-      
-// === Uniform PDF styles ===
-try{
-  doc.setFont("helvetica","normal");
-  doc.setFontSize(12);
-  var LINE_W = 0.3;
-  var RADIUS = 2.0;
-  doc.setLineWidth(LINE_W);
-  doc.setDrawColor(0,0,0);
-}catch(e){}
-ensureRientroStore();
+      ensureRientroStore();
       syncMeta();
 
       let incompleto = false;
@@ -1471,41 +1426,7 @@ ensureRientroStore();
       const pageW   = 297;
       const pageH   = 210;
 
-      
-// === Page rounded border ===
-try{
-  var pageW2 = doc.internal.pageSize.getWidth();
-  var pageH2 = doc.internal.pageSize.getHeight();
-  var pagePadX = 8, pagePadY = 8;
-  doc.setDrawColor(120);
-  doc.setLineWidth(0.6);
-  doc.roundedRect(pagePadX, pagePadY, pageW2 - 2*pagePadX, pageH2 - 2*pagePadY, 6, 6, "S");
-  doc.setDrawColor(0,0,0);
-  doc.setLineWidth(LINE_W);
-}catch(e){}
-
-// === Diagonal watermark (nota diagonale) ===
-try{
-  if(state && state.nd && String(state.nd).trim()){
-    var savedLW = doc.getLineWidth();
-    if (doc.GState) {
-      var gs = new doc.GState({ opacity: 0.12 });
-      doc.setGState(gs);
-    } else {
-      doc.setTextColor(190,190,190);
-    }
-    doc.setFont("helvetica","bold");
-    doc.setFontSize(80);
-    var cx = doc.internal.pageSize.getWidth()/2;
-    var cy = doc.internal.pageSize.getHeight()/2;
-    doc.text(String(state.nd), cx, cy, { angle: 45, align: "center" });
-    doc.setTextColor(0,0,0);
-    doc.setLineWidth(savedLW);
-    doc.setFont("helvetica","normal");
-    doc.setFontSize(12);
-  }
-}catch(e){}
-function addFooter(d){
+      function addFooter(d){
         d.setFont("helvetica","normal");
         d.setFontSize(10);
         d.setTextColor(100,100,100);
@@ -1566,12 +1487,13 @@ function addFooter(d){
       doc.line(tableX+labelW, tableY, tableX+labelW, tableY+metaTableH);
 
       rowsMeta.forEach((row,i)=>{
-  const yTextBase = tableY + i*rowH + (rowH-2);
-  doc.text(row[0], tableX + labelW - 2, yTextBase, { align: "right" });
-  const vLines = doc.splitTextToSize(row[1], valueW-4);
-  doc.text(vLines, tableX + labelW + 2, yTextBase);
-});
-const qrSizeMm = 80;
+        const yTextBase = tableY + i*rowH + (rowH-2);
+        doc.text(row[0], tableX+2, yTextBase);
+        const vLines = doc.splitTextToSize(row[1], valueW-4);
+        doc.text(vLines, tableX+labelW+2, yTextBase);
+      });
+
+      const qrSizeMm = 80;
       const qrX = pageW - qrSizeMm - 20;
       const qrY = marginT;
 
@@ -1597,37 +1519,7 @@ const qrSizeMm = 80;
 
         doc.addImage(qrDataURL, "PNG", qrX, qrY, qrSizeMm, qrSizeMm);
 
-        
-// === QR border + color text ===
-try{
-  var rgbc = colorFromIndex((state && typeof state.c==='number') ? state.c : 0);
-  doc.setDrawColor(rgbc[0], rgbc[1], rgbc[2]);
-  doc.setLineWidth(3);
-  var pad = 4;
-  doc.roundedRect(qrX - pad/2, qrY - pad/2, qrSizeMm + pad, qrSizeMm + pad, 3, 3, "S");
-  doc.setFont("helvetica","bold");
-  doc.setFontSize(11);
-  doc.setTextColor(0,0,0);
-  var pal = {
-    "220,38,38":   {name:"Rosso",    hex:"#DC2626"},
-    "245,158,11":  {name:"Arancione",hex:"#F59E0B"},
-    "250,204,21":  {name:"Giallo",   hex:"#FACC15"},
-    "16,185,129":  {name:"Verde",    hex:"#10B981"},
-    "59,130,246":  {name:"Blu",      hex:"#3B82F6"},
-    "139,92,246":  {name:"Viola",    hex:"#8B5CF6"},
-    "255,255,255": {name:"Nessuno",  hex:"#FFFFFF"}
-  };
-  var keyc = rgbc.join(',');
-  var info = pal[keyc] || {name:"Custom", hex:"#FFFFFF"};
-  var colorLine = "BORDO QR: " + info.name + " – " + info.hex + " – RGB " + rgbc.join(" ");
-  var colorTextW = doc.getTextWidth(colorLine);
-  var colorX = qrX + (qrSizeMm - colorTextW)/2;
-  var colorY = qrY + qrSizeMm + 7;
-  doc.text(colorLine, colorX, colorY);
-  doc.setFont("helvetica","normal");
-  doc.setFontSize(12);
-}catch(e){}
-const maxRightBeforeQR = qrX - 10;
+        const maxRightBeforeQR = qrX - 10;
         const matStartY = tableY + metaTableH + 8;
 
         drawMaterialsTable(doc, {
@@ -2412,80 +2304,5 @@ const maxRightBeforeQR = qrX - 10;
 
     let lastPayloadText="";
   </script>
-
-
-<script>
-// --- Robust global login handler (fallback + Enter key) ---
-(function(){
-  function _byId(id){ return document.getElementById(id); }
-  function _hideOverlay(){
-    var ov=_byId('loginOverlay');
-    if(ov){
-      ov.style.display='none';
-      try{ ov.classList.remove('active'); }catch(_){}
-    }
-    document.documentElement.style.overflow='';
-    document.body.style.overflow='';
-  }
-  function _updateTag(name){
-    try{
-      if (typeof updateOperatorLabel === 'function') {
-        // use app's own label updater if available
-        updateOperatorLabel();
-        return;
-      }
-    }catch(_){}
-    var tag=_byId('opNameTag');
-    if(tag){
-      if(name){
-        tag.textContent=name;
-        tag.classList.remove('hidden');
-      }else{
-        tag.textContent='';
-        tag.classList.add('hidden');
-      }
-    }
-  }
-  window._doLogin = function(){
-    try{
-      var inp=_byId('loginNameInput');
-      var name=(inp && inp.value || '').trim();
-      if(!name){
-        alert('Inserisci un nome.');
-        if(inp) inp.focus();
-        return false;
-      }
-      try{ localStorage.setItem('qrj1_operator', name); }catch(e){}
-      try{ window.operatorName = name; }catch(_){}
-
-      // Call app initializers to ensure all buttons/UI are enabled and metadata is applied
-      try{ if (typeof applyMeta === 'function') applyMeta(); }catch(_){}
-      try{ if (typeof renderTables === 'function') renderTables(); }catch(_){}
-      try{ if (typeof unlockButtons === 'function') unlockButtons(); }catch(_){}
-
-      _updateTag(name);
-      _hideOverlay();
-      return true;
-    }catch(e){
-      console && console.warn && console.warn('Login fallback error:', e);
-      return false;
-    }
-  };
-
-  // Enter key triggers login
-  document.addEventListener('DOMContentLoaded', function(){
-    var inp=_byId('loginNameInput');
-    if(inp){
-      inp.addEventListener('keydown', function(ev){
-        if(ev.key==='Enter'){
-          ev.preventDefault();
-          if(typeof window._doLogin==='function'){ window._doLogin(); }
-        }
-      });
-    }
-  });
-})();
-</script>
-
 </body>
 </html>
