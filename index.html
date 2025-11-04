@@ -2304,5 +2304,335 @@ def unpack_to_pretty(s: str) -> str:
 
     let lastPayloadText="";
   </script>
+
+<!-- PATCH: Uniform tables in PDF + add "Evento" in label -->
+<script>
+(function(){
+  // Override the original generateAndHandlePDF with a unified-style version
+  window.generateAndHandlePDF = function(mode, action){
+    if(!window.jspdf || !pyodide){
+      alert("Runtime non pronto, ricarica la pagina.");
+      return;
+    }
+
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({
+      orientation:"landscape",
+      unit:"mm",
+      format:"a4"
+    });
+
+    // Ensure state is normalized
+    ensureRientroStore();
+    syncMeta && syncMeta();
+
+    // ---- Visual constants (same across all tables) ----
+    const STROKE_W = 0.3;                 // mm
+    const STROKE_COL = [0,0,0];           // black
+    const BODY_FS = 14;                   // body font size
+    const HEAD_FS = 14;                   // table header font size
+    const SECTION_FS = 16;                // section title
+    const FONT = "helvetica";             // unified font
+
+    // Page geometry
+    const marginL = 15;
+    const marginT = 20;
+    const pageW   = 297;
+    const pageH   = 210;
+
+    // Footer helper
+    function addFooter(d){
+      d.setFont(FONT,"normal");
+      d.setFontSize(10);
+      d.setTextColor(100,100,100);
+      const footerText = "Show Technologies™ - info@showtechnologies.it - +39(0)185720185";
+      const textW = d.getTextWidth(footerText);
+      const x = (pageW - textW)/2;
+      const y = pageH - 8;
+      d.text(footerText, x, y);
+      d.setTextColor(0,0,0);
+    }
+
+    // Header for "rientro" page
+    let incompleto = false;
+    state.l.forEach(it=>{ if ((it.r||0) < it.q) incompleto = true; });
+
+    let curY = marginT;
+    if (mode === "rientro"){
+      doc.setFont(FONT,"bold");
+      doc.setFontSize(SECTION_FS+8);
+      if (incompleto){
+        doc.setTextColor(255,0,0);
+        doc.text("INCOMPLETO", marginL, curY);
+      } else {
+        doc.setTextColor(16,185,129);
+        doc.text("TUTTO RIENTRATO", marginL, curY);
+      }
+      doc.setTextColor(0,0,0);
+      curY += 14;
+    }
+
+    // ---- META TABLE (left) ----
+    doc.setFont(FONT,"normal");
+    doc.setFontSize(BODY_FS);
+
+    const tableX = marginL;
+    const tableY = curY;
+    const rowH   = 7;
+    const labelW = 38;   // slightly wider labels for uniform look
+    const valueW = 110;  // value column width
+    const metaTableW = labelW + valueW;
+    const radius = 2.0;
+
+    // Re-insert "Evento"
+    const rowsMeta = [
+      ["Operatore:", operatorName || ""],
+      ["Produzione:", state.p || ""],
+      ["Evento:", state.e || ""],          // <--- Added back
+      ["Posizione:", state.pos || ""],
+      ["ID Baule:", state.b || ""],
+      ["Note:", state.note || ""],
+      ["Stampato:", nowStamp()]
+    ];
+    const metaTableH = rowsMeta.length * rowH;
+
+    doc.setDrawColor(STROKE_COL[0], STROKE_COL[1], STROKE_COL[2]);
+    doc.setLineWidth(STROKE_W);
+    doc.roundedRect(tableX, tableY, metaTableW, metaTableH, radius, radius, "S");
+
+    // Inner lines
+    for(let i=1;i<rowsMeta.length;i++){
+      const y = tableY + i*rowH;
+      doc.line(tableX, y, tableX+metaTableW, y);
+    }
+    doc.line(tableX+labelW, tableY, tableX+labelW, tableY+metaTableH);
+
+    // Cells
+    rowsMeta.forEach((row,i)=>{
+      const yTextBase = tableY + i*rowH + (rowH-2);
+      doc.text(row[0], tableX+2, yTextBase);
+      const vLines = doc.splitTextToSize(String(row[1]||""), valueW-4);
+      doc.text(vLines, tableX+labelW+2, yTextBase);
+    });
+
+    // ---- QR (top-right) ----
+    const qrSizeMm = 80;
+    const qrX = pageW - qrSizeMm - 20;
+    const qrY = marginT;
+
+    const canon = canonicalJSON(state,true);
+
+    pyodide.runPythonAsync(
+      `pack_json_str(${JSON.stringify(canon)})`
+    ).then(qp=>{
+      const qrCanvas = makeQrCanvas(qp, 4);
+      const qrDataURL = qrCanvas.toDataURL("image/png");
+
+      const rgb = colorFromIndex(state.c || 0);
+      doc.setDrawColor(rgb[0], rgb[1], rgb[2]);
+      doc.setLineWidth(3);
+      const pad=4;
+      doc.roundedRect(
+        qrX - pad/2,
+        qrY - pad/2,
+        qrSizeMm + pad,
+        qrSizeMm + pad,
+        3,3,"S"
+      );
+      doc.addImage(qrDataURL, "PNG", qrX, qrY, qrSizeMm, qrSizeMm);
+
+      // ---- MATERIALS TABLE (under meta, matched width) ----
+      const maxRightBeforeQR = qrX - 10;         // don't intrude into QR area
+      const matStartY = tableY + metaTableH + 8; // right below meta
+      drawMaterialsTable({
+        startY: matStartY,
+        leftX: tableX,
+        targetW: metaTableW,                      // force same width as meta table
+        maxRight: maxRightBeforeQR,
+        mode: mode,
+        marginT: marginT,
+        pageW: pageW,
+        pageH: pageH
+      });
+
+      addFooter(doc);
+
+      const baseName =
+        slugify(state.p || state.e || "Evento") + "_" +
+        slugify(state.b || "Baule") +
+        (mode==="rientro" ? "_RIENTRO" : "");
+
+      if(action === "download"){
+        doc.save(baseName + ".pdf");
+      }else{
+        const blobUrl = doc.output("bloburl");
+        window.open(blobUrl, "_blank");
+      }
+    });
+
+    // Draw materials table with same width/line style/text as meta table
+    function drawMaterialsTable(cfg){
+      let yCursor = cfg.startY;
+
+      // Section title
+      doc.setFont(FONT,"bold");
+      doc.setFontSize(SECTION_FS);
+      if (cfg.mode === "rientro"){
+        doc.text("Rientro materiali:", cfg.leftX, yCursor);
+      } else {
+        doc.text("Materiali:", cfg.leftX, yCursor);
+      }
+      yCursor += 8;
+
+      // Base columns
+      let colPrevW    = 18;
+      let colRientroW = 22;
+      let colMancaW   = 22;
+
+      // Force the whole table width to match metaTableW
+      const targetW = cfg.targetW;
+      let headers, colWidths;
+
+      if (cfg.mode === "rientro"){
+        headers = ["Descrizione","Prev.","Rientrati","Manca"];
+        const staticSum = colPrevW + colRientroW + colMancaW;
+        const descW = Math.max(60, targetW - staticSum);
+        colWidths = [descW, colPrevW, colRientroW, colMancaW];
+      } else {
+        headers = ["Descrizione","Q.tà"];
+        const descW = Math.max(80, targetW - colPrevW);
+        colWidths = [descW, colPrevW];
+      }
+
+      // If the target width would intrude in the QR area, clamp to fit
+      const finalTableW = colWidths.reduce((a,b)=>a+b,0);
+      if (cfg.leftX + finalTableW > cfg.maxRight){
+        const allowed = cfg.maxRight - cfg.leftX;
+        // Proportionally shrink description column (others are numeric)
+        if (headers.length === 4){
+          const staticSum = colWidths[1] + colWidths[2] + colWidths[3];
+          colWidths[0] = Math.max(50, allowed - staticSum);
+        } else {
+          colWidths[0] = Math.max(70, allowed - colWidths[1]);
+        }
+      }
+
+      // Redefine for drawing after possible clamp
+      const drawTableW = colWidths.reduce((a,b)=>a+b,0);
+
+      // Row sizing
+      const headH = 9;
+      const baseLineH = 8;
+      const textLineStep = 6;
+
+      // Build rows (header + data)
+      const allRows = [];
+      allRows.push({ type:"header", cells: headers, h: headH });
+
+      state.l.forEach(it=>{
+        const prev = it.q;
+        const rin  = it.r || 0;
+        const manc = Math.max(0, prev - rin);
+        const descCell = it.d || "";
+        const descLines = doc.splitTextToSize(descCell, colWidths[0]-4);
+        let rowH = Math.max(baseLineH, 4 + (descLines.length * textLineStep));
+        let cells = (cfg.mode === "rientro")
+          ? [descLines, String(prev), String(rin), String(manc)]
+          : [descLines, String(prev)];
+        allRows.push({ type:"data", cells, h: rowH });
+      });
+
+      // Pagination-aware renderer
+      function drawPage(rowIndex, startY){
+        let yTop = startY;
+        let i = rowIndex;
+        let rowsThisPage = [];
+        let totalH = 0;
+        for(; i<allRows.length; i++){
+          const h = allRows[i].h;
+          if (yTop + totalH + h + 20 > pageH) break;
+          rowsThisPage.push(allRows[i]);
+          totalH += h;
+        }
+        if(rowsThisPage.length===0 && rowIndex<allRows.length){
+          rowsThisPage.push(allRows[rowIndex]);
+          totalH += allRows[rowIndex].h;
+          i = rowIndex+1;
+        }
+
+        // Unified border style
+        doc.setDrawColor(STROKE_COL[0], STROKE_COL[1], STROKE_COL[2]);
+        doc.setLineWidth(STROKE_W);
+        doc.roundedRect(cfg.leftX, yTop, drawTableW, totalH, 2, 2, "S");
+
+        // Column separators
+        let xCursor = cfg.leftX;
+        for(let c=0;c<colWidths.length-1;c++){
+          xCursor += colWidths[c];
+          doc.line(xCursor, yTop, xCursor, yTop+totalH);
+        }
+
+        // Rows content + inner horizontal lines
+        let drawY = yTop;
+        rowsThisPage.forEach((row, idx)=>{
+          if(row.type==="header"){
+            doc.setFont(FONT,"bold");
+            doc.setFontSize(HEAD_FS);
+          }else{
+            doc.setFont(FONT,"normal");
+            doc.setFontSize(BODY_FS);
+          }
+
+          let cellX = cfg.leftX;
+          for(let c=0;c<colWidths.length;c++){
+            const cellW = colWidths[c];
+            const cellVal = row.cells[c];
+            if (Array.isArray(cellVal)){
+              let textY = drawY + 6;
+              cellVal.forEach(line=>{
+                doc.text(line, cellX+2, textY);
+                textY += textLineStep;
+              });
+            } else {
+              doc.text(String(cellVal||""), cellX+2, drawY+6);
+            }
+            cellX += cellW;
+          }
+
+          drawY += row.h;
+          if(idx < rowsThisPage.length-1){
+            doc.line(cfg.leftX, drawY, cfg.leftX+drawTableW, drawY);
+          }
+        });
+
+        return { next: i, y: drawY };
+      }
+
+      let idx = 0;
+      let localY = yCursor;
+      while(idx < allRows.length){
+        const res = drawPage(idx, localY);
+        idx = res.next;
+        localY = res.y;
+        if(idx < allRows.length){
+          addFooter(doc);
+          doc.addPage("a4","landscape");
+          localY = marginT;
+          // repeat section title
+          doc.setFont(FONT,"bold");
+          doc.setFontSize(SECTION_FS);
+          if (cfg.mode === "rientro"){
+            doc.text("Rientro materiali:", cfg.leftX, localY);
+          } else {
+            doc.text("Materiali:", cfg.leftX, localY);
+          }
+          localY += 8;
+        }
+      }
+    }
+  };
+})();
+</script>
+
 </body>
 </html>
