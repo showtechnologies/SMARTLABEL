@@ -527,14 +527,7 @@
       <nav class="noprint">
         <button data-tab="tab-home" class="active">Home</button>
         <button data-tab="tab-lista">Crea lista</button>
-        <button data-tab="tab-qr">QR & Stampa
-<div class="row" style="margin-top:10px">
-  <div style="flex:1;min-width:140px">
-    <label>Nota diagonale (watermark)</label>
-    <input id="diagNote" placeholder="Testo grande diagonale trasparente">
-  </div>
-</div>
-</button>
+        <button data-tab="tab-qr">QR & Stampa</button>
         <button data-tab="tab-decode">Leggi lista</button>
         <button data-tab="tab-rientro">Spunta</button>
         <span id="status" class="muted" style="margin-left:auto;flex-grow:0;flex-basis:auto"></span>
@@ -639,6 +632,13 @@
               <label>Note</label>
               <input id="noteField" placeholder="es. FOH / wedge spare">
             </div>
+<div class="row" style="margin-top:10px">
+  <div style="flex:1;min-width:140px">
+    <label>Nota diagonale (watermark)</label>
+    <input id="diagNote" placeholder="Testo grande diagonale trasparente">
+  </div>
+</div>
+
             <div style="flex:1;min-width:140px">
               <label>Colore etichetta</label>
               <select id="colorSel">
@@ -841,26 +841,7 @@
       const url=URL.createObjectURL(blob);
       navigator.serviceWorker.register(url).catch(()=>{});
     }
-  
-function ensureNd(o){ if(o && typeof o==='object' && !('nd' in o)) o.nd=""; return o; }
-
-
-try{
-  (function(){
-    var el = document.getElementById('qrColorText');
-    var cf = colorFromIndex((state && typeof state.c==='number') ? state.c : 0);
-    if(el){
-      el.textContent = "BORDO QR: " + cf.name + " – " + cf.hex + " – RGB " + cf.rgb.join(" ");
-    }
-  })();
-}catch(e){}
-
-
-
-// === Helper to draw right-aligned labels ===
-function _rightText(txt, x, y){ try{ doc.text(String(txt), x, y, {align:"right"}); }catch(e){ doc.text(String(txt), x, y); } }
-
-</script>
+  </script>
 
   <!-- APP SCRIPT -->
   <script>
@@ -899,9 +880,8 @@ function _rightText(txt, x, y){ try{ doc.text(String(txt), x, y, {align:"right"}
       pos:"",
       note:"",
       c:0,
-      l:[],
-  nd:""
-};
+      l:[]
+      ,nd:""};
     let operatorName = loadOperatorName() || "";
 
     // LOGIN
@@ -1121,14 +1101,10 @@ def unpack_to_pretty(s: str) -> str:
         b: obj.b || "",
         e: obj.e || "",
         o: operatorName || "",
-    p: obj.p || \"\",
-    pos: obj.pos || \"\",
-    note: obj.note || \"\",
-    nd: obj.nd || \"\",
-
         p: obj.p || "",
         pos: obj.pos || "",
         note: obj.note || "",
+        nd: obj.nd || "",
         c: (typeof obj.c==="number"?obj.c:0),
         l: (obj.l||[]).map(x=>({
           d:x.d,
@@ -1216,8 +1192,7 @@ const palette = [
     const noteFieldEl  = document.getElementById('noteField');
     const colorSelEl   = document.getElementById('colorSel');
 
-    
-const diagNoteEl = document.getElementById('diagNote');
+    const diagNoteEl = document.getElementById('diagNote');
 boxIdEl.value     = state.b || "";
     eventNameEl.value = state.e || "";
 
@@ -1230,7 +1205,7 @@ boxIdEl.value     = state.b || "";
       state.c = parseInt(colorSelEl.value||"0",10);
       state.t = state.t || today();
     
-  try{ state.nd = (diagNoteEl.value||"").trim(); }catch(e){}
+  if (typeof diagNoteEl!=="undefined" && diagNoteEl) state.nd = (diagNoteEl.value||"").trim();
 }
 
     function applyMeta(){
@@ -1241,7 +1216,7 @@ boxIdEl.value     = state.b || "";
       noteFieldEl.value = state.note || "";
       colorSelEl.value  = (typeof state.c==="number"?state.c:0);
     
-  try{ diagNoteEl.value = state.nd || ""; }catch(e){}
+  if (typeof diagNoteEl!=="undefined" && diagNoteEl) diagNoteEl.value = state.nd || "";
 }
 
     // LISTA HANDLERS
@@ -1287,7 +1262,7 @@ boxIdEl.value     = state.b || "";
 
     document.getElementById('exportJson').onclick=()=>{
       syncMeta();
-      const j = canonicalJSON(ensureNd(state),true);
+      const j = canonicalJSON(state,true);
       downloadBlob(new Blob([j],{type:'application/json'}),'lista.json');
     };
 
@@ -1336,7 +1311,7 @@ boxIdEl.value     = state.b || "";
         return;
       }
 
-      const canon = canonicalJSON(ensureNd(state),true);
+      const canon = canonicalJSON(state,true);
       document.getElementById('jsonCanon').value = canon;
       document.getElementById('sha256').textContent = await sha256hex(canon);
 
@@ -1358,7 +1333,19 @@ boxIdEl.value     = state.b || "";
       box.innerHTML="";
       box.appendChild(currentQRCanvas);
 
-      document.getElementById('encInfo').textContent =
+      
+
+try{
+  (function(){
+    var el = document.getElementById('qrColorText');
+    var cf = colorFromIndex((state && typeof state.c==='number') ? state.c : 0);
+    if(el){
+      el.textContent = "BORDO QR: " + cf.name + " – " + cf.hex + " – RGB " + cf.rgb.join(" ");
+    }
+  })();
+}catch(e){}
+
+document.getElementById('encInfo').textContent =
         `ECC=H. Quiet zone ${border} moduli.`;
 
       btnDownloadPNG.disabled=false;
@@ -1448,10 +1435,35 @@ boxIdEl.value     = state.b || "";
       }
 
       const { jsPDF } = jsPDFmod;
-      const doc = new jsPDF(
+      const doc = new jsPDF({
+        orientation:"landscape",
+        unit:"mm",
+        format:"a4"
+      });
+
+      
 // === Uniform PDF styles ===
 try{
   doc.setFont("helvetica","normal");
+  doc.setFontSize(12);
+  var LINE_W = 0.3;
+  var RADIUS = 2.0;
+  doc.setLineWidth(LINE_W);
+  doc.setDrawColor(0,0,0);
+}catch(e){}
+ensureRientroStore();
+      syncMeta();
+
+      let incompleto = false;
+      state.l.forEach(it=>{
+        if ((it.r||0) < it.q) incompleto=true;
+      });
+
+      const marginL = 15;
+      const marginT = 20;
+      const pageW   = 297;
+      const pageH   = 210;
+
 // === Diagonal watermark (nota diagonale) ===
 try{
   if(state && state.nd && String(state.nd).trim()){
@@ -1474,6 +1486,8 @@ try{
   }
 }catch(e){}
 
+
+
 // === Page rounded border ===
 try{
   var pageW = doc.internal.pageSize.getWidth();
@@ -1486,30 +1500,7 @@ try{
   doc.setLineWidth(LINE_W);
 }catch(e){}
 
-  doc.setFontSize(12);
-  var LINE_W = 0.3;
-  var RADIUS = 2.0;
-  doc.setLineWidth(LINE_W);
-  doc.setDrawColor(0,0,0);
-}catch(e){}
-{
-        orientation:"landscape",
-        unit:"mm",
-        format:"a4"
-      });
 
-      ensureRientroStore();
-      syncMeta();
-
-      let incompleto = false;
-      state.l.forEach(it=>{
-        if ((it.r||0) < it.q) incompleto=true;
-      });
-
-      const marginL = 15;
-      const marginT = 20;
-      const pageW   = 297;
-      const pageH   = 210;
 
       function addFooter(d){
         d.setFont("helvetica","normal");
@@ -1572,17 +1563,16 @@ try{
       doc.line(tableX+labelW, tableY, tableX+labelW, tableY+metaTableH);
 
       rowsMeta.forEach((row,i)=>{
-        const yTextBase = tableY + i*rowH + (rowH-2);
-        doc.text(row[0], tableX+2, yTextBase);
-        const vLines = doc.splitTextToSize(row[1], valueW-4);
-        doc.text(vLines, tableX+labelW+2, yTextBase);
-      });
-
-      const qrSizeMm = 80;
+  const yTextBase = tableY + i*rowH + (rowH-2);
+  doc.text(row[0], tableX + labelW - 2, yTextBase, { align: "right" });
+  const vLines = doc.splitTextToSize(row[1], valueW-4);
+  doc.text(vLines, tableX + labelW + 2, yTextBase);
+});
+const qrSizeMm = 80;
       const qrX = pageW - qrSizeMm - 20;
       const qrY = marginT;
 
-      const canon = canonicalJSON(ensureNd(state),true);
+      const canon = canonicalJSON(state,true);
 
       pyodide.runPythonAsync(
         `pack_json_str(${JSON.stringify(canon)})`
@@ -1603,30 +1593,30 @@ try{
         );
 
         doc.addImage(qrDataURL, "PNG", qrX, qrY, qrSizeMm, qrSizeMm);
+
+        
+
 // === QR border + color text ===
 try{
   var cf = colorFromIndex((state && typeof state.c==='number') ? state.c : 0);
-  if (typeof qrX !== 'undefined' && typeof qrY !== 'undefined' && typeof qrSizeMm !== 'undefined'){
-    doc.setDrawColor(cf.rgb[0], cf.rgb[1], cf.rgb[2]);
-    doc.setLineWidth(3);
-    var pad = 4;
-    doc.roundedRect(qrX - pad/2, qrY - pad/2, qrSizeMm + pad, qrSizeMm + pad, 3, 3, "S");
-    // color text below QR
-    doc.setFont("helvetica","bold");
-    doc.setFontSize(11);
-    doc.setTextColor(0,0,0);
-    var colorLine = "BORDO QR: " + cf.name + " – " + cf.hex + " – RGB " + cf.rgb.join(" ");
-    var colorTextW = doc.getTextWidth(colorLine);
-    var colorX = qrX + (qrSizeMm - colorTextW)/2;
-    var colorY = qrY + qrSizeMm + 7;
-    doc.text(colorLine, colorX, colorY);
-    doc.setFont("helvetica","normal");
-    doc.setFontSize(12);
-  }
+  doc.setDrawColor(cf.rgb[0], cf.rgb[1], cf.rgb[2]);
+  doc.setLineWidth(3);
+  var pad = 4;
+  doc.roundedRect(qrX - pad/2, qrY - pad/2, qrSizeMm + pad, qrSizeMm + pad, 3, 3, "S");
+  // color text below QR
+  doc.setFont("helvetica","bold");
+  doc.setFontSize(11);
+  doc.setTextColor(0,0,0);
+  var colorLine = "BORDO QR: " + cf.name + " – " + cf.hex + " – RGB " + cf.rgb.join(" ");
+  var colorTextW = doc.getTextWidth(colorLine);
+  var colorX = qrX + (qrSizeMm - colorTextW)/2;
+  var colorY = qrY + qrSizeMm + 7;
+  doc.text(colorLine, colorX, colorY);
+  doc.setFont("helvetica","normal");
+  doc.setFontSize(12);
 }catch(e){}
 
-
-        const maxRightBeforeQR = qrX - 10;
+const maxRightBeforeQR = qrX - 10;
         const matStartY = tableY + metaTableH + 8;
 
         drawMaterialsTable(doc, {
@@ -2093,7 +2083,7 @@ try{
 
     btnCompare.onclick=async()=>{
       try{
-        const a = canonicalJSON(ensureNd(state),true);
+        const a = canonicalJSON(state,true);
         const b = canonicalJSON(JSON.parse(jsonDecoded.value),true);
         const equal = (await sha256hex(a)) === (await sha256hex(b));
         cmpResult.innerHTML = equal
@@ -2410,6 +2400,22 @@ try{
     })();
 
     let lastPayloadText="";
-  </script>
+  
+
+// --- Login button ENTER key support ---
+(function(){
+  var loginBtn = document.getElementById('loginBtn');
+  var loginInput = document.getElementById('loginNameInput');
+  if(loginBtn && loginInput){
+    loginInput.addEventListener('keydown', function(ev){
+      if(ev.key === 'Enter'){
+        ev.preventDefault();
+        loginBtn.click();
+      }
+    });
+  }
+})();
+
+</script>
 </body>
 </html>
