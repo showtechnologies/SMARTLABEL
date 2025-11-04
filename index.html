@@ -1931,7 +1931,7 @@ const maxRightBeforeQR = qrX - 10;
     };
 
     // ------- PATCH start/stop camera -------
-    async function startCameraOverlay(){
+    async function startCameraOverlay(){ if(!window.requireZXing||!requireZXing()) return;
       camOverlay.style.display='flex';
       camStatusEl.textContent="Apertura camera…";
       torchEnabled=false;
@@ -2487,5 +2487,120 @@ const maxRightBeforeQR = qrX - 10;
 })();
 </script>
 
-</body>
-</html>
+
+<script>
+// ===== Robust dependency loader with multi-CDN fallback + diagnostics =====
+(function(){
+  const DIAG = document.getElementById('depsDiag');
+  function log(msg){ if(DIAG){ DIAG.innerHTML += (DIAG.innerHTML?'<br>':'') + msg; } }
+
+  function loadScriptSeq(urls, {globalCheck,timeout=10000}){
+    return new Promise((resolve,reject)=>{
+      let i=0, done=false;
+      function tryNext(){
+        if(done) return;
+        if(i>=urls.length){ reject(new Error('All sources failed: '+urls.join(', '))); return; }
+        const src = urls[i++];
+        const s = document.createElement('script');
+        s.src = src;
+        s.async = true;
+        let to = setTimeout(()=>{
+          s.onload = s.onerror = null;
+          log('Timeout: '+src);
+          tryNext();
+        }, timeout);
+        s.onerror = ()=>{
+          clearTimeout(to);
+          log('Errore: '+src);
+          tryNext();
+        };
+        s.onload = ()=>{
+          clearTimeout(to);
+          const ok = (typeof globalCheck === 'function') ? !!globalCheck() : true;
+          if(ok){ log('OK: '+src); done=true; resolve(true); }
+          else { log('Non trovato dopo load: '+src); tryNext(); }
+        };
+        document.head.appendChild(s);
+      }
+      tryNext();
+    });
+  }
+
+  // Mirrors
+  const ZXING = [
+    "https://cdn.jsdelivr.net/npm/@zxing/library@0.21.2/umd/index.min.js",
+    "https://unpkg.com/@zxing/library@0.21.2/umd/index.min.js",
+    "https://cdnjs.cloudflare.com/ajax/libs/zxing/0.21.2/zxing.min.js"
+  ];
+  const PDFJS_WORKER = [
+    "https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js",
+    "https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js",
+    "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js"
+  ];
+  const PYODIDE = [
+    "https://cdn.jsdelivr.net/pyodide/v0.25.1/full/pyodide.js",
+    "https://pyodide-cdn2.iodide.io/v0.25.1/full/pyodide.js"
+  ];
+
+  async function loadDeps(){
+    log("Caricamento dipendenze…");
+    // ZXing (QR decoder)
+    await loadScriptSeq(ZXING, { globalCheck:()=>window.ZXing||window.BrowserMultiFormatReader });
+    // PDF.js worker (PDF reading / decoding)
+    await loadScriptSeq(PDFJS_WORKER, { globalCheck:()=>true });
+    // Pyodide (se usato per OCR/extra; se non serve, non bloccare)
+    try{
+      await loadScriptSeq(PYODIDE, { globalCheck:()=>window.loadPyodide });
+    }catch(e){
+      log("Pyodide non essenziale: continuo senza.");
+    }
+    log("Dipendenze caricate.");
+    try{ if (typeof unlockButtons === 'function') unlockButtons(); }catch(_){}
+  }
+
+  // Expose reload button
+  window.reloadDeps = function(){
+    DIAG && (DIAG.innerHTML = "");
+    loadDeps().catch(e=> log("Errore generale loader: "+(e && e.message || e)));
+  };
+
+  // Start automatically after login overlay is closed (or immediately if non visibile)
+  document.addEventListener('DOMContentLoaded', function(){
+    // se non c'è overlay visibile, carica subito
+    const ov = document.getElementById('loginOverlay');
+    const isVisible = ov && window.getComputedStyle(ov).display !== 'none';
+    if(!isVisible){
+      reloadDeps();
+    }else{
+      // anche se visibile, partiremo comunque: qualche utente può già essere loggato
+      reloadDeps();
+    }
+  });
+
+  // Guard inside buttons: if library missing, show clear message instead of "non fa nulla"
+  function guardLib(check, name){
+    if(check()) return true;
+    alert("La libreria \""+name+"\" non è caricata. Premi in alto su \"Forza caricamento dipendenze\" oppure controlla la connessione.");
+    return false;
+  }
+
+  // Augment existing handlers without replacing them
+  window.requireZXing = function(){
+    return guardLib(()=> !!(window.ZXing||window.BrowserMultiFormatReader), "ZXing");
+  };
+  window.requirePDFJS = function(){
+    return guardLib(()=> true, "PDF.js worker");
+  };
+
+  // Add a small control button to force reload
+  const btn = document.createElement('button');
+  btn.textContent = "Forza caricamento dipendenze";
+  btn.className = "btn ghost";
+  btn.style.marginLeft = "8px";
+  btn.onclick = ()=> reloadDeps();
+  const statusBar = document.getElementById('status');
+  if(statusBar) statusBar.appendChild(btn);
+})();
+</script>
+
+</body></html>
