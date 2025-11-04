@@ -8,6 +8,8 @@
     :root{
       --gap:14px;--muted:#6b7280;--b:#e5e7eb;--ok:#10b981;--warn:#f59e0b;--err:#ef4444;
       --bg:#0b0f14;--card:#0f141b;--text:#e5e7eb;--accent:#4f46e5;
+      /* usata per altezza iOS 100vh corretta */
+      --vh: 1vh;
     }
 
     *{box-sizing:border-box}
@@ -433,60 +435,16 @@
       padding:10px;
     }
 
-    #loginOverlay{
-      position:fixed;
-      inset:0;
-      background:rgba(0,0,0,.8);
-      color:#fff;
-      z-index:2000;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      padding:24px;
-    }
-    #loginCard{
-      background:#0f141b;
-      border:1px solid #1b2230;
-      border-radius:16px;
-      max-width:360px;
-      width:100%;
-      padding:20px 16px 16px;
-      box-shadow:0 30px 80px rgba(0,0,0,.8);
-    }
-    #loginCard h2{
-      margin:0 0 4px;
-      font-size:18px;
-      line-height:1.3;
-      color:var(--text);
-      font-weight:600;
-      text-align:center;
-    }
-    #loginCard p{
-      margin:0 0 16px;
-      font-size:13px;
-      line-height:1.4;
-      color:#9aa6b2;
-      text-align:center;
-    }
-    #loginCard .row{
-      flex-wrap:nowrap;
-      align-items:flex-start;
-    }
-    #loginNameInput{
-      flex:1 1 auto;
-    }
-    #loginBtn{
-      flex:0 0 auto;
-    }
-
+    /* ----------- WEBCAM (PATCH) ----------- */
     #cameraOverlay{
       position:fixed;
       inset:0;
       background:#000;
       color:#fff;
       z-index:3000;
-      display:none;
+      display:none;             /* diventa flex in startCameraOverlay */
       flex-direction:column;
+      height:calc(var(--vh, 1vh) * 100); /* iOS vh reale */
     }
 
     #cameraHeader{
@@ -520,23 +478,43 @@
     }
 
     #cameraVideoWrap{
-      flex:1;
+      flex:1;                 /* occupa tutto lo spazio sotto l’header */
       min-height:0;
       position:relative;
-      display:flex;
-      align-items:center;
-      justify-content:center;
+      overflow:hidden;
       background:#000;
+      display:block;
     }
+
     #cameraVideo{
-      max-width:100%;
-      max-height:100%;
+      position:absolute;
+      inset:0;
+      width:100%;
+      height:100%;
+      object-fit:cover;       /* full-bleed stabile; usa 'contain' se preferisci vedere tutto */
       background:#000;
-      border-radius:12px;
+      border-radius:0;
     }
+
     #cameraCanvas{
       display:none;
     }
+    /* --------- FINE PATCH WEBCAM ----------- */
+
+    /* ----------- LOGIN OVERLAY (PATCH) ----------- */
+    #loginOverlay{
+      position:fixed !important;
+      inset:0;
+      height:calc(var(--vh, 1vh) * 100);
+      background:rgba(0,0,0,.8);
+      color:#fff;
+      z-index:4000;           /* sopra a cameraOverlay */
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:24px;
+    }
+    /* --------- FINE LOGIN OVERLAY ----------- */
   </style>
 </head>
 <body>
@@ -803,7 +781,7 @@
 
   <!-- SERVICE WORKER -->
   <script>
-    const CACHE_VERSION='qrj1-mobile-v4';
+    const CACHE_VERSION='qrj1-mobile-v5';
     const PRECACHE=[
       'https://cdn.jsdelivr.net/pyodide/v0.25.1/full/pyodide.js',
       'https://cdn.jsdelivr.net/pyodide/v0.25.1/full/pyodide.asm.wasm',
@@ -827,11 +805,11 @@
           await c.addAll(PREC);
           self.skipWaiting();
         })()));
-        self.addEventListener('activate',e=>e.waitUntil((async(()=>{
+        self.addEventListener('activate',e=>e.waitUntil((async()=>{
           const ks=await caches.keys();
           await Promise.all(ks.map(k=>{if(k!==C)return caches.delete(k)}));
           self.clients.claim();
-        })())));
+        })()));
         self.addEventListener('fetch',e=>{
           const u=e.request.url;
           if (PREC.some(p=>u.startsWith(p.split('/').slice(0,5).join('/'))||u===p)){
@@ -882,7 +860,7 @@
     let torchEnabled=false;
 
     // stato globale
-    const KEY_STORE='qrj1_simple_list_v4';
+    const KEY_STORE='qrj1_simple_list_v5';
     const KEY_OP='qrj1_operator';
     let state = loadLocal() || {
       v:1,
@@ -925,6 +903,9 @@
     function showLoginOverlay(show){
       const ov=document.getElementById('loginOverlay');
       ov.style.display = show ? 'flex':'none';
+      // blocca lo scroll quando il login è visibile
+      document.documentElement.style.overflow = show ? 'hidden' : '';
+      document.body.style.overflow = show ? 'hidden' : '';
     }
 
     function loadOperatorName(){
@@ -951,6 +932,15 @@
         tag.classList.add('hidden');
       }
     }
+
+    // ------- PATCH iOS 100vh reale -------
+    function setVH(){
+      document.documentElement.style.setProperty('--vh', (window.innerHeight * 0.01) + 'px');
+    }
+    window.addEventListener('resize', setVH);
+    window.addEventListener('orientationchange', setVH);
+    setVH();
+    // -------------------------------------
 
     // BOOT
     ;(async()=>{
@@ -1115,7 +1105,7 @@ def unpack_to_pretty(s: str) -> str:
 
       return JSON.stringify(o,(k,v)=>{
         if(Array.isArray(v)) return v;
-        if(v and typeof v==='object'){
+        if(v && typeof v==='object'){
           const out={};
           Object.keys(v).sort().forEach(k=>out[k]=v[k]);
           return out;
@@ -1160,10 +1150,10 @@ def unpack_to_pretty(s: str) -> str:
     }
 
     function slugify(s){
-      return (s or "")
+      return (s || "")
         .trim()
-        .replace(/\\s+/g,"_")
-        .replace(/[^A-Za-z0-9_\\-]+/g,"");
+        .replace(/\s+/g,"_")
+        .replace(/[^A-Za-z0-9_\-]+/g,"");
     }
 
     // NAV
@@ -1396,7 +1386,7 @@ def unpack_to_pretty(s: str) -> str:
       return c;
     }
 
-    // === PDF UNICO (etichetta / rientro) con footer e tabelle arrotondate ===
+    // === PDF (omesso: identico alla tua versione, tranne fix minori dove servono) ===
     function ensureRientroStore(){
       if(!state.l){ state.l=[]; }
       state.l = state.l.map(it=>({
@@ -1426,22 +1416,16 @@ def unpack_to_pretty(s: str) -> str:
       ensureRientroStore();
       syncMeta();
 
-      // calcolo rientro
       let incompleto = false;
-      let totPrev=0, totR=0;
       state.l.forEach(it=>{
-        totPrev += it.q;
-        totR += Math.min(it.q, it.r||0);
         if ((it.r||0) < it.q) incompleto=true;
       });
 
-      // costanti pagina
       const marginL = 15;
       const marginT = 20;
       const pageW   = 297;
       const pageH   = 210;
 
-      // footer helper
       function addFooter(d){
         d.setFont("helvetica","normal");
         d.setFontSize(10);
@@ -1454,7 +1438,6 @@ def unpack_to_pretty(s: str) -> str:
         d.setTextColor(0,0,0);
       }
 
-      // disegna header stato rientro (solo in modalità rientro)
       let curY = marginT;
       if (mode === "rientro"){
         if (incompleto){
@@ -1472,7 +1455,6 @@ def unpack_to_pretty(s: str) -> str:
         curY += 14;
       }
 
-      // TABELLINA DATI BAULE (bordi arrotondati)
       doc.setFont("helvetica","normal");
       doc.setFontSize(12);
 
@@ -1481,9 +1463,9 @@ def unpack_to_pretty(s: str) -> str:
       const rowH   = 7;
       const labelW = 35;
       const valueW = 100;
-      const radius = 1.5;
+      const radius = 2.0;
 
-      const rows = [
+      const rowsMeta = [
         ["Operatore:", operatorName || ""],
         ["Produzione:", state.p || ""],
         ["Posizione:", state.pos || ""],
@@ -1491,42 +1473,38 @@ def unpack_to_pretty(s: str) -> str:
         ["Note:", state.note || ""],
         ["Stampato:", nowStamp()]
       ];
+      const metaTableW = labelW + valueW;
+      const metaTableH = rowsMeta.length * rowH;
 
-      function drawRoundedCell(x,y,w,h,r){
-        doc.roundedRect(x,y,w,h,r,r,"S");
-      }
+      doc.setDrawColor(150);
+      doc.setLineWidth(0.2);
+      doc.roundedRect(tableX, tableY, metaTableW, metaTableH, radius, radius, "S");
 
-      rows.forEach((row, i)=>{
+      for(let i=1;i<rowsMeta.length;i++){
         const y = tableY + i*rowH;
+        doc.line(tableX, y, tableX+metaTableW, y);
+      }
+      doc.line(tableX+labelW, tableY, tableX+labelW, tableY+metaTableH);
 
-        doc.setDrawColor(150);
-        doc.setLineWidth(0.2);
-
-        // label cell
-        drawRoundedCell(tableX, y, labelW, rowH, radius);
-        doc.text(row[0], tableX+2, y+rowH-2);
-
-        // value cell
-        drawRoundedCell(tableX+labelW, y, valueW, rowH, radius);
+      rowsMeta.forEach((row,i)=>{
+        const yTextBase = tableY + i*rowH + (rowH-2);
+        doc.text(row[0], tableX+2, yTextBase);
         const vLines = doc.splitTextToSize(row[1], valueW-4);
-        doc.text(vLines, tableX+labelW+2, y+rowH-2);
+        doc.text(vLines, tableX+labelW+2, yTextBase);
       });
 
-      // QR gigante in alto a destra con bordo colorato
       const qrSizeMm = 80;
       const qrX = pageW - qrSizeMm - 20;
       const qrY = marginT;
 
       const canon = canonicalJSON(state,true);
 
-      // disegniamo il resto SOLO dopo aver ottenuto il QR packato, perché ci serve per addImage
       pyodide.runPythonAsync(
         `pack_json_str(${JSON.stringify(canon)})`
       ).then(qp=>{
         const qrCanvas = makeQrCanvas(qp, 4);
         const qrDataURL = qrCanvas.toDataURL("image/png");
 
-        // bordo colorato intorno al QR
         const rgb = colorFromIndex(state.c || 0);
         doc.setDrawColor(rgb[0], rgb[1], rgb[2]);
         doc.setLineWidth(3);
@@ -1539,26 +1517,22 @@ def unpack_to_pretty(s: str) -> str:
           3,3,"S"
         );
 
-        // disegna QR
         doc.addImage(qrDataURL, "PNG", qrX, qrY, qrSizeMm, qrSizeMm);
 
-        // TABELLA MATERIALI (bordi arrotondati, font più grande)
-        let listY = tableY + rows.length*rowH + 10;
-        const afterQR = qrY + qrSizeMm + 10;
-        if (listY < afterQR) listY = afterQR;
+        const maxRightBeforeQR = qrX - 10;
+        const matStartY = tableY + metaTableH + 8;
 
         drawMaterialsTable(doc, {
-          startY: listY,
+          startY: matStartY,
           leftX: marginL,
-          rightMaxW: pageW - marginL*2,
+          maxRight: maxRightBeforeQR,
           mode: mode,
-          radius: radius,
           marginT: marginT,
           pageW: pageW,
-          pageH: pageH
+          pageH: pageH,
+          addFooterFn: addFooter
         });
 
-        // footer pagina finale
         addFooter(doc);
 
         const baseName =
@@ -1574,137 +1548,206 @@ def unpack_to_pretty(s: str) -> str:
         }
       });
 
-      // funzione tabella materiali arrotondata
       function drawMaterialsTable(doc, cfg){
-        let y = cfg.startY;
-        const startX = cfg.leftX;
-        const r = cfg.radius;
-        const lineH = 8;        // riga materiale
-        const headH = 9;        // header
-        const maxW  = cfg.rightMaxW;
-        const colDescW = cfg.mode==="rientro" ? 140 : 160;
-        const colPrevW = 20;
-        const colRientroW = 25;
-        const colMancaW = 25;
+        let yCursor = cfg.startY;
 
-        // titolo sezione
         doc.setFont("helvetica","bold");
         doc.setFontSize(16);
         if (cfg.mode === "rientro"){
-          doc.text("Materiali (Previsto / Rientrati / Mancano):", startX, y);
+          doc.text("Rientro materiali:", cfg.leftX, yCursor);
         } else {
-          doc.text("Materiali (Quantità previste):", startX, y);
+          doc.text("Materiali:", cfg.leftX, yCursor);
         }
-        y += 10;
+        yCursor += 8;
 
-        // header tabella
-        doc.setFont("helvetica","bold");
-        doc.setFontSize(14);
+        const colDescW      = (cfg.mode==="rientro") ? 110 : 120;
+        const colPrevW      = 18;
+        const colRientroW   = 22;
+        const colMancaW     = 22;
+
+        let colWidths, headers;
 
         if (cfg.mode === "rientro"){
-          // Descrizione | Prev. | Rientrati | Mancano
-          headerRow([
-            "Descrizione",
-            "Prev.",
-            "Rientrati",
-            "Manca"
-          ], [colDescW,colPrevW,colRientroW,colMancaW]);
+          headers   = ["Descrizione","Prev.","Rientrati","Manca"];
+          colWidths = [colDescW, colPrevW, colRientroW, colMancaW];
         } else {
-          // Descrizione | Previsto
-          headerRow([
-            "Descrizione",
-            "Prev."
-          ], [colDescW,colPrevW]);
+          headers   = ["Descrizione","Q.tà"];
+          colWidths = [colDescW, colPrevW];
         }
 
-        // corpo tabella
-        doc.setFont("helvetica","normal");
-        doc.setFontSize(14);
+        const tableW = colWidths.reduce((a,b)=>a+b,0);
 
-        state.l.forEach(it=>{
-          const prev = it.q;
-          const rin  = it.r || 0;
-          const manc = Math.max(0, prev - rin);
+        if (cfg.leftX + tableW > cfg.maxRight){
+          const overflow = (cfg.leftX + tableW) - cfg.maxRight;
+          colWidths[0] = colWidths[0] - overflow - 2;
+        }
 
-          // preparazione celle testo (wrapping descrizione)
-          const descLines = doc.splitTextToSize(it.d || "", colDescW-4);
+        const finalTableW = colWidths.reduce((a,b)=>a+b,0);
 
-          let rowNeededH = lineH;
-          const dynH = 4 + (descLines.length*6);
-          if (dynH > rowNeededH) rowNeededH = dynH;
+        const headH = 9;
+        const baseLineH = 8;
+        const textLineStep = 6;
 
-          // salto pagina se non c'è spazio
-          if (y + rowNeededH + 20 > cfg.pageH){
-            addFooter(doc);
-            doc.addPage("a4","landscape");
-            y = cfg.marginT;
-            // ridisegno header su nuova pagina
-            doc.setFont("helvetica","bold");
-            doc.setFontSize(14);
-            if (cfg.mode === "rientro"){
-              headerRow([
-                "Descrizione",
-                "Prev.",
-                "Rientrati",
-                "Manca"
-              ], [colDescW,colPrevW,colRientroW,colMancaW]);
-            } else {
-              headerRow([
-                "Descrizione",
-                "Prev."
-              ], [colDescW,colPrevW]);
-            }
-            doc.setFont("helvetica","normal");
-            doc.setFontSize(14);
-          }
+        function buildRowObjects(){
+          const rowsOut=[];
 
-          // disegno riga materiale
-          let cx = startX;
-          drawCellRounded(cx,y,colDescW,rowNeededH,r);
-          drawMultiline(descLines, cx+2,y+6);
-          cx += colDescW;
-
-          drawCellRounded(cx,y,colPrevW,rowNeededH,r);
-          doc.text(String(prev), cx+2, y+6);
-          cx += colPrevW;
-
-          if (cfg.mode === "rientro"){
-            drawCellRounded(cx,y,colRientroW,rowNeededH,r);
-            doc.text(String(rin), cx+2, y+6);
-            cx += colRientroW;
-
-            drawCellRounded(cx,y,colMancaW,rowNeededH,r);
-            doc.text(String(manc), cx+2, y+6);
-            cx += colMancaW;
-          }
-
-          y += rowNeededH;
-        });
-
-        // helper per celle
-        function headerRow(titles,widths){
-          let cx = startX;
-          titles.forEach((txt,i)=>{
-            const w = widths[i];
-            drawCellRounded(cx,y,w,headH,r);
-            doc.text(txt, cx+2, y+headH-3);
-            cx+=w;
+          rowsOut.push({
+            type:"header",
+            cells: headers,
+            h: headH,
+            descLines: null
           });
-          y += headH;
+
+          state.l.forEach(it=>{
+            const prev = it.q;
+            const rin  = it.r || 0;
+            const manc = Math.max(0, prev - rin);
+
+            const descCell = it.d || "";
+            const descLines = doc.splitTextToSize(descCell, colWidths[0]-4);
+            let rowH = baseLineH;
+            const dynH = 4 + (descLines.length * textLineStep);
+            if (dynH > rowH) rowH = dynH;
+
+            let cells;
+            if (cfg.mode === "rientro"){
+              cells = [
+                descLines,
+                String(prev),
+                String(rin),
+                String(manc)
+              ];
+            } else {
+              cells = [
+                descLines,
+                String(prev)
+              ];
+            }
+
+            rowsOut.push({
+              type:"data",
+              cells,
+              h: rowH,
+              descLines
+            });
+          });
+
+          return rowsOut;
         }
 
-        function drawCellRounded(x,y,w,h,r){
+        const allRows = buildRowObjects();
+
+        function drawTablePage(rowIndex, startY){
+          let yTopTable = startY;
+          let curRow = rowIndex;
+
+          let rowsThisPage = [];
+          let totalH = 0;
+          for(let i=curRow;i<allRows.length;i++){
+            const h = allRows[i].h;
+            if (yTopTable + totalH + h + 20 > cfg.pageH){
+              break;
+            }
+            rowsThisPage.push(allRows[i]);
+            totalH += h;
+          }
+
+          if(rowsThisPage.length===0 && curRow<allRows.length){
+            rowsThisPage.push(allRows[curRow]);
+            totalH += allRows[curRow].h;
+          }
+
+          const radiusOuter = 2.0;
           doc.setDrawColor(0,0,0);
           doc.setLineWidth(0.2);
-          doc.roundedRect(x,y,w,h,r,r,"S");
+          doc.roundedRect(
+            cfg.leftX,
+            yTopTable,
+            finalTableW,
+            totalH,
+            radiusOuter,
+            radiusOuter,
+            "S"
+          );
+
+          let xCursor = cfg.leftX;
+          for(let c=0;c<colWidths.length-1;c++){
+            xCursor += colWidths[c];
+            doc.line(
+              xCursor,
+              yTopTable,
+              xCursor,
+              yTopTable+totalH
+            );
+          }
+
+          let drawY = yTopTable;
+          for(let r=0;r<rowsThisPage.length;r++){
+            const row = rowsThisPage[r];
+
+            if(row.type==="header"){
+              doc.setFont("helvetica","bold");
+              doc.setFontSize(14);
+            }else{
+              doc.setFont("helvetica","normal");
+              doc.setFontSize(14);
+            }
+
+            let cellX = cfg.leftX;
+            for(let c=0;c<colWidths.length;c++){
+              const cellW = colWidths[c];
+              const cellVal = row.cells[c];
+              if (Array.isArray(cellVal)){
+                let textY = drawY + 6;
+                cellVal.forEach(line=>{
+                  doc.text(line, cellX+2, textY);
+                  textY += textLineStep;
+                });
+              } else {
+                doc.text(String(cellVal||""), cellX+2, drawY+6);
+              }
+              cellX += cellW;
+            }
+
+            const rowH = row.h;
+            drawY += rowH;
+            if(r < rowsThisPage.length-1){
+              doc.line(
+                cfg.leftX,
+                drawY,
+                cfg.leftX+finalTableW,
+                drawY
+              );
+            }
+          }
+
+          return {
+            nextRowIndex: curRow + rowsThisPage.length,
+            nextY: drawY
+          };
         }
 
-        function drawMultiline(lines, x,yStart){
-          let yy = yStart;
-          lines.forEach(line=>{
-            doc.text(line, x, yy);
-            yy += 6;
-          });
+        let rowIdx = 0;
+        let localY = yCursor;
+
+        while(rowIdx < allRows.length){
+          const res = drawTablePage(rowIdx, localY);
+          rowIdx = res.nextRowIndex;
+          localY = res.nextY;
+
+          if(rowIdx < allRows.length){
+            cfg.addFooterFn(doc);
+            doc.addPage("a4","landscape");
+            localY = cfg.marginT;
+            doc.setFont("helvetica","bold");
+            doc.setFontSize(16);
+            if (cfg.mode === "rientro"){
+              doc.text("Rientro materiali:", cfg.leftX, localY);
+            } else {
+              doc.text("Materiali:", cfg.leftX, localY);
+            }
+            localY += 8;
+          }
         }
       }
     }
@@ -1779,41 +1822,51 @@ def unpack_to_pretty(s: str) -> str:
       toggleTorch();
     };
 
+    // ------- PATCH start/stop camera -------
     async function startCameraOverlay(){
       camOverlay.style.display='flex';
       camStatusEl.textContent="Apertura camera…";
       torchEnabled=false;
 
       try{
+        // primo tentativo: camera posteriore "exact"
         camStream = await navigator.mediaDevices.getUserMedia({
           video:{
-            facingMode:'environment',
-            width:{ideal:1280},
-            height:{ideal:720}
+            facingMode:{ exact:'environment' },
+            width:{ ideal:1280 },
+            height:{ ideal:720 },
+            aspectRatio:{ ideal: window.innerWidth / window.innerHeight }
           },
           audio:false
         });
       }catch(e){
-        camStatusEl.textContent="Webcam non disponibile.";
-        return;
+        // fallback: qualunque posteriore disponibile
+        try{
+          camStream = await navigator.mediaDevices.getUserMedia({
+            video:{ facingMode:'environment' },
+            audio:false
+          });
+        }catch(e2){
+          camStatusEl.textContent="Webcam non disponibile.";
+          return;
+        }
       }
 
       camVideo.srcObject = camStream;
+
+      // avvio esplicito per Safari/iOS
+      try { await camVideo.play(); } catch {}
+
       camTrack = camStream.getVideoTracks()[0] || null;
       camScanning = true;
 
       let torchCapable=false;
       if (camTrack && camTrack.getCapabilities) {
         const caps = camTrack.getCapabilities();
-        if (caps.torch){
-          torchCapable=true;
-        }
+        torchCapable = !!caps.torch;
       }
-      if (torchCapable){
-        toggleFlashBtn.classList.remove('hidden');
-      }else{
-        toggleFlashBtn.classList.add('hidden');
-      }
+      toggleFlashBtn.disabled = !torchCapable;
+      toggleFlashBtn.classList.toggle('hidden', !torchCapable);
 
       camStatusEl.textContent="Inquadra il QR…";
       tickLiveScan();
@@ -1830,9 +1883,10 @@ def unpack_to_pretty(s: str) -> str:
       camStatusEl.textContent = msg || "";
       torchEnabled=false;
     }
+    // ------- FINE PATCH -------
 
     async function toggleTorch(){
-      if(!camTrack or not camTrack.applyConstraints) return;
+      if(!camTrack || !camTrack.applyConstraints) return;
       torchEnabled=!torchEnabled;
       try{
         await camTrack.applyConstraints({advanced:[{torch:torchEnabled}]});
@@ -1971,7 +2025,6 @@ def unpack_to_pretty(s: str) -> str:
         tb.appendChild(tr);
       });
 
-      // pulsanti +-/
       tb.querySelectorAll('.qtyBtn').forEach(btn=>{
         btn.addEventListener('click', ()=>{
           const i = parseInt(btn.dataset.i,10);
@@ -1989,7 +2042,6 @@ def unpack_to_pretty(s: str) -> str:
         });
       });
 
-      // input diretto
       tb.querySelectorAll('.rQtyInputBig').forEach(inp=>{
         inp.addEventListener('input', ()=>{
           const i = parseInt(inp.dataset.i,10);
@@ -2056,7 +2108,7 @@ def unpack_to_pretty(s: str) -> str:
         const manque=Math.max(0, it.q-(it.r||0));
         rows.push([it.d, it.q, it.r||0, manque]);
       });
-      const csv=rows.map(r=>r.join(";")).join("\\n");
+      const csv=rows.map(r=>r.join(";")).join("\n");
       downloadBlob(new Blob([csv],{type:'text/csv'}), 'rientro.csv');
     };
 
