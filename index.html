@@ -1513,7 +1513,6 @@ def unpack_to_pretty(s: str) -> str:
         ["Operatore:", operatorName || ""],
         ["Evento:",    state.e || ""],       // ⬅️ AGGIUNTO
         ["Produzione:", state.p || ""],
-        ["Posizione:", state.pos || ""],
         ["ID Baule:", state.b || ""],
         ["Note:", state.note || ""],
         ["Stampato:", nowStamp()]
@@ -1562,7 +1561,17 @@ def unpack_to_pretty(s: str) -> str:
           3,3,"S"
         );
 
-        doc.addImage(qrDataURL, "PNG", qrX, qrY, qrSizeMm, qrSizeMm);
+        doc\.addImage\(qrDataURL,\ "PNG",\ qrX,\ qrY,\ qrSizeMm,\ qrSizeMm\);
+        // POSIZIONE sopra al QR (stile come etichetta colore)
+        if ((state.pos || "").trim()) {
+          doc.setFont("helvetica","bold");
+          doc.setFontSize(20);
+          const posText = state.pos || "";
+          // centrato sopra al QR, con un piccolo margine
+          const posY = Math.max(14, qrY - 6);
+          doc.text(posText, qrX + qrSizeMm/2, posY, { align: "center" });
+        }
+
         // COLOR LABEL BELOW QR
         const colorLabel = colorNameFromIndex(state.c || 0);
         doc.setFont("helvetica","bold");
