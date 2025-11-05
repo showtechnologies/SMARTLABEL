@@ -1520,7 +1520,7 @@ def unpack_to_pretty(s: str) -> str:
       const metaTableW = labelW + valueW;
       const metaTableH = rowsMeta.length * rowH;
 
-      doc.setDrawColor(150);
+      doc.setDrawColor(0,0,0);
       doc.setLineWidth(TABLE_LINE);
       doc.roundedRect(tableX, tableY, metaTableW, metaTableH, radius, radius, "S");
 
