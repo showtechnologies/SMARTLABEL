@@ -1561,7 +1561,7 @@ def unpack_to_pretty(s: str) -> str:
           3,3,"S"
         );
 
-        doc\.addImage\(qrDataURL,\ "PNG",\ qrX,\ qrY,\ qrSizeMm,\ qrSizeMm\);
+        doc.addImage\(qrDataURL,\ "PNG",\ qrX,\ qrY,\ qrSizeMm,\ qrSizeMm\);
         // POSIZIONE sopra al QR (stile come etichetta colore)
         if ((state.pos || "").trim()) {
           doc.setFont("helvetica","bold");
@@ -1621,33 +1621,41 @@ def unpack_to_pretty(s: str) -> str:
         }
         yCursor += 8;
 
-        const colDescW      = (cfg.mode==="rientro") ? 110 : 120;
-        const colPrevW      = 18;
-        const colRientroW   = 22;
-        const colMancaW     = 22;
+        
+        const availableW = Math.max(60, (cfg.maxRight - cfg.leftX));
 
-        let colWidths, headers;
+        // Larghezze consistenti tra modalità (stessa larghezza totale)
+        const ratiosRientro = [0.68, 0.10, 0.12, 0.10]; // Descr, Prev, Rientrati, Manca
+        const ratiosNormale = [0.82, 0.18];             // Descr, Q.tà
 
+        let headers, colWidths;
         if (cfg.mode === "rientro"){
           headers   = ["Descrizione","Prev.","Rientrati","Manca"];
-          colWidths = [colDescW, colPrevW, colRientroW, colMancaW];
+          colWidths = ratiosRientro.map(r => Math.round(r * availableW));
         } else {
           headers   = ["Descrizione","Q.tà"];
-          colWidths = [colDescW, colPrevW];
+          colWidths = ratiosNormale.map(r => Math.round(r * availableW));
         }
 
-        const tableW = colWidths.reduce((a,b)=>a+b,0);
-
-        if (cfg.leftX + tableW > cfg.maxRight){
-          const overflow = (cfg.leftX + tableW) - cfg.maxRight;
-          colWidths[0] = colWidths[0] - overflow - 2;
+        // correzione arrotondamenti
+        {
+          const sumW = colWidths.reduce((a,b)=>a+b,0);
+          let diff = availableW - sumW;
+          let k = 0;
+          while (diff !== 0 && k < 50){
+            const idx = k % colWidths.length;
+            if (diff > 0) colWidths[idx] += 1;
+            else if (diff < 0 && colWidths[idx] > 1) colWidths[idx] -= 1;
+            diff = availableW - colWidths.reduce((a,b)=>a+b,0);
+            k++;
+          }
         }
 
         const finalTableW = colWidths.reduce((a,b)=>a+b,0);
-
         const headH = 9;
         const baseLineH = 8;
         const textLineStep = 6;
+
 
         function buildRowObjects(){
           const rowsOut=[];
