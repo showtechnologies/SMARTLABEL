@@ -1425,6 +1425,8 @@ def unpack_to_pretty(s: str) -> str:
       // unified font sizes for tables
       const FONT_HEADER = 12;
       const FONT_CELL = 12;
+      const TABLE_LINE = 0.35;   // spessore unico per tutti i bordi tabella
+
 
       if(!jsPDFmod || !pyodide){
         alert("Runtime non pronto, ricarica la pagina.");
@@ -1450,13 +1452,20 @@ def unpack_to_pretty(s: str) -> str:
       const marginT = 20;
       const pageW   = 297;
       const pageH   = 210;
+      // spazio extra per il footer fuori dal bordo
+      const FRAME_INSET = 8;      // distanza dai lati
+      const FOOTER_AREA = 12;     // altezza riservata al footer fuori dal bordo
       function drawPageFrame(d){
-        d.setDrawColor(180,180,180);
+        d.setDrawColor(0,0,0);        // NERO
         d.setLineWidth(0.6);
-        // rounded page border inside margins
-        d.roundedRect(8, 8, pageW - 16, pageH - 16, 6, 6, "S");
-        d.setDrawColor(0,0,0);
-        d.setLineWidth(0.2);
+        // altezza ridotta per non toccare il footer esterno
+        d.roundedRect(
+          FRAME_INSET,
+          FRAME_INSET,
+          pageW - 2*FRAME_INSET,
+          pageH - 2*FRAME_INSET - FOOTER_AREA,
+          6, 6, "S"
+        );
       }
       drawPageFrame(doc);
 
@@ -1512,7 +1521,7 @@ def unpack_to_pretty(s: str) -> str:
       const metaTableH = rowsMeta.length * rowH;
 
       doc.setDrawColor(150);
-      doc.setLineWidth(0.2);
+      doc.setLineWidth(TABLE_LINE);
       doc.roundedRect(tableX, tableY, metaTableW, metaTableH, radius, radius, "S");
 
       for(let i=1;i<rowsMeta.length;i++){
@@ -1556,7 +1565,7 @@ def unpack_to_pretty(s: str) -> str:
         // COLOR LABEL BELOW QR
         const colorLabel = colorNameFromIndex(state.c || 0);
         doc.setFont("helvetica","bold");
-        doc.setFontSize(14);
+        doc.setFontSize(20);
         doc.setTextColor(0,0,0);
         // center under QR
         doc.text(colorLabel, qrX + qrSizeMm/2, qrY + qrSizeMm + 10, { align: "center" });
@@ -1701,7 +1710,7 @@ def unpack_to_pretty(s: str) -> str:
 
           const radiusOuter = 2.0;
           doc.setDrawColor(0,0,0);
-          doc.setLineWidth(0.2);
+          doc.setLineWidth(TABLE_LINE);
           doc.roundedRect(
             cfg.leftX,
             yTopTable,
