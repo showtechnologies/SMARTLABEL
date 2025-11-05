@@ -891,6 +891,14 @@
         updateOperatorLabel();
         showLoginOverlay(false);
       });
+      
+      // ⬇️ ENTER per inviare
+      loginNameInput.addEventListener('keydown', (e)=>{
+        if(e.key === 'Enter'){
+          e.preventDefault();      // evita invii/refresh indesiderati su mobile
+          loginBtn.click();
+        }
+      });
 
       if(operatorName){
         updateOperatorLabel();
@@ -1159,19 +1167,6 @@ def unpack_to_pretty(s: str) -> str:
         case 5: return "VIOLA";
         case 6: return "BIANCO / NESSUNO";
         default: return "BIANCO / NESSUNO";
-      }
-    }
-
-    
-      switch(i){
-        case 0: return [220,38,38];
-        case 1: return [245,158,11];
-        case 2: return [250,204,21];
-        case 3: return [16,185,129];
-        case 4: return [59,130,246];
-        case 5: return [139,92,246];
-        case 6: return [255,255,255];
-        default:return [255,255,255];
       }
     }
 
