@@ -1513,7 +1513,7 @@ def unpack_to_pretty(s: str) -> str:
         ["Operatore:", operatorName || ""],
         ["Evento:",    state.e || ""],       // ⬅️ AGGIUNTO
         ["Produzione:", state.p || ""],
-        ["ID Baule:", state.b || ""],
+                ["ID Baule:", state.b || ""],
         ["Note:", state.note || ""],
         ["Stampato:", nowStamp()]
       ];
@@ -1561,18 +1561,17 @@ def unpack_to_pretty(s: str) -> str:
           3,3,"S"
         );
 
-        doc.addImage\(qrDataURL,\ "PNG",\ qrX,\ qrY,\ qrSizeMm,\ qrSizeMm\);
+        doc.addImage(qrDataURL, "PNG", qrX, qrY, qrSizeMm, qrSizeMm);
+
         // POSIZIONE sopra al QR (stile come etichetta colore)
         if ((state.pos || "").trim()) {
           doc.setFont("helvetica","bold");
           doc.setFontSize(20);
           const posText = state.pos || "";
-          // centrato sopra al QR, con un piccolo margine
           const posY = Math.max(14, qrY - 6);
           doc.text(posText, qrX + qrSizeMm/2, posY, { align: "center" });
         }
-
-        // COLOR LABEL BELOW QR
+            // COLOR LABEL BELOW QR
         const colorLabel = colorNameFromIndex(state.c || 0);
         doc.setFont("helvetica","bold");
         doc.setFontSize(20);
@@ -1620,15 +1619,14 @@ def unpack_to_pretty(s: str) -> str:
           doc.text("Materiali:", cfg.leftX, yCursor);
         }
         yCursor += 8;
-
-        
         const availableW = Math.max(60, (cfg.maxRight - cfg.leftX));
 
-        // Larghezze consistenti tra modalità (stessa larghezza totale)
+        // Rientro (4 col) e Normale (2 col) con stessa larghezza totale
         const ratiosRientro = [0.68, 0.10, 0.12, 0.10]; // Descr, Prev, Rientrati, Manca
         const ratiosNormale = [0.82, 0.18];             // Descr, Q.tà
 
         let headers, colWidths;
+
         if (cfg.mode === "rientro"){
           headers   = ["Descrizione","Prev.","Rientrati","Manca"];
           colWidths = ratiosRientro.map(r => Math.round(r * availableW));
@@ -1637,7 +1635,7 @@ def unpack_to_pretty(s: str) -> str:
           colWidths = ratiosNormale.map(r => Math.round(r * availableW));
         }
 
-        // correzione arrotondamenti
+        // correzione arrotondamenti per sommare esattamente availableW
         {
           const sumW = colWidths.reduce((a,b)=>a+b,0);
           let diff = availableW - sumW;
@@ -1646,8 +1644,9 @@ def unpack_to_pretty(s: str) -> str:
             const idx = k % colWidths.length;
             if (diff > 0) colWidths[idx] += 1;
             else if (diff < 0 && colWidths[idx] > 1) colWidths[idx] -= 1;
-            diff = availableW - colWidths.reduce((a,b)=>a+b,0);
             k++;
+            const ssum = colWidths.reduce((a,b)=>a+b,0);
+            diff = availableW - ssum;
           }
         }
 
@@ -1655,8 +1654,6 @@ def unpack_to_pretty(s: str) -> str:
         const headH = 9;
         const baseLineH = 8;
         const textLineStep = 6;
-
-
         function buildRowObjects(){
           const rowsOut=[];
 
