@@ -1539,7 +1539,9 @@ def unpack_to_pretty(s: str) -> str:
 
       const qrSizeMm = 80;
       const qrX = pageW - qrSizeMm - 20;
-      const qrY = marginT;
+      // Offset per abbassare il QR rispetto al margine superiore pagina
+      const QR_TOP_OFFSET = 12;               // ↑ aumenta per scendere
+      const qrY = marginT + QR_TOP_OFFSET;
 
       const canon = canonicalJSON(state,true);
 
@@ -1567,8 +1569,9 @@ def unpack_to_pretty(s: str) -> str:
         if ((state.pos || "").trim()) {
           doc.setFont("helvetica","bold");
           doc.setFontSize(20);
-          const posText = state.pos || "";
-          const posY = Math.max(14, qrY - 6);
+          const posText = state.pos.trim();
+          const POS_ABOVE_QR = 12;                               // ↑ aumenta per scendere
+          const posY = Math.max(marginT + 6, qrY - POS_ABOVE_QR); // clamp minimo per non toccare il bordo
           doc.text(posText, qrX + qrSizeMm/2, posY, { align: "center" });
         }
             // COLOR LABEL BELOW QR
@@ -1577,7 +1580,8 @@ def unpack_to_pretty(s: str) -> str:
         doc.setFontSize(20);
         doc.setTextColor(0,0,0);
         // center under QR
-        doc.text(colorLabel, qrX + qrSizeMm/2, qrY + qrSizeMm + 10, { align: "center" });
+        const COLOR_BELOW_QR = 14; // ↑ aumenta per scendere
+        doc.text(colorLabel, qrX + qrSizeMm/2, qrY + qrSizeMm + COLOR_BELOW_QR, { align: "center" });
 
         const maxRightBeforeQR = qrX - 10;
         const matStartY = tableY + metaTableH + 8;
