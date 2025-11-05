@@ -1511,6 +1511,7 @@ def unpack_to_pretty(s: str) -> str:
 
       const rowsMeta = [
         ["Operatore:", operatorName || ""],
+        ["Evento:",    state.e || ""],       // ⬅️ AGGIUNTO
         ["Produzione:", state.p || ""],
         ["Posizione:", state.pos || ""],
         ["ID Baule:", state.b || ""],
