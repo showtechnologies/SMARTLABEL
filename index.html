@@ -1570,7 +1570,7 @@ def unpack_to_pretty(s: str) -> str:
           doc.setFont("helvetica","bold");
           doc.setFontSize(20);
           const posText = state.pos.trim();
-          const POS_ABOVE_QR = 12;                               // ↑ aumenta per scendere
+          const POS_ABOVE_QR = 14;                               // ↑ aumenta per scendere
           const posY = Math.max(marginT + 6, qrY - POS_ABOVE_QR); // clamp minimo per non toccare il bordo
           doc.text(posText, qrX + qrSizeMm/2, posY, { align: "center" });
         }
