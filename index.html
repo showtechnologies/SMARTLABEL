@@ -435,6 +435,12 @@
       padding:10px;
     }
 
+    .countOpenBtn{
+      margin-left:6px;
+      background:#1f2937;
+      border-color:#374151;
+    }
+
     /* ----------- WEBCAM (PATCH) ----------- */
     #cameraOverlay{
       position:fixed;
@@ -917,10 +923,10 @@
         showLoginOverlay(false);
       });
       
-      // ENTER per inviare
+      // ⬇️ ENTER per inviare
       loginNameInput.addEventListener('keydown', (e)=>{
         if(e.key === 'Enter'){
-          e.preventDefault();
+          e.preventDefault();      // evita invii/refresh indesiderati su mobile
           loginBtn.click();
         }
       });
@@ -936,6 +942,7 @@
     function showLoginOverlay(show){
       const ov=document.getElementById('loginOverlay');
       ov.style.display = show ? 'flex':'none';
+      // blocca lo scroll quando il login è visibile
       document.documentElement.style.overflow = show ? 'hidden' : '';
       document.body.style.overflow = show ? 'hidden' : '';
     }
@@ -965,13 +972,14 @@
       }
     }
 
-    // PATCH iOS 100vh reale
+    // ------- PATCH iOS 100vh reale -------
     function setVH(){
       document.documentElement.style.setProperty('--vh', (window.innerHeight * 0.01) + 'px');
     }
     window.addEventListener('resize', setVH);
     window.addEventListener('orientationchange', setVH);
     setVH();
+    // -------------------------------------
 
     // BOOT
     ;(async()=>{
@@ -1087,7 +1095,7 @@ def unpack_to_pretty(s: str) -> str:
       const dd=String(d.getDate()).padStart(2,"0");
       const hh=String(d.getHours()).padStart(2,"0");
       const mi=String(d.getMinutes()).padStart(2,"0");
-      return \`\${yy}-\${mm}-\${dd} \${hh}:\${mi}\`;
+      return `${yy}-${mm}-${dd} ${hh}:${mi}`;
     }
 
     function loadLocal(){
@@ -1196,8 +1204,8 @@ def unpack_to_pretty(s: str) -> str:
     function slugify(s){
       return (s || "")
         .trim()
-        .replace(/\\s+/g,"_")
-        .replace(/[^A-Za-z0-9_\\-]+/g,"");
+        .replace(/\s+/g,"_")
+        .replace(/[^A-Za-z0-9_\-]+/g,"");
     }
 
     // NAV
@@ -1288,11 +1296,11 @@ def unpack_to_pretty(s: str) -> str:
       }
     };
 
-    document.getElementById('exportJson').onclick=()=>{
+    document.getElementById('exportJson').onclick={()=>{
       syncMeta();
       const j = canonicalJSON(state,true);
       downloadBlob(new Blob([j],{type:'application/json'}),'lista.json');
-    };
+    });
 
     function renderTables(){
       // tabella lista articoli
@@ -1300,13 +1308,13 @@ def unpack_to_pretty(s: str) -> str:
       tb.innerHTML="";
       state.l.forEach((it,idx)=>{
         const tr=document.createElement('tr');
-        tr.innerHTML=\`
-          <td>\${idx+1}</td>
-          <td>\${escapeHtml(it.d)}</td>
-          <td>\${it.q}</td>
+        tr.innerHTML=`
+          <td>${idx+1}</td>
+          <td>${escapeHtml(it.d)}</td>
+          <td>${it.q}</td>
           <td class="noprint">
-            <button class="btn sm ghost" data-del="\${idx}">Elimina</button>
-          </td>\`;
+            <button class="btn sm ghost" data-del="${idx}">Elimina</button>
+          </td>`;
         tb.appendChild(tr);
       });
       tb.querySelectorAll('button[data-del]').forEach(b=>{
@@ -1346,7 +1354,7 @@ def unpack_to_pretty(s: str) -> str:
       let packed;
       try{
         packed = await pyodide.runPythonAsync(
-          \`pack_json_str(\${JSON.stringify(canon)})\`
+          `pack_json_str(${JSON.stringify(canon)})`
         );
       }catch(e){
         alert("Errore pack Python: "+e);
@@ -1362,7 +1370,7 @@ def unpack_to_pretty(s: str) -> str:
       box.appendChild(currentQRCanvas);
 
       document.getElementById('encInfo').textContent =
-        \`ECC=H. Quiet zone \${border} moduli.\`;
+        `ECC=H. Quiet zone ${border} moduli.`;
 
       btnDownloadPNG.disabled=false;
       btnPrint.disabled=false;
@@ -1430,7 +1438,7 @@ def unpack_to_pretty(s: str) -> str:
       return c;
     }
 
-    // === PDF (identico al tuo con piccoli fix) ===
+    // === PDF (identico + fix equidistanza testo QR) ===
     function ensureRientroStore(){
       if(!state.l){ state.l=[]; }
       state.l = state.l.map(it=>({
@@ -1445,9 +1453,11 @@ def unpack_to_pretty(s: str) -> str:
     }
 
     function generateAndHandlePDF(mode, action){
+      // unified font sizes for tables
       const FONT_HEADER = 12;
       const FONT_CELL = 12;
-      const TABLE_LINE = 0.35;
+      const TABLE_LINE = 0.35;   // spessore unico per tutti i bordi tabella
+
 
       if(!jsPDFmod || !pyodide){
         alert("Runtime non pronto, ricarica la pagina.");
@@ -1473,11 +1483,13 @@ def unpack_to_pretty(s: str) -> str:
       const marginT = 20;
       const pageW   = 297;
       const pageH   = 210;
-      const FRAME_INSET = 8;
-      const FOOTER_AREA = 12;
+      // spazio extra per il footer fuori dal bordo
+      const FRAME_INSET = 8;      // distanza dai lati
+      const FOOTER_AREA = 12;     // altezza riservata al footer fuori dal bordo
       function drawPageFrame(d){
-        d.setDrawColor(0,0,0);
+        d.setDrawColor(0,0,0);        // NERO
         d.setLineWidth(0.6);
+        // altezza ridotta per non toccare il footer esterno
         d.roundedRect(
           FRAME_INSET,
           FRAME_INSET,
@@ -1487,6 +1499,7 @@ def unpack_to_pretty(s: str) -> str:
         );
       }
       drawPageFrame(doc);
+
 
       function addFooter(d){
         d.setFont("helvetica","normal");
@@ -1557,14 +1570,15 @@ def unpack_to_pretty(s: str) -> str:
 
       const qrSizeMm = 80;
       const qrX = pageW - qrSizeMm - 20;
-      const QR_TOP_OFFSET = 12;
+      // Offset per abbassare il QR rispetto al margine superiore pagina
+      const QR_TOP_OFFSET = 12;               // ↑ aumenta per scendere
       const qrY = marginT + QR_TOP_OFFSET;
-      const GAP_AROUND_QR = 12;
+      const GAP_AROUND_QR = 12;     // distanza identica sopra/sotto il QR
 
       const canon = canonicalJSON(state,true);
 
       pyodide.runPythonAsync(
-        \`pack_json_str(\${JSON.stringify(canon)})\`
+        `pack_json_str(${JSON.stringify(canon)})`
       ).then(qp=>{
         const qrCanvas = makeQrCanvas(qp, 4);
         const qrDataURL = qrCanvas.toDataURL("image/png");
@@ -1583,6 +1597,7 @@ def unpack_to_pretty(s: str) -> str:
 
         doc.addImage(qrDataURL, "PNG", qrX, qrY, qrSizeMm, qrSizeMm);
 
+        // POSIZIONE sopra al QR
         if ((state.pos || "").trim()) {
           doc.setFont("helvetica","bold");
           doc.setFontSize(20);
@@ -1592,6 +1607,7 @@ def unpack_to_pretty(s: str) -> str:
           const posY = Math.max(topSafe, desiredPosY);
           doc.text(posText, qrX + qrSizeMm/2, posY, { align: "center" });
         }
+        // COLORE sotto al QR
         const colorLabel = colorNameFromIndex(state.c || 0);
         doc.setFont("helvetica","bold");
         doc.setFontSize(20);
@@ -1641,8 +1657,9 @@ def unpack_to_pretty(s: str) -> str:
         yCursor += 8;
         const availableW = Math.max(60, (cfg.maxRight - cfg.leftX));
 
-        const ratiosRientro = [0.68, 0.10, 0.12, 0.10];
-        const ratiosNormale = [0.82, 0.18];
+        // Rientro (4 col) e Normale (2 col) con stessa larghezza totale
+        const ratiosRientro = [0.68, 0.10, 0.12, 0.10]; // Descr, Prev, Rientrati, Manca
+        const ratiosNormale = [0.82, 0.18];             // Descr, Q.tà
 
         let headers, colWidths;
 
@@ -1654,6 +1671,7 @@ def unpack_to_pretty(s: str) -> str:
           colWidths = ratiosNormale.map(r => Math.round(r * availableW));
         }
 
+        // correzione arrotondamenti per sommare esattamente availableW
         {
           const sumW = colWidths.reduce((a,b)=>a+b,0);
           let diff = availableW - sumW;
@@ -1855,7 +1873,7 @@ def unpack_to_pretty(s: str) -> str:
           const text = await decodeFromPDF(f);
           await handleDecodedText(text);
         }catch(e){
-          decStatus.innerHTML=\`<span class="err">\${e}</span>\`;
+          decStatus.innerHTML=`<span class="err">${e}</span>`;
         }
       } else {
         const url=URL.createObjectURL(f);
@@ -1867,7 +1885,7 @@ def unpack_to_pretty(s: str) -> str:
           await handleDecodedText(text);
         }catch(e){
           URL.revokeObjectURL(url);
-          decStatus.innerHTML=\`<span class="err">\${e}</span>\`;
+          decStatus.innerHTML=`<span class="err">${e}</span>`;
         }
       }
     });
@@ -1886,7 +1904,7 @@ def unpack_to_pretty(s: str) -> str:
         await handleDecodedText(text);
       }catch(e){
         URL.revokeObjectURL(url);
-        decStatus.innerHTML=\`<span class="err">\${e}</span>\`;
+        decStatus.innerHTML=`<span class="err">${e}</span>`;
       }
     });
 
@@ -1907,13 +1925,14 @@ def unpack_to_pretty(s: str) -> str:
       toggleTorch();
     };
 
-    // start/stop camera
+    // ------- PATCH start/stop camera -------
     async function startCameraOverlay(){
       camOverlay.style.display='flex';
       camStatusEl.textContent="Apertura camera…";
       torchEnabled=false;
 
       try{
+        // primo tentativo: camera posteriore "exact"
         camStream = await navigator.mediaDevices.getUserMedia({
           video:{
             facingMode:{ exact:'environment' },
@@ -1924,6 +1943,7 @@ def unpack_to_pretty(s: str) -> str:
           audio:false
         });
       }catch(e){
+        // fallback: qualunque posteriore disponibile
         try{
           camStream = await navigator.mediaDevices.getUserMedia({
             video:{ facingMode:'environment' },
@@ -1937,6 +1957,7 @@ def unpack_to_pretty(s: str) -> str:
 
       camVideo.srcObject = camStream;
 
+      // avvio esplicito per Safari/iOS
       try { await camVideo.play(); } catch {}
 
       camTrack = camStream.getVideoTracks()[0] || null;
@@ -1965,6 +1986,7 @@ def unpack_to_pretty(s: str) -> str:
       camStatusEl.textContent = msg || "";
       torchEnabled=false;
     }
+    // ------- FINE PATCH -------
 
     async function toggleTorch(){
       if(!camTrack || !camTrack.applyConstraints) return;
@@ -2003,7 +2025,7 @@ def unpack_to_pretty(s: str) -> str:
 
     async function handleDecodedText(text){
       if(!text){
-        decStatus.innerHTML=\`<span class="warn">Nessun QR leggibile.</span>\`;
+        decStatus.innerHTML=`<span class="warn">Nessun QR leggibile.</span>`;
         rawOut.textContent="";
         jsonDecoded.value="";
         btnSetCurrent.disabled=true;
@@ -2013,7 +2035,7 @@ def unpack_to_pretty(s: str) -> str:
       rawOut.textContent=text;
       try{
         const pretty=await pyodide.runPythonAsync(
-          \`unpack_to_pretty(\${JSON.stringify(text)})\`
+          `unpack_to_pretty(${JSON.stringify(text)})`
         );
         jsonDecoded.value=pretty;
         decodedObj=JSON.parse(pretty);
@@ -2028,13 +2050,13 @@ def unpack_to_pretty(s: str) -> str:
         if(decodedObj.note===undefined)decodedObj.note="";
         if(decodedObj.c===undefined)   decodedObj.c=0;
 
-        decStatus.innerHTML=\`<span class="ok">QRJ1 decodificato.</span>\`;
+        decStatus.innerHTML=`<span class="ok">QRJ1 decodificato.</span>`;
         btnSetCurrent.disabled=false;
         btnCompare.disabled=false;
       }catch{
         jsonDecoded.value="";
         decodedObj=null;
-        decStatus.innerHTML=\`<span class="warn">QR letto ma non QRJ1.</span>\`;
+        decStatus.innerHTML=`<span class="warn">QR letto ma non QRJ1.</span>`;
         btnSetCurrent.disabled=true;
         btnCompare.disabled=true;
       }
@@ -2074,11 +2096,11 @@ def unpack_to_pretty(s: str) -> str:
           ? '<span class="ok">La lista coincide.</span>'
           : '<span class="warn">Le liste sono diverse.</span>';
       }catch(e){
-        cmpResult.innerHTML=\`<span class="err">\${e}</span>\`;
+        cmpResult.innerHTML=`<span class="err">${e}</span>`;
       }
     };
 
-    // ======== RIENTRO (con pulsante Conta e popup) ========
+    // RIENTRO
     function renderRientroTable(){
       ensureRientroStore();
       const tb=document.querySelector('#rTbl tbody');
@@ -2092,22 +2114,22 @@ def unpack_to_pretty(s: str) -> str:
         const manca=Math.max(0, it.q - r);
 
         const tr=document.createElement('tr');
-        tr.innerHTML=\`
-          <td>\${idx+1}</td>
-          <td>\${escapeHtml(it.d)}</td>
-          <td>\${it.q}</td>
+        tr.innerHTML=`
+          <td>${idx+1}</td>
+          <td>${escapeHtml(it.d)}</td>
+          <td>${it.q}</td>
           <td class="rCtrl">
-            <button class="qtyBtn minus" data-act="dec" data-i="\${idx}">−</button>
-            <input class="rQtyInputBig" type="number" min="0" max="\${it.q}" value="\${r}" data-i="\${idx}">
-            <button class="qtyBtn plus" data-act="inc" data-i="\${idx}">+</button>
-            <button class="btn sm ghost countBtn" data-i="\${idx}">Conta</button>
+            <button class="qtyBtn minus" data-act="dec" data-i="${idx}">−</button>
+            <input class="rQtyInputBig" type="number" min="0" max="${it.q}" value="${r}" data-i="${idx}">
+            <button class="qtyBtn plus" data-act="inc" data-i="${idx}">+</button>
+            <button class="btn sm ghost countOpenBtn" data-i="${idx}">Conta</button>
           </td>
-          <td>\${manca}</td>
-        \`;
+          <td class="mancaCell">${manca}</td>
+        `;
         tb.appendChild(tr);
       });
 
-      // +/- buttons: single increment per tap
+      // pulsanti +/- singolo tap
       tb.querySelectorAll('.qtyBtn').forEach(btn=>{
         btn.addEventListener('click', ()=>{
           const i = parseInt(btn.dataset.i,10);
@@ -2121,35 +2143,44 @@ def unpack_to_pretty(s: str) -> str:
           }
           saveLocal(state);
           updateProgress();
-          renderRientroTable();
-        });
+          // aggiorna solo la riga
+          const row = tb.children[i];
+          if(row){
+            row.querySelector('.rQtyInputBig').value = String(it.r||0);
+            row.querySelector('.mancaCell').textContent = String(Math.max(0, it.q-(it.r||0)));
+          }
+        }, {passive:true});
       });
 
-      // input manuale
+      // input manuale con clamp
       tb.querySelectorAll('.rQtyInputBig').forEach(inp=>{
         inp.addEventListener('change', ()=>{
           const i = parseInt(inp.dataset.i,10);
           const it = state.l[i];
           if(!it) return;
           let v = parseInt(inp.value||"0",10);
-          if(isNaN(v)) v = 0;
+          if(isNaN(v)) v=0;
           v = Math.max(0, Math.min(it.q, v));
           it.r = v;
+          inp.value = String(v);
           saveLocal(state);
           updateProgress();
-          renderRientroTable();
+          const row = tb.children[i];
+          if(row){
+            row.querySelector('.mancaCell').textContent = String(Math.max(0, it.q - v));
+          }
         });
       });
 
-      // bottone "Conta" → popup
-      tb.querySelectorAll('.countBtn').forEach(btn=>{
+      // bottone "Conta" -> overlay
+      tb.querySelectorAll('.countOpenBtn').forEach(btn=>{
         btn.addEventListener('click', ()=>{
           const i = parseInt(btn.dataset.i,10);
           openCounter(i);
         });
       });
 
-      document.getElementById('rInfo').textContent=\`Totale previsti: \${totPrev}\`;
+      document.getElementById('rInfo').textContent=`Totale previsti: ${totPrev}`;
       updateProgress();
     }
 
@@ -2164,7 +2195,7 @@ def unpack_to_pretty(s: str) -> str:
       const bar=document.getElementById('rBar');
       bar.style.width = pct+'%';
       document.getElementById('rPct').textContent =
-        \`\${pct}% • \${totR}/\${totPrev}\`;
+        `${pct}% • ${totR}/${totPrev}`;
     }
 
     document.getElementById('rReset').onclick=()=>{
@@ -2200,7 +2231,7 @@ def unpack_to_pretty(s: str) -> str:
         const manque=Math.max(0, it.q-(it.r||0));
         rows.push([it.d, it.q, it.r||0, manque]);
       });
-      const csv=rows.map(r=>r.join(";")).join("\\n");
+      const csv=rows.map(r=>r.join(";")).join("\n");
       downloadBlob(new Blob([csv],{type:'text/csv'}), 'rientro.csv');
     };
 
@@ -2431,7 +2462,7 @@ if (counterOverlay) counterOverlay.addEventListener('click', (e)=>{
   if(e.target===counterOverlay) closeCounter();
 });
 
-// single-tap only
+// single-tap only (no press&hold repeat)
 if (cntMinus) cntMinus.addEventListener('click', ()=>{
   if(currentCounterIndex<0) return;
   const it=state.l[currentCounterIndex];
@@ -2474,10 +2505,10 @@ function syncRowFromCounter(i,v){
   const inp = tr.querySelector('.rQtyInputBig'); if(inp){ inp.value=String(v); }
   const prev = state.l[i].q;
   const manca = Math.max(0, prev - v);
-  tr.children[4].textContent = String(manca);
+  tr.querySelector('.mancaCell').textContent = String(manca);
 }
 /* === End counter overlay logic === */
-  </script>
+</script>
 
 <!-- COUNTER OVERLAY -->
 <div id="counterOverlay" aria-modal="true" role="dialog">
