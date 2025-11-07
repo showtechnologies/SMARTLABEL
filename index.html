@@ -391,12 +391,40 @@
     .rCtrl{
       display:flex;
       align-items:center;
-      gap:8px;
+      gap:6px;
       flex-wrap:nowrap;
     }
 
+    .qtyBtn{
+      background:#182034;
+      border:1px solid #253043;
+      color:#fff;
+      font-size:20px;
+      line-height:1;
+      border-radius:10px;
+      min-width:44px;
+      min-height:44px;
+      padding:0;
+      text-align:center;
+      flex-shrink:0;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      user-select:none;
+    }
+
+    .qtyBtn.plus{
+      background:#065f46;
+      border-color:#065f46;
+    }
+
+    .qtyBtn.minus{
+      background:#7f1d1d;
+      border-color:#7f1d1d;
+    }
+
     .rQtyInputBig{
-      width:72px;
+      width:64px;
       text-align:center;
       font-size:18px;
       line-height:1.2;
@@ -405,7 +433,6 @@
       border-radius:10px;
       color:var(--text);
       padding:10px;
-      flex-shrink:0;
     }
 
     /* ----------- WEBCAM (PATCH) ----------- */
@@ -464,119 +491,56 @@
       inset:0;
       width:100%;
       height:100%;
-      object-fit:cover;
+      object-fit:cover;       /* full-bleed stabile; usa 'contain' se preferisci vedere tutto */
       background:#000;
       border-radius:0;
     }
 
-    #cameraCanvas{ display:none; }
+    #cameraCanvas{
+      display:none;
+    }
     /* --------- FINE PATCH WEBCAM ----------- */
 
-    /* ----------- LOGIN OVERLAY ----------- */
+    /* ----------- LOGIN OVERLAY (PATCH) ----------- */
     #loginOverlay{
       position:fixed !important;
       inset:0;
       height:calc(var(--vh, 1vh) * 100);
       background:rgba(0,0,0,.8);
       color:#fff;
-      z-index:4000;
+      z-index:4000;           /* sopra a cameraOverlay */
       display:flex;
       align-items:center;
       justify-content:center;
       padding:24px;
     }
     /* --------- FINE LOGIN OVERLAY ----------- */
+  
 
-    /* ----------- COUNTER OVERLAY ----------- */
-    #counterOverlay{
-      position:fixed;
-      inset:0;
-      height:calc(var(--vh, 1vh) * 100);
-      background:rgba(0,0,0,.85);
-      color:#fff;
-      z-index:5000;
-      display:none; /* diventa flex in openCounter */
-      flex-direction:column;
-    }
-    #counterHeader{
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap:12px;
-      padding:14px 16px;
-      background:rgba(0,0,0,.6);
-      border-bottom:1px solid #222;
-    }
-    #counterTitle{
-      font-size:16px;
-      line-height:1.3;
-      font-weight:600;
-      white-space:nowrap;
-      overflow:hidden;
-      text-overflow:ellipsis;
-    }
-    #counterClose{
-      background:#1f2937;
-      border:1px solid #374151;
-      color:#fff;
-      border-radius:10px;
-      padding:8px 10px;
-      font-size:14px;
-      line-height:1.2;
-      cursor:pointer;
-    }
-    #counterBody{
-      flex:1;
-      display:flex;
-      flex-direction:column;
-      gap:16px;
-      padding:16px;
-    }
-    .cntInfo{
-      display:flex;
-      gap:12px;
-      flex-wrap:wrap;
-      font-size:14px;
-      color:#d1d5db;
-    }
-    .cntValue{
-      font-size:56px;
-      font-weight:700;
-      text-align:center;
-      padding:8px 0 4px;
-    }
-    .cntButtons{
-      display:grid;
-      grid-template-columns:1fr 1fr;
-      gap:14px;
-      margin-top:8px;
-    }
-    .bigCountBtn{
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      min-height:120px;
-      font-size:42px;
-      font-weight:700;
-      border-radius:24px;
-      cursor:pointer;
-      border:1px solid #374151;
-      background:#111827;
-      color:#fff;
-      user-select:none;
-      -webkit-tap-highlight-color: transparent;
-    }
-    .bigCountBtn.minus{ background:#7f1d1d; border-color:#b91c1c; }
-    .bigCountBtn.plus { background:#065f46; border-color:#065f46; }
-    .cntFoot{
-      margin-top:auto;
-      text-align:center;
-      color:#9aa6b2;
-      font-size:12px;
-    }
-    .countBtn{ white-space:nowrap; }
-    /* --------- FINE COUNTER OVERLAY ----------- */
-  </style>
+/* COUNTER OVERLAY */
+#counterOverlay{
+  position:fixed;inset:0;height:calc(var(--vh, 1vh) * 100);
+  background:rgba(0,0,0,.85);color:#fff;z-index:5000;display:none;flex-direction:column;
+}
+#counterHeader{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px;background:rgba(0,0,0,.6);border-bottom:1px solid #222}
+#counterTitle{font-size:16px;line-height:1.3;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#counterClose{background:#1f2937;border:1px solid #374151;color:#fff;border-radius:10px;padding:8px 10px;font-size:14px;line-height:1.2;cursor:pointer}
+#counterBody{flex:1;display:flex;flex-direction:column;gap:16px;padding:16px}
+.cntInfo{display:flex;gap:12px;flex-wrap:wrap;font-size:14px;color:#d1d5db}
+.cntValue{font-size:56px;font-weight:700;text-align:center;padding:8px 0 4px}
+.cntButtons{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:8px}
+.bigCountBtn{
+  display:flex;align-items:center;justify-content:center;min-height:120px;font-size:42px;font-weight:700;border-radius:24px;cursor:pointer;border:1px solid #374151;background:#111827;color:#fff;user-select:none;-webkit-tap-highlight-color:transparent;
+}
+.bigCountBtn.minus{background:#7f1d1d;border-color:#b91c1c}
+.bigCountBtn.plus{background:#065f46;border-color:#065f46}
+.presetRow{display:grid;grid-template-columns:repeat(6,1fr);gap:8px}
+.presetBtn{
+  border:1px solid #374151;background:#1f2937;color:#fff;border-radius:12px;padding:12px 8px;font-size:16px;font-weight:600;cursor:pointer;text-align:center;
+}
+.cntFoot{margin-top:auto;text-align:center;color:#9aa6b2;font-size:12px}
+
+</style>
 </head>
 <body>
   <header>
@@ -840,26 +804,6 @@
     </div>
   </div>
 
-  <!-- COUNTER OVERLAY -->
-  <div id="counterOverlay" aria-modal="true" role="dialog">
-    <div id="counterHeader">
-      <div id="counterTitle">Contatore</div>
-      <button id="counterClose" aria-label="Chiudi">✕</button>
-    </div>
-    <div id="counterBody">
-      <div class="cntInfo">
-        <div><strong>Descrizione:</strong> <span id="cntDesc"></span></div>
-        <div><strong>Previsto:</strong> <span id="cntPrev"></span></div>
-      </div>
-      <div class="cntValue" id="cntValue">0</div>
-      <div class="cntButtons">
-        <div class="bigCountBtn minus" id="cntMinus">−</div>
-        <div class="bigCountBtn plus"  id="cntPlus">+</div>
-      </div>
-      <div class="cntFoot">Tocca per contare. Salvataggio immediato.</div>
-    </div>
-  </div>
-
   <!-- SERVICE WORKER -->
   <script>
     const CACHE_VERSION='qrj1-mobile-v5';
@@ -956,9 +900,6 @@
     };
     let operatorName = loadOperatorName() || "";
 
-    // ------- COUNTER (popup) -------
-    let currentCounterIndex = -1;
-
     // LOGIN
     document.addEventListener('DOMContentLoaded', ()=>{
       const loginBtn = document.getElementById('loginBtn');
@@ -975,11 +916,11 @@
         updateOperatorLabel();
         showLoginOverlay(false);
       });
-
-      // ENTER per inviare
+      
+      // ⬇️ ENTER per inviare
       loginNameInput.addEventListener('keydown', (e)=>{
         if(e.key === 'Enter'){
-          e.preventDefault();
+          e.preventDefault();      // evita invii/refresh indesiderati su mobile
           loginBtn.click();
         }
       });
@@ -995,16 +936,25 @@
     function showLoginOverlay(show){
       const ov=document.getElementById('loginOverlay');
       ov.style.display = show ? 'flex':'none';
+      // blocca lo scroll quando il login è visibile
       document.documentElement.style.overflow = show ? 'hidden' : '';
       document.body.style.overflow = show ? 'hidden' : '';
     }
 
     function loadOperatorName(){
-      try{ return localStorage.getItem(KEY_OP) || ""; }catch{ return ""; }
+      try{
+        return localStorage.getItem(KEY_OP) || "";
+      }catch{
+        return "";
+      }
     }
+
     function saveOperatorName(n){
-      try{ localStorage.setItem(KEY_OP,n); }catch{}
+      try{
+        localStorage.setItem(KEY_OP,n);
+      }catch{}
     }
+
     function updateOperatorLabel(){
       const tag=document.getElementById('opNameTag');
       if(operatorName){
@@ -1366,8 +1316,6 @@ def unpack_to_pretty(s: str) -> str:
           const i=parseInt(b.dataset.del,10);
           state.l.splice(i,1);
           renderTables();
-          updateProgress();
-          saveLocal(state);
         };
       });
 
@@ -1484,6 +1432,7 @@ def unpack_to_pretty(s: str) -> str:
       return c;
     }
 
+    // === PDF (omesso: identico alla tua versione, tranne fix minori dove servono) ===
     function ensureRientroStore(){
       if(!state.l){ state.l=[]; }
       state.l = state.l.map(it=>({
@@ -1497,11 +1446,12 @@ def unpack_to_pretty(s: str) -> str:
       if(state.c===undefined)   state.c=0;
     }
 
-    // === PDF (identico alla tua versione con i fix precedenti) ===
     function generateAndHandlePDF(mode, action){
+      // unified font sizes for tables
       const FONT_HEADER = 12;
       const FONT_CELL = 12;
-      const TABLE_LINE = 0.35;
+      const TABLE_LINE = 0.35;   // spessore unico per tutti i bordi tabella
+
 
       if(!jsPDFmod || !pyodide){
         alert("Runtime non pronto, ricarica la pagina.");
@@ -1509,24 +1459,31 @@ def unpack_to_pretty(s: str) -> str:
       }
 
       const { jsPDF } = jsPDFmod;
-      const doc = new jsPDF({ orientation:"landscape", unit:"mm", format:"a4" });
+      const doc = new jsPDF({
+        orientation:"landscape",
+        unit:"mm",
+        format:"a4"
+      });
 
       ensureRientroStore();
       syncMeta();
 
       let incompleto = false;
-      state.l.forEach(it=>{ if ((it.r||0) < it.q) incompleto=true; });
+      state.l.forEach(it=>{
+        if ((it.r||0) < it.q) incompleto=true;
+      });
 
       const marginL = 15;
       const marginT = 20;
       const pageW   = 297;
       const pageH   = 210;
-
-      const FRAME_INSET = 8;
-      const FOOTER_AREA = 12;
+      // spazio extra per il footer fuori dal bordo
+      const FRAME_INSET = 8;      // distanza dai lati
+      const FOOTER_AREA = 12;     // altezza riservata al footer fuori dal bordo
       function drawPageFrame(d){
-        d.setDrawColor(0,0,0);
+        d.setDrawColor(0,0,0);        // NERO
         d.setLineWidth(0.6);
+        // altezza ridotta per non toccare il footer esterno
         d.roundedRect(
           FRAME_INSET,
           FRAME_INSET,
@@ -1536,6 +1493,7 @@ def unpack_to_pretty(s: str) -> str:
         );
       }
       drawPageFrame(doc);
+
 
       function addFooter(d){
         d.setFont("helvetica","normal");
@@ -1578,9 +1536,9 @@ def unpack_to_pretty(s: str) -> str:
 
       const rowsMeta = [
         ["Operatore:", operatorName || ""],
-        ["Evento:",    state.e || ""],
+        ["Evento:",    state.e || ""],       // ⬅️ AGGIUNTO
         ["Produzione:", state.p || ""],
-        ["ID Baule:", state.b || ""],
+                ["ID Baule:", state.b || ""],
         ["Note:", state.note || ""],
         ["Stampato:", nowStamp()]
       ];
@@ -1606,11 +1564,10 @@ def unpack_to_pretty(s: str) -> str:
 
       const qrSizeMm = 80;
       const qrX = pageW - qrSizeMm - 20;
-      // controlli distanza simmetrica (puoi regolare qui)
-      const QR_TOP_OFFSET = 12;
-      const GAP_AROUND_QR = 12;
-
+      // Offset per abbassare il QR rispetto al margine superiore pagina
+      const QR_TOP_OFFSET = 12;               // ↑ aumenta per scendere
       const qrY = marginT + QR_TOP_OFFSET;
+      const GAP_AROUND_QR = 12;     // distanza identica sopra/sotto il QR
 
       const canon = canonicalJSON(state,true);
 
@@ -1634,21 +1591,25 @@ def unpack_to_pretty(s: str) -> str:
 
         doc.addImage(qrDataURL, "PNG", qrX, qrY, qrSizeMm, qrSizeMm);
 
+        // POSIZIONE sopra al QR (stile come etichetta colore)
         if ((state.pos || "").trim()) {
           doc.setFont("helvetica","bold");
           doc.setFontSize(20);
           const posText = state.pos.trim();
+          // equidistante: stessa distanza dal bordo superiore del QR
           const desiredPosY = qrY - GAP_AROUND_QR;
-          const safeTop = marginT + 6;
-          const posY = Math.max(safeTop, desiredPosY);
+          const topSafe = marginT + 6;              // per non attaccarsi al bordo pagina
+          const posY = Math.max(topSafe, desiredPosY);
           doc.text(posText, qrX + qrSizeMm/2, posY, { align: "center" });
         }
-
+            // COLOR LABEL BELOW QR
         const colorLabel = colorNameFromIndex(state.c || 0);
         doc.setFont("helvetica","bold");
         doc.setFontSize(20);
         doc.setTextColor(0,0,0);
-        const colorY = qrY + qrSizeMm + GAP_AROUND_QR;
+        // center under QR
+        const COLOR_BELOW_QR = 14; // ↑ aumenta per scendere
+        const colorY = qrY + qrSizeMm + GAP_AROUND_QR;   // stessa distanza del testo sopra
         doc.text(colorLabel, qrX + qrSizeMm/2, colorY, { align: "center" });
 
         const maxRightBeforeQR = qrX - 10;
@@ -1691,12 +1652,14 @@ def unpack_to_pretty(s: str) -> str:
           doc.text("Materiali:", cfg.leftX, yCursor);
         }
         yCursor += 8;
-
         const availableW = Math.max(60, (cfg.maxRight - cfg.leftX));
-        const ratiosRientro = [0.68, 0.10, 0.12, 0.10];
-        const ratiosNormale = [0.82, 0.18];
+
+        // Rientro (4 col) e Normale (2 col) con stessa larghezza totale
+        const ratiosRientro = [0.68, 0.10, 0.12, 0.10]; // Descr, Prev, Rientrati, Manca
+        const ratiosNormale = [0.82, 0.18];             // Descr, Q.tà
 
         let headers, colWidths;
+
         if (cfg.mode === "rientro"){
           headers   = ["Descrizione","Prev.","Rientrati","Manca"];
           colWidths = ratiosRientro.map(r => Math.round(r * availableW));
@@ -1705,7 +1668,7 @@ def unpack_to_pretty(s: str) -> str:
           colWidths = ratiosNormale.map(r => Math.round(r * availableW));
         }
 
-        // correzione arrotondamenti
+        // correzione arrotondamenti per sommare esattamente availableW
         {
           const sumW = colWidths.reduce((a,b)=>a+b,0);
           let diff = availableW - sumW;
@@ -1724,10 +1687,15 @@ def unpack_to_pretty(s: str) -> str:
         const headH = 9;
         const baseLineH = 8;
         const textLineStep = 6;
-
         function buildRowObjects(){
           const rowsOut=[];
-          rowsOut.push({ type:"header", cells: headers, h: headH, descLines: null });
+
+          rowsOut.push({
+            type:"header",
+            cells: headers,
+            h: headH,
+            descLines: null
+          });
 
           state.l.forEach(it=>{
             const prev = it.q;
@@ -1742,12 +1710,25 @@ def unpack_to_pretty(s: str) -> str:
 
             let cells;
             if (cfg.mode === "rientro"){
-              cells = [descLines, String(prev), String(rin), String(manc)];
+              cells = [
+                descLines,
+                String(prev),
+                String(rin),
+                String(manc)
+              ];
             } else {
-              cells = [descLines, String(prev)];
+              cells = [
+                descLines,
+                String(prev)
+              ];
             }
 
-            rowsOut.push({ type:"data", cells, h: rowH, descLines });
+            rowsOut.push({
+              type:"data",
+              cells,
+              h: rowH,
+              descLines
+            });
           });
 
           return rowsOut;
@@ -1763,7 +1744,9 @@ def unpack_to_pretty(s: str) -> str:
           let totalH = 0;
           for(let i=curRow;i<allRows.length;i++){
             const h = allRows[i].h;
-            if (yTopTable + totalH + h + 20 > cfg.pageH) break;
+            if (yTopTable + totalH + h + 20 > cfg.pageH){
+              break;
+            }
             rowsThisPage.push(allRows[i]);
             totalH += h;
           }
@@ -1776,12 +1759,25 @@ def unpack_to_pretty(s: str) -> str:
           const radiusOuter = 2.0;
           doc.setDrawColor(0,0,0);
           doc.setLineWidth(TABLE_LINE);
-          doc.roundedRect(cfg.leftX, yTopTable, finalTableW, totalH, radiusOuter, radiusOuter, "S");
+          doc.roundedRect(
+            cfg.leftX,
+            yTopTable,
+            finalTableW,
+            totalH,
+            radiusOuter,
+            radiusOuter,
+            "S"
+          );
 
           let xCursor = cfg.leftX;
           for(let c=0;c<colWidths.length-1;c++){
             xCursor += colWidths[c];
-            doc.line(xCursor, yTopTable, xCursor, yTopTable+totalH);
+            doc.line(
+              xCursor,
+              yTopTable,
+              xCursor,
+              yTopTable+totalH
+            );
           }
 
           let drawY = yTopTable;
@@ -1815,11 +1811,19 @@ def unpack_to_pretty(s: str) -> str:
             const rowH = row.h;
             drawY += rowH;
             if(r < rowsThisPage.length-1){
-              doc.line(cfg.leftX, drawY, cfg.leftX+finalTableW, drawY);
+              doc.line(
+                cfg.leftX,
+                drawY,
+                cfg.leftX+finalTableW,
+                drawY
+              );
             }
           }
 
-          return { nextRowIndex: curRow + rowsThisPage.length, nextY: drawY };
+          return {
+            nextRowIndex: curRow + rowsThisPage.length,
+            nextY: drawY
+          };
         }
 
         let rowIdx = 0;
@@ -1887,6 +1891,7 @@ def unpack_to_pretty(s: str) -> str:
       const f=ev.target.files?.[0];
       if(!f) return;
       decStatus.textContent="Decodifica foto…";
+
       const url=URL.createObjectURL(f);
       try{
         const img=new Image();
@@ -1907,16 +1912,24 @@ def unpack_to_pretty(s: str) -> str:
     const closeCamBtn  = document.getElementById('closeCamBtn');
     const toggleFlashBtn = document.getElementById('toggleFlashBtn');
 
-    document.getElementById('btnCam').onclick = ()=>{ startCameraOverlay(); };
-    closeCamBtn.onclick = ()=>{ stopCameraOverlay("Chiuso."); };
-    toggleFlashBtn.onclick = ()=>{ toggleTorch(); };
+    document.getElementById('btnCam').onclick = ()=>{
+      startCameraOverlay();
+    };
+    closeCamBtn.onclick = ()=>{
+      stopCameraOverlay("Chiuso.");
+    };
+    toggleFlashBtn.onclick = ()=>{
+      toggleTorch();
+    };
 
+    // ------- PATCH start/stop camera -------
     async function startCameraOverlay(){
       camOverlay.style.display='flex';
       camStatusEl.textContent="Apertura camera…";
       torchEnabled=false;
 
       try{
+        // primo tentativo: camera posteriore "exact"
         camStream = await navigator.mediaDevices.getUserMedia({
           video:{
             facingMode:{ exact:'environment' },
@@ -1927,9 +1940,11 @@ def unpack_to_pretty(s: str) -> str:
           audio:false
         });
       }catch(e){
+        // fallback: qualunque posteriore disponibile
         try{
           camStream = await navigator.mediaDevices.getUserMedia({
-            video:{ facingMode:'environment' }, audio:false
+            video:{ facingMode:'environment' },
+            audio:false
           });
         }catch(e2){
           camStatusEl.textContent="Webcam non disponibile.";
@@ -1938,7 +1953,10 @@ def unpack_to_pretty(s: str) -> str:
       }
 
       camVideo.srcObject = camStream;
+
+      // avvio esplicito per Safari/iOS
       try { await camVideo.play(); } catch {}
+
       camTrack = camStream.getVideoTracks()[0] || null;
       camScanning = true;
 
@@ -1956,12 +1974,16 @@ def unpack_to_pretty(s: str) -> str:
 
     function stopCameraOverlay(msg){
       camScanning=false;
-      if(camStream){ camStream.getTracks().forEach(t=>t.stop()); camStream=null; }
+      if(camStream){
+        camStream.getTracks().forEach(t=>t.stop());
+        camStream=null;
+      }
       camTrack=null;
       camOverlay.style.display='none';
       camStatusEl.textContent = msg || "";
       torchEnabled=false;
     }
+    // ------- FINE PATCH -------
 
     async function toggleTorch(){
       if(!camTrack || !camTrack.applyConstraints) return;
@@ -2015,7 +2037,11 @@ def unpack_to_pretty(s: str) -> str:
         jsonDecoded.value=pretty;
         decodedObj=JSON.parse(pretty);
 
-        decodedObj.l = (decodedObj.l||[]).map(it=>({ d:it.d, q:it.q, r:it.r||0 }));
+        decodedObj.l = (decodedObj.l||[]).map(it=>({
+          d:it.d,
+          q:it.q,
+          r:it.r||0
+        }));
         if(decodedObj.p===undefined)   decodedObj.p="";
         if(decodedObj.pos===undefined) decodedObj.pos="";
         if(decodedObj.note===undefined)decodedObj.note="";
@@ -2037,7 +2063,11 @@ def unpack_to_pretty(s: str) -> str:
       try{
         const obj=JSON.parse(jsonDecoded.value);
 
-        obj.l = (obj.l || []).map(item=>({ d:item.d, q:item.q, r:item.r || 0 }));
+        obj.l = (obj.l || []).map(item=>({
+          d:item.d,
+          q:item.q,
+          r:item.r || 0
+        }));
         if(obj.p===undefined)   obj.p="";
         if(obj.pos===undefined) obj.pos="";
         if(obj.note===undefined)obj.note="";
@@ -2067,7 +2097,7 @@ def unpack_to_pretty(s: str) -> str:
       }
     };
 
-    // --------- RIENTRO (tabella + CONTATORE) ----------
+    // RIENTRO
     function renderRientroTable(){
       ensureRientroStore();
       const tb=document.querySelector('#rTbl tbody');
@@ -2086,39 +2116,41 @@ def unpack_to_pretty(s: str) -> str:
           <td>${escapeHtml(it.d)}</td>
           <td>${it.q}</td>
           <td class="rCtrl">
+            <button class="qtyBtn minus" data-act="dec" data-i="${idx}">−</button>
             <input class="rQtyInputBig" type="number" min="0" max="${it.q}" value="${r}" data-i="${idx}">
-            <button class="btn sm countBtn" data-i="${idx}">Conta</button>
+            <button class="qtyBtn plus" data-act="inc" data-i="${idx}">+</button>
           </td>
           <td>${manca}</td>
         `;
         tb.appendChild(tr);
       });
 
-      // input quantità
-      tb.querySelectorAll('.rQtyInputBig').forEach(inp=>{
-        inp.addEventListener('input', ()=>{
-          const i = parseInt(inp.dataset.i,10);
-          let v = parseInt(inp.value || "0",10);
-          if(Number.isNaN(v)) v=0;
-          v=Math.max(0, Math.min(state.l[i].q, v));
-          state.l[i].r=v;
+      tb.querySelectorAll('.qtyBtn').forEach(btn=>{
+        btn.addEventListener('click', ()=>{
+          const i = parseInt(btn.dataset.i,10);
+          const act = btn.dataset.act;
+          const it = state.l[i];
+          if(!it) return;
+          if(act==="inc"){
+            it.r = Math.min(it.q, (it.r||0)+1);
+          }else if(act==="dec"){
+            it.r = Math.max(0, (it.r||0)-1);
+          }
           saveLocal(state);
           updateProgress();
-          // aggiorna la cella "Manca" senza rerender completo
-          const row = inp.closest('tr');
-          const manca = Math.max(0, state.l[i].q - v);
-          row.children[4].textContent = String(manca);
-        });
-        inp.addEventListener('change', ()=>{
-          renderRientroTable(); // riallinea tutto (totali etc.)
+          renderRientroTable();
         });
       });
 
-      // bottone Conta -> overlay
+      \1
       tb.querySelectorAll('.countBtn').forEach(btn=>{
         btn.addEventListener('click', ()=>{
           const i = parseInt(btn.dataset.i,10);
           openCounter(i);
+        });
+      });
+inp.addEventListener('change', ()=>{
+          renderRientroTable();
         });
       });
 
@@ -2136,7 +2168,8 @@ def unpack_to_pretty(s: str) -> str:
       const pct = totPrev>0 ? Math.round(100*totR/totPrev) : 0;
       const bar=document.getElementById('rBar');
       bar.style.width = pct+'%';
-      document.getElementById('rPct').textContent = `${pct}% • ${totR}/${totPrev}`;
+      document.getElementById('rPct').textContent =
+        `${pct}% • ${totR}/${totPrev}`;
     }
 
     document.getElementById('rReset').onclick=()=>{
@@ -2176,95 +2209,7 @@ def unpack_to_pretty(s: str) -> str:
       downloadBlob(new Blob([csv],{type:'text/csv'}), 'rientro.csv');
     };
 
-    // --------- COUNTER OVERLAY LOGIC ---------
-    const counterOverlay = document.getElementById('counterOverlay');
-    const counterClose   = document.getElementById('counterClose');
-    const cntDesc        = document.getElementById('cntDesc');
-    const cntPrev        = document.getElementById('cntPrev');
-    const cntValueEl     = document.getElementById('cntValue');
-    const cntMinus       = document.getElementById('cntMinus');
-    const cntPlus        = document.getElementById('cntPlus');
-
-    function openCounter(index){
-      if(index<0 || index>=state.l.length) return;
-      currentCounterIndex = index;
-      const it = state.l[index];
-      cntDesc.textContent = it.d || "";
-      cntPrev.textContent = String(it.q);
-      cntValueEl.textContent = String(it.r || 0);
-
-      counterOverlay.style.display='flex';
-      document.documentElement.style.overflow = 'hidden';
-      document.body.style.overflow = 'hidden';
-    }
-
-    function closeCounter(){
-      counterOverlay.style.display='none';
-      document.documentElement.style.overflow = '';
-      document.body.style.overflow = '';
-      currentCounterIndex = -1;
-    }
-
-    counterClose.addEventListener('click', closeCounter);
-
-    cntMinus.addEventListener('click', ()=>{
-      if(currentCounterIndex<0) return;
-      const it = state.l[currentCounterIndex];
-      const v = Math.max(0, (it.r||0) - 1);
-      it.r = v;
-      cntValueEl.textContent = String(v);
-      saveLocal(state);
-      updateProgress();
-      // aggiorna riga visibile
-      syncRowFromCounter(currentCounterIndex, v);
-    });
-
-    cntPlus.addEventListener('click', ()=>{
-      if(currentCounterIndex<0) return;
-      const it = state.l[currentCounterIndex];
-      const v = Math.min(it.q, (it.r||0) + 1);
-      it.r = v;
-      cntValueEl.textContent = String(v);
-      saveLocal(state);
-      updateProgress();
-      syncRowFromCounter(currentCounterIndex, v);
-    });
-
-    // tocco ripetuto continuo (press-and-hold) – opzionale
-    function pressAndHold(el, onTick){
-      let t=null, hold=false;
-      const start=()=>{
-        if(hold) return;
-        hold=true;
-        onTick();
-        t=setTimeout(function rep(){
-          onTick();
-          t=setTimeout(rep, 80);
-        }, 400);
-      };
-      const stop=()=>{
-        hold=false;
-        if(t){ clearTimeout(t); t=null; }
-      };
-      el.addEventListener('touchstart', start, {passive:true});
-      el.addEventListener('mousedown', start);
-      ['touchend','touchcancel','mouseup','mouseleave'].forEach(ev=>el.addEventListener(ev, stop));
-    }
-    pressAndHold(cntMinus, ()=>cntMinus.click());
-    pressAndHold(cntPlus,  ()=>cntPlus.click());
-
-    function syncRowFromCounter(i, v){
-      const rows = document.querySelectorAll('#rTbl tbody tr');
-      const tr = rows[i];
-      if(!tr) return;
-      const inp = tr.querySelector('.rQtyInputBig');
-      if(inp){ inp.value = String(v); }
-      const prev = state.l[i].q;
-      const manca = Math.max(0, prev - v);
-      tr.children[4].textContent = String(manca);
-    }
-
-    // QR decode helpers (come prima)
+    // QR decode helpers
     function drawToCanvas(img){
       const c=document.createElement('canvas');
       c.width=img.naturalWidth||img.videoWidth||img.width;
@@ -2272,6 +2217,7 @@ def unpack_to_pretty(s: str) -> str:
       c.getContext('2d',{willReadFrequently:true}).drawImage(img,0,0,c.width,c.height);
       return c;
     }
+
     function toGray(c){
       const ctx=c.getContext('2d',{willReadFrequently:true});
       const d=ctx.getImageData(0,0,c.width,c.height);
@@ -2286,40 +2232,60 @@ def unpack_to_pretty(s: str) -> str:
       out.getContext('2d').putImageData(d,0,0);
       return out;
     }
+
     function otsu(c){
       const ctx=c.getContext('2d',{willReadFrequently:true});
-      const d=ctx.getImageData(0,0,c.width,c.height), a=d.data, hist=new Array(256).fill(0);
+      const d=ctx.getImageData(0,0,c.width,c.height),
+            a=d.data,
+            hist=new Array(256).fill(0);
+
       for(let i=0;i<a.length;i+=4) hist[a[i]]++;
+
       const total=c.width*c.height;
       let sum=0;
       for(let t=0;t<256;t++) sum+=t*hist[t];
       let sumB=0,wB=0,varMax=0,th=128;
       for(let t=0;t<256;t++){
-        wB+=hist[t]; if(!wB) continue;
-        const wF=total-wB; if(!wF) break;
+        wB+=hist[t];
+        if(!wB) continue;
+        const wF=total-wB;
+        if(!wF) break;
         sumB+=t*hist[t];
         const mB=sumB/wB,mF=(sum-sumB)/wF;
         const between=wB*wF*(mB-mF)*(mB-mF);
-        if(between>varMax){ varMax=between; th=t; }
+        if(between>varMax){
+          varMax=between;
+          th=t;
+        }
       }
       for(let i=0;i<a.length;i+=4){
-        const v=a[i]<th?0:255; a[i]=a[i+1]=a[i+2]=v;
+        const v=a[i]<th?0:255;
+        a[i]=a[i+1]=a[i+2]=v;
       }
       const out=document.createElement('canvas');
-      out.width=c.width; out.height=c.height;
+      out.width=c.width;
+      out.height=c.height;
       out.getContext('2d').putImageData(d,0,0);
       return out;
     }
+
     function rotate(c,deg){
-      const o=document.createElement('canvas'), g=o.getContext('2d');
-      if(deg%180===0){ o.width=c.width; o.height=c.height; }
-      else{ o.width=c.height; o.height=c.width; }
+      const o=document.createElement('canvas'),
+            g=o.getContext('2d');
+      if(deg%180===0){
+        o.width=c.width;
+        o.height=c.height;
+      }else{
+        o.width=c.height;
+        o.height=c.width;
+      }
       g.translate(o.width/2,o.height/2);
       g.rotate(deg*Math.PI/180);
       g.imageSmoothingEnabled=false;
       g.drawImage(c,-c.width/2,-c.height/2);
       return o;
     }
+
     function scale(c,s){
       const o=document.createElement('canvas');
       o.width=Math.max(1,Math.round(c.width*s));
@@ -2329,9 +2295,11 @@ def unpack_to_pretty(s: str) -> str:
       g.drawImage(c,0,0,o.width,o.height);
       return o;
     }
+
     function getImageData(c){
       return c.getContext('2d',{willReadFrequently:true}).getImageData(0,0,c.width,c.height);
     }
+
     async function tryDecodeCanvas(cnv){
       if(barcodeDetector){
         try{
@@ -2354,9 +2322,11 @@ def unpack_to_pretty(s: str) -> str:
       }
       return null;
     }
+
     async function robustDecodeFromCanvas(baseCanvas){
       const vars=[baseCanvas, toGray(baseCanvas), otsu(baseCanvas)];
-      const ang=[0,90,180,270], sc=[1.0,1.4,1.8,2.2];
+      const ang=[0,90,180,270],
+            sc=[1.0,1.4,1.8,2.2];
       for(const a of ang){
         const rot=vars.map(v=>a?rotate(v,a):v);
         for(const s of sc){
@@ -2369,21 +2339,27 @@ def unpack_to_pretty(s: str) -> str:
       }
       return null;
     }
+
     async function robustDecodeFromImage(imgEl){
       const base=drawToCanvas(imgEl);
       return robustDecodeFromCanvas(base);
     }
+
     async function decodeFromPDF(file){
       if(!pdfjsLib) throw new Error("pdf.js non caricato");
+
       const arrBuf = await file.arrayBuffer();
       const pdf = await pdfjsLib.getDocument({data:arrBuf}).promise;
       const page = await pdf.getPage(1);
+
       const viewport = page.getViewport({scale:2});
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d');
       canvas.width = viewport.width;
       canvas.height = viewport.height;
+
       await page.render({canvasContext:ctx, viewport}).promise;
+
       const text = await robustDecodeFromCanvas(canvas);
       return text;
     }
@@ -2395,7 +2371,9 @@ def unpack_to_pretty(s: str) -> str:
         location.hostname === 'localhost' ||
         location.hostname === '127.0.0.1'
       );
+
       const decStat  = document.getElementById('decStatus');
+
       if (!isSecure) {
         if (decStat && !decStat.innerHTML.trim()){
           decStat.innerHTML =
@@ -2422,6 +2400,120 @@ def unpack_to_pretty(s: str) -> str:
     })();
 
     let lastPayloadText="";
-  </script>
+  
+function haptic(ms=12){ try{ if(navigator.vibrate) navigator.vibrate(ms); }catch{} }
+
+/* === Counter overlay logic (injected) === */
+let currentCounterIndex = -1;
+const counterOverlay = document.getElementById('counterOverlay');
+const counterClose   = document.getElementById('counterClose');
+const cntDesc        = document.getElementById('cntDesc');
+const cntPrev        = document.getElementById('cntPrev');
+const cntValueEl     = document.getElementById('cntValue');
+const cntMinus       = document.getElementById('cntMinus');
+const cntPlus        = document.getElementById('cntPlus');
+const cntReset       = document.getElementById('cntReset');
+
+function openCounter(index){
+  if(index<0 || !state || !state.l || index>=state.l.length) return;
+  currentCounterIndex = index;
+  const it = state.l[index];
+  cntDesc.textContent = it.d || "";
+  cntPrev.textContent = String(it.q);
+  cntValueEl.textContent = String(it.r || 0);
+  counterOverlay.style.display='flex';
+  document.documentElement.style.overflow='hidden';
+  document.body.style.overflow='hidden';
+}
+function closeCounter(){
+  counterOverlay.style.display='none';
+  document.documentElement.style.overflow='';
+  document.body.style.overflow='';
+  currentCounterIndex = -1;
+}
+if (counterClose) counterClose.addEventListener('click', closeCounter);
+if (counterOverlay) counterOverlay.addEventListener('click', (e)=>{
+  if(e.target===counterOverlay) closeCounter();
+});
+
+// single-tap only (no press&hold repeat)
+if (cntMinus) cntMinus.addEventListener('click', ()=>{
+  if(currentCounterIndex<0) return;
+  const it=state.l[currentCounterIndex];
+  const v=Math.max(0,(it.r||0)-1);
+  it.r=v; cntValueEl.textContent=String(v);
+  haptic();
+  saveLocal(state); updateProgress(); syncRowFromCounter(currentCounterIndex,v);
+});
+if (cntPlus) cntPlus.addEventListener('click', ()=>{
+  if(currentCounterIndex<0) return;
+  const it=state.l[currentCounterIndex];
+  const v=Math.min(it.q,(it.r||0)+1);
+  it.r=v; cntValueEl.textContent=String(v);
+  haptic();
+  saveLocal(state); updateProgress(); syncRowFromCounter(currentCounterIndex,v);
+});
+if (cntReset) cntReset.addEventListener('click', ()=>{
+  if(currentCounterIndex<0) return;
+  const it=state.l[currentCounterIndex]; it.r=0; cntValueEl.textContent="0";
+  haptic(18);
+  saveLocal(state); updateProgress(); syncRowFromCounter(currentCounterIndex,0);
+});
+
+document.querySelectorAll('#counterOverlay .presetBtn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    if(currentCounterIndex<0) return;
+    const delta = parseInt(btn.getAttribute('data-delta'),10) || 0;
+    const it=state.l[currentCounterIndex];
+    let v = (it.r||0) + delta;
+    v = Math.max(0, Math.min(it.q, v));
+    it.r=v; cntValueEl.textContent=String(v);
+    haptic(8);
+    saveLocal(state); updateProgress(); syncRowFromCounter(currentCounterIndex,v);
+  });
+});
+
+function syncRowFromCounter(i,v){
+  const rows = document.querySelectorAll('#rTbl tbody tr');
+  const tr = rows[i]; if(!tr) return;
+  const inp = tr.querySelector('.rQtyInputBig'); if(inp){ inp.value=String(v); }
+  const prev = state.l[i].q;
+  const manca = Math.max(0, prev - v);
+  tr.children[4].textContent = String(manca);
+}
+/* === End counter overlay logic === */
+</script>
+
+<!-- COUNTER OVERLAY (injected) -->
+<div id="counterOverlay" aria-modal="true" role="dialog">
+  <div id="counterHeader">
+    <div id="counterTitle">Contatore</div>
+    <button id="counterClose" aria-label="Chiudi">✕</button>
+  </div>
+  <div id="counterBody">
+    <div class="cntInfo">
+      <div><strong>Descrizione:</strong> <span id="cntDesc"></span></div>
+      <div><strong>Previsto:</strong> <span id="cntPrev"></span></div>
+    </div>
+    <div class="cntValue" id="cntValue">0</div>
+    <div class="cntButtons">
+      <div class="bigCountBtn minus" id="cntMinus">−</div>
+      <div class="bigCountBtn plus"  id="cntPlus">+</div>
+    </div>
+    <div class="presetRow" style="margin-top:10px">
+      <button class="presetBtn" data-delta="-10">−10</button>
+      <button class="presetBtn" data-delta="-5">−5</button>
+      <button class="presetBtn" data-delta="-2">−2</button>
+      <button class="presetBtn" data-delta="2">+2</button>
+      <button class="presetBtn" data-delta="5">+5</button>
+      <button class="presetBtn" data-delta="10">+10</button>
+    </div>
+    <div class="row" style="justify-content:center;margin-top:12px">
+      <button id="cntReset" class="btn ghost">Azzera</button>
+    </div>
+    <div class="cntFoot">Tocca per contare. Un tap = ±1. Preset per salti rapidi.</div>
+  </div>
+</div>
+
 </body>
 </html>
