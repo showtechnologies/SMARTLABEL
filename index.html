@@ -917,10 +917,10 @@
         showLoginOverlay(false);
       });
       
-      // ⬇️ ENTER per inviare
+      // ENTER per inviare
       loginNameInput.addEventListener('keydown', (e)=>{
         if(e.key === 'Enter'){
-          e.preventDefault();      // evita invii/refresh indesiderati su mobile
+          e.preventDefault();
           loginBtn.click();
         }
       });
@@ -936,7 +936,6 @@
     function showLoginOverlay(show){
       const ov=document.getElementById('loginOverlay');
       ov.style.display = show ? 'flex':'none';
-      // blocca lo scroll quando il login è visibile
       document.documentElement.style.overflow = show ? 'hidden' : '';
       document.body.style.overflow = show ? 'hidden' : '';
     }
@@ -966,14 +965,13 @@
       }
     }
 
-    // ------- PATCH iOS 100vh reale -------
+    // PATCH iOS 100vh reale
     function setVH(){
       document.documentElement.style.setProperty('--vh', (window.innerHeight * 0.01) + 'px');
     }
     window.addEventListener('resize', setVH);
     window.addEventListener('orientationchange', setVH);
     setVH();
-    // -------------------------------------
 
     // BOOT
     ;(async()=>{
@@ -1089,7 +1087,7 @@ def unpack_to_pretty(s: str) -> str:
       const dd=String(d.getDate()).padStart(2,"0");
       const hh=String(d.getHours()).padStart(2,"0");
       const mi=String(d.getMinutes()).padStart(2,"0");
-      return `${yy}-${mm}-${dd} ${hh}:${mi}`;
+      return \`\${yy}-\${mm}-\${dd} \${hh}:\${mi}\`;
     }
 
     function loadLocal(){
@@ -1198,8 +1196,8 @@ def unpack_to_pretty(s: str) -> str:
     function slugify(s){
       return (s || "")
         .trim()
-        .replace(/\s+/g,"_")
-        .replace(/[^A-Za-z0-9_\-]+/g,"");
+        .replace(/\\s+/g,"_")
+        .replace(/[^A-Za-z0-9_\\-]+/g,"");
     }
 
     // NAV
@@ -1302,13 +1300,13 @@ def unpack_to_pretty(s: str) -> str:
       tb.innerHTML="";
       state.l.forEach((it,idx)=>{
         const tr=document.createElement('tr');
-        tr.innerHTML=`
-          <td>${idx+1}</td>
-          <td>${escapeHtml(it.d)}</td>
-          <td>${it.q}</td>
+        tr.innerHTML=\`
+          <td>\${idx+1}</td>
+          <td>\${escapeHtml(it.d)}</td>
+          <td>\${it.q}</td>
           <td class="noprint">
-            <button class="btn sm ghost" data-del="${idx}">Elimina</button>
-          </td>`;
+            <button class="btn sm ghost" data-del="\${idx}">Elimina</button>
+          </td>\`;
         tb.appendChild(tr);
       });
       tb.querySelectorAll('button[data-del]').forEach(b=>{
@@ -1348,7 +1346,7 @@ def unpack_to_pretty(s: str) -> str:
       let packed;
       try{
         packed = await pyodide.runPythonAsync(
-          `pack_json_str(${JSON.stringify(canon)})`
+          \`pack_json_str(\${JSON.stringify(canon)})\`
         );
       }catch(e){
         alert("Errore pack Python: "+e);
@@ -1364,7 +1362,7 @@ def unpack_to_pretty(s: str) -> str:
       box.appendChild(currentQRCanvas);
 
       document.getElementById('encInfo').textContent =
-        `ECC=H. Quiet zone ${border} moduli.`;
+        \`ECC=H. Quiet zone \${border} moduli.\`;
 
       btnDownloadPNG.disabled=false;
       btnPrint.disabled=false;
@@ -1432,7 +1430,7 @@ def unpack_to_pretty(s: str) -> str:
       return c;
     }
 
-    // === PDF (omesso: identico alla tua versione, tranne fix minori dove servono) ===
+    // === PDF (identico al tuo con piccoli fix) ===
     function ensureRientroStore(){
       if(!state.l){ state.l=[]; }
       state.l = state.l.map(it=>({
@@ -1447,11 +1445,9 @@ def unpack_to_pretty(s: str) -> str:
     }
 
     function generateAndHandlePDF(mode, action){
-      // unified font sizes for tables
       const FONT_HEADER = 12;
       const FONT_CELL = 12;
-      const TABLE_LINE = 0.35;   // spessore unico per tutti i bordi tabella
-
+      const TABLE_LINE = 0.35;
 
       if(!jsPDFmod || !pyodide){
         alert("Runtime non pronto, ricarica la pagina.");
@@ -1477,13 +1473,11 @@ def unpack_to_pretty(s: str) -> str:
       const marginT = 20;
       const pageW   = 297;
       const pageH   = 210;
-      // spazio extra per il footer fuori dal bordo
-      const FRAME_INSET = 8;      // distanza dai lati
-      const FOOTER_AREA = 12;     // altezza riservata al footer fuori dal bordo
+      const FRAME_INSET = 8;
+      const FOOTER_AREA = 12;
       function drawPageFrame(d){
-        d.setDrawColor(0,0,0);        // NERO
+        d.setDrawColor(0,0,0);
         d.setLineWidth(0.6);
-        // altezza ridotta per non toccare il footer esterno
         d.roundedRect(
           FRAME_INSET,
           FRAME_INSET,
@@ -1493,7 +1487,6 @@ def unpack_to_pretty(s: str) -> str:
         );
       }
       drawPageFrame(doc);
-
 
       function addFooter(d){
         d.setFont("helvetica","normal");
@@ -1536,9 +1529,9 @@ def unpack_to_pretty(s: str) -> str:
 
       const rowsMeta = [
         ["Operatore:", operatorName || ""],
-        ["Evento:",    state.e || ""],       // ⬅️ AGGIUNTO
+        ["Evento:",    state.e || ""],
         ["Produzione:", state.p || ""],
-                ["ID Baule:", state.b || ""],
+        ["ID Baule:", state.b || ""],
         ["Note:", state.note || ""],
         ["Stampato:", nowStamp()]
       ];
@@ -1564,15 +1557,14 @@ def unpack_to_pretty(s: str) -> str:
 
       const qrSizeMm = 80;
       const qrX = pageW - qrSizeMm - 20;
-      // Offset per abbassare il QR rispetto al margine superiore pagina
-      const QR_TOP_OFFSET = 12;               // ↑ aumenta per scendere
+      const QR_TOP_OFFSET = 12;
       const qrY = marginT + QR_TOP_OFFSET;
-      const GAP_AROUND_QR = 12;     // distanza identica sopra/sotto il QR
+      const GAP_AROUND_QR = 12;
 
       const canon = canonicalJSON(state,true);
 
       pyodide.runPythonAsync(
-        `pack_json_str(${JSON.stringify(canon)})`
+        \`pack_json_str(\${JSON.stringify(canon)})\`
       ).then(qp=>{
         const qrCanvas = makeQrCanvas(qp, 4);
         const qrDataURL = qrCanvas.toDataURL("image/png");
@@ -1591,25 +1583,20 @@ def unpack_to_pretty(s: str) -> str:
 
         doc.addImage(qrDataURL, "PNG", qrX, qrY, qrSizeMm, qrSizeMm);
 
-        // POSIZIONE sopra al QR (stile come etichetta colore)
         if ((state.pos || "").trim()) {
           doc.setFont("helvetica","bold");
           doc.setFontSize(20);
           const posText = state.pos.trim();
-          // equidistante: stessa distanza dal bordo superiore del QR
           const desiredPosY = qrY - GAP_AROUND_QR;
-          const topSafe = marginT + 6;              // per non attaccarsi al bordo pagina
+          const topSafe = marginT + 6;
           const posY = Math.max(topSafe, desiredPosY);
           doc.text(posText, qrX + qrSizeMm/2, posY, { align: "center" });
         }
-            // COLOR LABEL BELOW QR
         const colorLabel = colorNameFromIndex(state.c || 0);
         doc.setFont("helvetica","bold");
         doc.setFontSize(20);
         doc.setTextColor(0,0,0);
-        // center under QR
-        const COLOR_BELOW_QR = 14; // ↑ aumenta per scendere
-        const colorY = qrY + qrSizeMm + GAP_AROUND_QR;   // stessa distanza del testo sopra
+        const colorY = qrY + qrSizeMm + GAP_AROUND_QR;
         doc.text(colorLabel, qrX + qrSizeMm/2, colorY, { align: "center" });
 
         const maxRightBeforeQR = qrX - 10;
@@ -1654,9 +1641,8 @@ def unpack_to_pretty(s: str) -> str:
         yCursor += 8;
         const availableW = Math.max(60, (cfg.maxRight - cfg.leftX));
 
-        // Rientro (4 col) e Normale (2 col) con stessa larghezza totale
-        const ratiosRientro = [0.68, 0.10, 0.12, 0.10]; // Descr, Prev, Rientrati, Manca
-        const ratiosNormale = [0.82, 0.18];             // Descr, Q.tà
+        const ratiosRientro = [0.68, 0.10, 0.12, 0.10];
+        const ratiosNormale = [0.82, 0.18];
 
         let headers, colWidths;
 
@@ -1668,7 +1654,6 @@ def unpack_to_pretty(s: str) -> str:
           colWidths = ratiosNormale.map(r => Math.round(r * availableW));
         }
 
-        // correzione arrotondamenti per sommare esattamente availableW
         {
           const sumW = colWidths.reduce((a,b)=>a+b,0);
           let diff = availableW - sumW;
@@ -1870,7 +1855,7 @@ def unpack_to_pretty(s: str) -> str:
           const text = await decodeFromPDF(f);
           await handleDecodedText(text);
         }catch(e){
-          decStatus.innerHTML=`<span class="err">${e}</span>`;
+          decStatus.innerHTML=\`<span class="err">\${e}</span>\`;
         }
       } else {
         const url=URL.createObjectURL(f);
@@ -1882,7 +1867,7 @@ def unpack_to_pretty(s: str) -> str:
           await handleDecodedText(text);
         }catch(e){
           URL.revokeObjectURL(url);
-          decStatus.innerHTML=`<span class="err">${e}</span>`;
+          decStatus.innerHTML=\`<span class="err">\${e}</span>\`;
         }
       }
     });
@@ -1901,7 +1886,7 @@ def unpack_to_pretty(s: str) -> str:
         await handleDecodedText(text);
       }catch(e){
         URL.revokeObjectURL(url);
-        decStatus.innerHTML=`<span class="err">${e}</span>`;
+        decStatus.innerHTML=\`<span class="err">\${e}</span>\`;
       }
     });
 
@@ -1922,14 +1907,13 @@ def unpack_to_pretty(s: str) -> str:
       toggleTorch();
     };
 
-    // ------- PATCH start/stop camera -------
+    // start/stop camera
     async function startCameraOverlay(){
       camOverlay.style.display='flex';
       camStatusEl.textContent="Apertura camera…";
       torchEnabled=false;
 
       try{
-        // primo tentativo: camera posteriore "exact"
         camStream = await navigator.mediaDevices.getUserMedia({
           video:{
             facingMode:{ exact:'environment' },
@@ -1940,7 +1924,6 @@ def unpack_to_pretty(s: str) -> str:
           audio:false
         });
       }catch(e){
-        // fallback: qualunque posteriore disponibile
         try{
           camStream = await navigator.mediaDevices.getUserMedia({
             video:{ facingMode:'environment' },
@@ -1954,7 +1937,6 @@ def unpack_to_pretty(s: str) -> str:
 
       camVideo.srcObject = camStream;
 
-      // avvio esplicito per Safari/iOS
       try { await camVideo.play(); } catch {}
 
       camTrack = camStream.getVideoTracks()[0] || null;
@@ -1983,7 +1965,6 @@ def unpack_to_pretty(s: str) -> str:
       camStatusEl.textContent = msg || "";
       torchEnabled=false;
     }
-    // ------- FINE PATCH -------
 
     async function toggleTorch(){
       if(!camTrack || !camTrack.applyConstraints) return;
@@ -2022,7 +2003,7 @@ def unpack_to_pretty(s: str) -> str:
 
     async function handleDecodedText(text){
       if(!text){
-        decStatus.innerHTML=`<span class="warn">Nessun QR leggibile.</span>`;
+        decStatus.innerHTML=\`<span class="warn">Nessun QR leggibile.</span>\`;
         rawOut.textContent="";
         jsonDecoded.value="";
         btnSetCurrent.disabled=true;
@@ -2032,7 +2013,7 @@ def unpack_to_pretty(s: str) -> str:
       rawOut.textContent=text;
       try{
         const pretty=await pyodide.runPythonAsync(
-          `unpack_to_pretty(${JSON.stringify(text)})`
+          \`unpack_to_pretty(\${JSON.stringify(text)})\`
         );
         jsonDecoded.value=pretty;
         decodedObj=JSON.parse(pretty);
@@ -2047,13 +2028,13 @@ def unpack_to_pretty(s: str) -> str:
         if(decodedObj.note===undefined)decodedObj.note="";
         if(decodedObj.c===undefined)   decodedObj.c=0;
 
-        decStatus.innerHTML=`<span class="ok">QRJ1 decodificato.</span>`;
+        decStatus.innerHTML=\`<span class="ok">QRJ1 decodificato.</span>\`;
         btnSetCurrent.disabled=false;
         btnCompare.disabled=false;
       }catch{
         jsonDecoded.value="";
         decodedObj=null;
-        decStatus.innerHTML=`<span class="warn">QR letto ma non QRJ1.</span>`;
+        decStatus.innerHTML=\`<span class="warn">QR letto ma non QRJ1.</span>\`;
         btnSetCurrent.disabled=true;
         btnCompare.disabled=true;
       }
@@ -2093,11 +2074,11 @@ def unpack_to_pretty(s: str) -> str:
           ? '<span class="ok">La lista coincide.</span>'
           : '<span class="warn">Le liste sono diverse.</span>';
       }catch(e){
-        cmpResult.innerHTML=`<span class="err">${e}</span>`;
+        cmpResult.innerHTML=\`<span class="err">\${e}</span>\`;
       }
     };
 
-    // RIENTRO
+    // ======== RIENTRO (con pulsante Conta e popup) ========
     function renderRientroTable(){
       ensureRientroStore();
       const tb=document.querySelector('#rTbl tbody');
@@ -2111,20 +2092,22 @@ def unpack_to_pretty(s: str) -> str:
         const manca=Math.max(0, it.q - r);
 
         const tr=document.createElement('tr');
-        tr.innerHTML=`
-          <td>${idx+1}</td>
-          <td>${escapeHtml(it.d)}</td>
-          <td>${it.q}</td>
+        tr.innerHTML=\`
+          <td>\${idx+1}</td>
+          <td>\${escapeHtml(it.d)}</td>
+          <td>\${it.q}</td>
           <td class="rCtrl">
-            <button class="qtyBtn minus" data-act="dec" data-i="${idx}">−</button>
-            <input class="rQtyInputBig" type="number" min="0" max="${it.q}" value="${r}" data-i="${idx}">
-            <button class="qtyBtn plus" data-act="inc" data-i="${idx}">+</button>
+            <button class="qtyBtn minus" data-act="dec" data-i="\${idx}">−</button>
+            <input class="rQtyInputBig" type="number" min="0" max="\${it.q}" value="\${r}" data-i="\${idx}">
+            <button class="qtyBtn plus" data-act="inc" data-i="\${idx}">+</button>
+            <button class="btn sm ghost countBtn" data-i="\${idx}">Conta</button>
           </td>
-          <td>${manca}</td>
-        `;
+          <td>\${manca}</td>
+        \`;
         tb.appendChild(tr);
       });
 
+      // +/- buttons: single increment per tap
       tb.querySelectorAll('.qtyBtn').forEach(btn=>{
         btn.addEventListener('click', ()=>{
           const i = parseInt(btn.dataset.i,10);
@@ -2142,19 +2125,31 @@ def unpack_to_pretty(s: str) -> str:
         });
       });
 
-      \1
+      // input manuale
+      tb.querySelectorAll('.rQtyInputBig').forEach(inp=>{
+        inp.addEventListener('change', ()=>{
+          const i = parseInt(inp.dataset.i,10);
+          const it = state.l[i];
+          if(!it) return;
+          let v = parseInt(inp.value||"0",10);
+          if(isNaN(v)) v = 0;
+          v = Math.max(0, Math.min(it.q, v));
+          it.r = v;
+          saveLocal(state);
+          updateProgress();
+          renderRientroTable();
+        });
+      });
+
+      // bottone "Conta" → popup
       tb.querySelectorAll('.countBtn').forEach(btn=>{
         btn.addEventListener('click', ()=>{
           const i = parseInt(btn.dataset.i,10);
           openCounter(i);
         });
       });
-inp.addEventListener('change', ()=>{
-          renderRientroTable();
-        });
-      });
 
-      document.getElementById('rInfo').textContent=`Totale previsti: ${totPrev}`;
+      document.getElementById('rInfo').textContent=\`Totale previsti: \${totPrev}\`;
       updateProgress();
     }
 
@@ -2169,7 +2164,7 @@ inp.addEventListener('change', ()=>{
       const bar=document.getElementById('rBar');
       bar.style.width = pct+'%';
       document.getElementById('rPct').textContent =
-        `${pct}% • ${totR}/${totPrev}`;
+        \`\${pct}% • \${totR}/\${totPrev}\`;
     }
 
     document.getElementById('rReset').onclick=()=>{
@@ -2205,7 +2200,7 @@ inp.addEventListener('change', ()=>{
         const manque=Math.max(0, it.q-(it.r||0));
         rows.push([it.d, it.q, it.r||0, manque]);
       });
-      const csv=rows.map(r=>r.join(";")).join("\n");
+      const csv=rows.map(r=>r.join(";")).join("\\n");
       downloadBlob(new Blob([csv],{type:'text/csv'}), 'rientro.csv');
     };
 
@@ -2403,7 +2398,7 @@ inp.addEventListener('change', ()=>{
   
 function haptic(ms=12){ try{ if(navigator.vibrate) navigator.vibrate(ms); }catch{} }
 
-/* === Counter overlay logic (injected) === */
+/* === Counter overlay logic === */
 let currentCounterIndex = -1;
 const counterOverlay = document.getElementById('counterOverlay');
 const counterClose   = document.getElementById('counterClose');
@@ -2436,7 +2431,7 @@ if (counterOverlay) counterOverlay.addEventListener('click', (e)=>{
   if(e.target===counterOverlay) closeCounter();
 });
 
-// single-tap only (no press&hold repeat)
+// single-tap only
 if (cntMinus) cntMinus.addEventListener('click', ()=>{
   if(currentCounterIndex<0) return;
   const it=state.l[currentCounterIndex];
@@ -2482,9 +2477,9 @@ function syncRowFromCounter(i,v){
   tr.children[4].textContent = String(manca);
 }
 /* === End counter overlay logic === */
-</script>
+  </script>
 
-<!-- COUNTER OVERLAY (injected) -->
+<!-- COUNTER OVERLAY -->
 <div id="counterOverlay" aria-modal="true" role="dialog">
   <div id="counterHeader">
     <div id="counterTitle">Contatore</div>
