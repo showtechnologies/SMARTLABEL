@@ -1628,17 +1628,15 @@ def unpack_to_pretty(s: str) -> str:
 
 
       function addFooter(d){
-        d.setFont("helvetica","bold");      // più marcato
-        d.setFontSize(11);                  // leggermente più grande
-        d.setTextColor(30,30,30);           // più scuro, quindi più leggibile
-
-        const footerText = "Show Technologies™ · info@showtechnologies.it · +39 (0)185 720185";
+        d.setFont("helvetica","normal");
+        d.setFontSize(10);
+        d.setTextColor(100,100,100);
+        const footerText = "Show Technologies™ - info@showtechnologies.it - +39(0)185720185";
         const textW = d.getTextWidth(footerText);
         const x = (pageW - textW)/2;
-        const y = pageH - 10;               // un filo più in alto per respirare
-
+        const y = pageH - 8;
         d.text(footerText, x, y);
-        d.setTextColor(0,0,0);              // reset colore testo
+        d.setTextColor(0,0,0);
       }
 
       let curY = marginT;
@@ -1762,38 +1760,18 @@ def unpack_to_pretty(s: str) -> str:
 
         addFooter(doc);
 
-        // === NUMERAZIONE PAGINE 1/n IN BASSO A DESTRA (solo se multipagina) ===
-        const pageCount = doc.getNumberOfPages();
-        if (pageCount > 1) {
-          for (let i = 1; i <= pageCount; i++) {
-            doc.setPage(i);
-            doc.setFont("helvetica", "bold");
-            doc.setFontSize(11);
-            doc.setTextColor(0,0,0);
-
-            const label = `${i}/${pageCount}`;
-            const textW = doc.getTextWidth(label);
-            const x = pageW - FRAME_INSET - textW - 2;   // vicino al bordo destro
-            const y = pageH - 10;                        // stessa altezza del footer
-
-            doc.text(label, x, y);
-          }
-        }
-        // === FINE NUMERAZIONE PAGINE ===
-
         const baseName =
           slugify(state.p || state.e || "Evento") + "_" +
           slugify(state.b || "Baule") +
           (mode==="rientro" ? "_RIENTRO" : "");
-          
-          if(action === "download"){
-            doc.save(baseName + ".pdf");
-          } else {
-            const blobUrl = doc.output("bloburl");
-            window.open(blobUrl, "_blank");
-          }
-        }); // <-- chiusura del .then(...)
-      }     // <-- chiusura della function generateAndHandlePDF
+
+        if(action === "download"){
+          doc.save(baseName + ".pdf");
+        }else{
+          const blobUrl = doc.output("bloburl");
+          window.open(blobUrl, "_blank");
+        }
+      });
 
       function drawMaterialsTable(doc, cfg){
         let yCursor = cfg.startY;
