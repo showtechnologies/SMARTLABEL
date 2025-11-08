@@ -2613,8 +2613,16 @@ def unpack_to_pretty(s: str) -> str:
         if(currentCounterIndex<0) return;
         const it = state.l[currentCounterIndex];
         const step = currentStep || 1;
-        let v = (it.r || 0) - step;
+
+        const oldV = it.r || 0;
+        let v = oldV - step;
         v = Math.max(0, v);
+
+        if (v === oldV) {
+          // fine corsa: non facciamo flash/vibrazione
+          return;
+        }
+
         it.r = v;
         cntValueEl.textContent = String(v);
         haptic();
@@ -2627,8 +2635,16 @@ def unpack_to_pretty(s: str) -> str:
         if(currentCounterIndex<0) return;
         const it = state.l[currentCounterIndex];
         const step = currentStep || 1;
-        let v = (it.r || 0) + step;
+
+        const oldV = it.r || 0;
+        let v = oldV + step;
         v = Math.min(it.q, v);
+
+        if (v === oldV) {
+          // fine corsa: non facciamo flash/vibrazione
+          return;
+        }
+
         it.r = v;
         cntValueEl.textContent = String(v);
         haptic();
@@ -2640,6 +2656,13 @@ def unpack_to_pretty(s: str) -> str:
       if (cntReset) cntReset.addEventListener('click', ()=>{
         if(currentCounterIndex<0) return;
         const it = state.l[currentCounterIndex];
+        const oldV = it.r || 0;
+
+        if (oldV === 0) {
+          // era già zero: nessun flash
+          return;
+        }
+
         it.r = 0;
         cntValueEl.textContent = "0";
         haptic(18);
@@ -2657,7 +2680,6 @@ def unpack_to_pretty(s: str) -> str:
           // evidenzia il preset selezionato
           presetButtons.forEach(b=>b.classList.remove('active'));
           btn.classList.add('active');
-          haptic(8);
         });
       });
 
