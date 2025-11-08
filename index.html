@@ -618,6 +618,10 @@
                   cursor:pointer;
                   text-align:center;
               }
+              .presetBtn.active{
+                background:#4f46e5;
+                border-color:#6366f1;
+              }
               .cntFoot{
                   margin-top:auto;
                   text-align:center;
@@ -643,12 +647,10 @@
                 <div class="bigCountBtn plus"  id="cntPlus">+</div>
               </div>
               <div class="presetRow" style="margin-top:10px">
-                <button class="presetBtn" data-delta="-10">−10</button>
-                <button class="presetBtn" data-delta="-5">−5</button>
-                <button class="presetBtn" data-delta="-2">−2</button>
-                <button class="presetBtn" data-delta="2">+2</button>
-                <button class="presetBtn" data-delta="5">+5</button>
-                <button class="presetBtn" data-delta="10">+10</button>
+                <button class="presetBtn" data-step="1">1</button>
+                <button class="presetBtn" data-step="2">2</button>
+                <button class="presetBtn" data-step="5">5</button>
+                <button class="presetBtn" data-step="10">10</button>
               </div>
               <div class="row" style="justify-content:center;margin-top:12px">
                 <button id="cntReset" class="btn ghost">Azzera</button>
@@ -2232,37 +2234,12 @@ def unpack_to_pretty(s: str) -> str:
           <td>${escapeHtml(it.d)}</td>
           <td>${it.q}</td>
           <td class="rCtrl">
-            <button class="qtyBtn minus" data-act="dec" data-i="${idx}">−</button>
             <input class="rQtyInputBig" type="number" min="0" max="${it.q}" value="${r}" data-i="${idx}">
-            <button class="qtyBtn plus" data-act="inc" data-i="${idx}">+</button>
             <button class="btn sm ghost countOpenBtn" data-i="${idx}">Conta</button>
           </td>
           <td class="mancaCell">${manca}</td>
         `;
         tb.appendChild(tr);
-      });
-
-      // pulsanti +/- singolo tap
-      tb.querySelectorAll('.qtyBtn').forEach(btn=>{
-        btn.addEventListener('click', ()=>{
-          const i = parseInt(btn.dataset.i,10);
-          const act = btn.dataset.act;
-          const it = state.l[i];
-          if(!it) return;
-          if(act==="inc"){
-            it.r = Math.min(it.q, (it.r||0)+1);
-          }else if(act==="dec"){
-            it.r = Math.max(0, (it.r||0)-1);
-          }
-          saveLocal(state);
-          updateProgress();
-          // aggiorna solo la riga
-          const row = tb.children[i];
-          if(row){
-            row.querySelector('.rQtyInputBig').value = String(it.r||0);
-            row.querySelector('.mancaCell').textContent = String(Math.max(0, it.q-(it.r||0)));
-          }
-        }, {passive:true});
       });
 
       // input manuale con clamp
@@ -2296,7 +2273,6 @@ def unpack_to_pretty(s: str) -> str:
       document.getElementById('rInfo').textContent=`Totale previsti: ${totPrev}`;
       updateProgress();
     }
-
     function updateProgress(){
       ensureRientroStore();
       let totPrev=0, totR=0;
@@ -2555,6 +2531,7 @@ def unpack_to_pretty(s: str) -> str:
     const cntMinus       = document.getElementById('cntMinus');
     const cntPlus        = document.getElementById('cntPlus');
     const cntReset       = document.getElementById('cntReset');
+    let currentStep = 1; // step di default per +/−
 
     function openCounter(index){
       if(index<0 || !state || !state.l || index>=state.l.length) return;
@@ -2578,43 +2555,58 @@ def unpack_to_pretty(s: str) -> str:
       if(e.target===counterOverlay) closeCounter();
     });
 
-    // single-tap (no press&hold repeat)
-    if (cntMinus) cntMinus.addEventListener('click', ()=>{
-      if(currentCounterIndex<0) return;
-      const it=state.l[currentCounterIndex];
-      const v=Math.max(0,(it.r||0)-1);
-      it.r=v; cntValueEl.textContent=String(v);
-      haptic();
-      saveLocal(state); updateProgress(); syncRowFromCounter(currentCounterIndex,v);
-    });
-    if (cntPlus) cntPlus.addEventListener('click', ()=>{
-      if(currentCounterIndex<0) return;
-      const it=state.l[currentCounterIndex];
-      const v=Math.min(it.q,(it.r||0)+1);
-      it.r=v; cntValueEl.textContent=String(v);
-      haptic();
-      saveLocal(state); updateProgress(); syncRowFromCounter(currentCounterIndex,v);
-    });
-    if (cntReset) cntReset.addEventListener('click', ()=>{
-      if(currentCounterIndex<0) return;
-      const it=state.l[currentCounterIndex];
-      it.r=0; cntValueEl.textContent="0";
-      haptic(18);
-      saveLocal(state); updateProgress(); syncRowFromCounter(currentCounterIndex,0);
-    });
-
-    document.querySelectorAll('#counterOverlay .presetBtn').forEach(btn=>{
-      btn.addEventListener('click', ()=>{
+      // single-tap (no press&hold repeat), usa currentStep
+      if (cntMinus) cntMinus.addEventListener('click', ()=>{
         if(currentCounterIndex<0) return;
-        const delta = parseInt(btn.getAttribute('data-delta'),10) || 0;
-        const it=state.l[currentCounterIndex];
-        let v = (it.r||0) + delta;
-        v = Math.max(0, Math.min(it.q, v));
-        it.r=v; cntValueEl.textContent=String(v);
-        haptic(8);
-        saveLocal(state); updateProgress(); syncRowFromCounter(currentCounterIndex,v);
+        const it = state.l[currentCounterIndex];
+        const step = currentStep || 1;
+        let v = (it.r || 0) - step;
+        v = Math.max(0, v);
+        it.r = v;
+        cntValueEl.textContent = String(v);
+        haptic();
+        saveLocal(state);
+        updateProgress();
+        syncRowFromCounter(currentCounterIndex, v);
       });
-    });
+
+      if (cntPlus) cntPlus.addEventListener('click', ()=>{
+        if(currentCounterIndex<0) return;
+        const it = state.l[currentCounterIndex];
+        const step = currentStep || 1;
+        let v = (it.r || 0) + step;
+        v = Math.min(it.q, v);
+        it.r = v;
+        cntValueEl.textContent = String(v);
+        haptic();
+        saveLocal(state);
+        updateProgress();
+        syncRowFromCounter(currentCounterIndex, v);
+      });
+
+      if (cntReset) cntReset.addEventListener('click', ()=>{
+        if(currentCounterIndex<0) return;
+        const it = state.l[currentCounterIndex];
+        it.r = 0;
+        cntValueEl.textContent = "0";
+        haptic(18);
+        saveLocal(state);
+        updateProgress();
+        syncRowFromCounter(currentCounterIndex, 0);
+      });
+
+      // preset = scelta del passo per +/−
+      const presetButtons = document.querySelectorAll('#counterOverlay .presetBtn');
+      presetButtons.forEach(btn=>{
+        btn.addEventListener('click', ()=>{
+          const step = parseInt(btn.getAttribute('data-step'),10) || 1;
+          currentStep = step;
+          // evidenzia il preset selezionato
+          presetButtons.forEach(b=>b.classList.remove('active'));
+          btn.classList.add('active');
+          haptic(8);
+        });
+      });
 
     function syncRowFromCounter(i,v){
       const rows = document.querySelectorAll('#rTbl tbody tr');
