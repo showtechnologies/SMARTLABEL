@@ -1759,6 +1759,25 @@ def unpack_to_pretty(s: str) -> str:
         });
 
         addFooter(doc);
+        
+        /* 🔢 NUMERAZIONE PAGINE 1/n IN BASSO A DESTRA (solo se multipagina) */
+        const pageCount = doc.getNumberOfPages();
+        if (pageCount > 1){
+          for (let i = 1; i <= pageCount; i++){
+            doc.setPage(i);
+            doc.setFont("helvetica","bold");
+            doc.setFontSize(11);
+            doc.setTextColor(0,0,0);
+
+            const label = `${i}/${pageCount}`;
+            const textW = doc.getTextWidth(label);
+            const x = pageW - FRAME_INSET - textW - 2; // vicino al bordo destro
+            const y = pageH - 8;                       // stessa altezza del footer
+
+            doc.text(label, x, y);
+          }
+        }
+        /* fine numerazione */
 
         const baseName =
           slugify(state.p || state.e || "Evento") + "_" +
