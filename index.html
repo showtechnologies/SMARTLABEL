@@ -630,6 +630,8 @@
               }
               /* FINE COUNTER OVERLAY */
           </style>
+      </head>
+
           <!-- COUNTER OVERLAY -->
           <div id="counterOverlay" aria-modal="true" role="dialog">
             <div id="counterHeader">
@@ -659,7 +661,6 @@
             </div>
           </div>
           <!-- FINE COUNTER OVERLAY -->
-</head>
 <body>
   <header>
     <div class="wrap">
@@ -2543,6 +2544,29 @@ def unpack_to_pretty(s: str) -> str:
       counterOverlay.style.display='flex';
       document.documentElement.style.overflow='hidden';
       document.body.style.overflow='hidden';
+
+      // preset di default se non impostato
+      if (!currentStep || isNaN(currentStep)) currentStep = 1;
+
+      const presetButtons = document.querySelectorAll('#counterOverlay .presetBtn');
+      let found = false;
+      presetButtons.forEach(b=>{
+        const step = parseInt(b.getAttribute('data-step'),10) || 1;
+        if (!found && step === currentStep){
+          b.classList.add('active');
+          found = true;
+        } else {
+          b.classList.remove('active');
+        }
+      });
+
+      // se per qualche motivo non ne abbiamo trovato uno, attiva "1"
+      if (!found && presetButtons.length){
+        currentStep = parseInt(presetButtons[0].getAttribute('data-step'),10) || 1;
+        presetButtons.forEach((b,i)=>{
+          b.classList.toggle('active', i===0);
+        });
+      }
     }
     function closeCounter(){
       counterOverlay.style.display='none';
