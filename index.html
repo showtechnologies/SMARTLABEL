@@ -629,6 +629,19 @@
                   font-size:12px;
               }
               /* FINE COUNTER OVERLAY */
+              /* FLASH VISIVO PER CONTEGGIO */
+              #tickFlash{
+                position:fixed;
+                inset:0;
+                pointer-events:none;
+                background:#ffffff;
+                opacity:0;
+                transition:opacity 80ms ease-out;
+                z-index:6000; /* sopra tutto, anche sopra counterOverlay */
+              }
+              #tickFlash.show{
+                opacity:0.7;
+              }
           </style>
       </head>
 
@@ -2515,12 +2528,28 @@ def unpack_to_pretty(s: str) -> str:
       }, { passive:false });
     })();
 
-    let lastPayloadText="";
-    function haptic(ms=12){
-      try{
-        if(navigator.vibrate) navigator.vibrate(ms);
-      }catch{}
-    }
+      let lastPayloadText="";
+
+      function flashTick(){
+        const el = document.getElementById('tickFlash');
+        if(!el) return;
+        // reset animazione
+        el.classList.remove('show');
+        // forza reflow per riavviare la transition anche su tap rapidi
+        void el.offsetWidth;
+        el.classList.add('show');
+        // spegni il flash dopo pochissimo
+        setTimeout(()=>el.classList.remove('show'), 90);
+      }
+
+      function haptic(ms=12){
+        // prova comunque a vibrare (Android ecc.)
+        try{
+          if(navigator.vibrate) navigator.vibrate(ms);
+        }catch{}
+        // feedback visivo
+        flashTick();
+      }
 
     /* === Counter overlay logic === */
     let currentCounterIndex = -1;
@@ -2643,5 +2672,6 @@ def unpack_to_pretty(s: str) -> str:
     }
     /* === End counter overlay logic === */
   </script>
+  <div id="tickFlash"></div>
 </body>
 </html>
