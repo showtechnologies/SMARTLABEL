@@ -1800,9 +1800,9 @@ def unpack_to_pretty(s: str) -> str:
         doc.setFont("helvetica","bold");
         doc.setFontSize(16);
         if (cfg.mode === "rientro"){
-          doc.text("Rientro materiali:", cfg.leftX, yCursor);
+          doc.text("DISTINTA RIENTRO", cfg.leftX, yCursor);
         } else {
-          doc.text("Materiali:", cfg.leftX, yCursor);
+          doc.text("DISTINTA", cfg.leftX, yCursor);
         }
         yCursor += 8;
         const availableW = Math.max(60, (cfg.maxRight - cfg.leftX));
