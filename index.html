@@ -1628,15 +1628,17 @@ def unpack_to_pretty(s: str) -> str:
 
 
       function addFooter(d){
-        d.setFont("helvetica","normal");
-        d.setFontSize(10);
-        d.setTextColor(100,100,100);
-        const footerText = "Show Technologies™ - info@showtechnologies.it - +39(0)185720185";
+        d.setFont("helvetica","bold");      // più marcato
+        d.setFontSize(11);                  // leggermente più grande
+        d.setTextColor(30,30,30);           // più scuro, quindi più leggibile
+
+        const footerText = "Show Technologies™ · info@showtechnologies.it · +39 (0)185 720185";
         const textW = d.getTextWidth(footerText);
         const x = (pageW - textW)/2;
-        const y = pageH - 8;
+        const y = pageH - 10;               // un filo più in alto per respirare
+
         d.text(footerText, x, y);
-        d.setTextColor(0,0,0);
+        d.setTextColor(0,0,0);              // reset colore testo
       }
 
       let curY = marginT;
