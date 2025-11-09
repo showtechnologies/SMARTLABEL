@@ -1000,6 +1000,7 @@
     const JSPDF_URL="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js";
     const PDFJS_URL="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js";
     const PDFJS_WORKER_URL="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js";
+    const APP_URL = "https://showtechnologies.github.io/SMARTLABEL/index.html";
 
     let pyodide,
         zxingReader=null,
@@ -1780,6 +1781,26 @@ def unpack_to_pretty(s: str) -> str:
           }
         }
         /* fine numerazione */
+
+        /* 📱 Mini QR dell'app in basso a destra, discreto */
+        try{
+          // riuso il generatore QR già esistente
+          const miniQrCanvas = makeQrCanvas(APP_URL, 1); // bordo 1 modulo
+          const miniQrDataURL = miniQrCanvas.toDataURL("image/png");
+
+          const miniSize = 18; // mm, piccolo/discreto
+          const miniX = pageW - FRAME_INSET - miniSize;
+          // sopra l'area footer, dentro al frame
+          const miniY = pageH - FRAME_INSET - miniSize - 4;
+
+          for (let i = 1; i <= pageCount; i++){
+            doc.setPage(i);
+            doc.addImage(miniQrDataURL, "PNG", miniX, miniY, miniSize, miniSize);
+          }
+        }catch(e){
+          console.warn("Mini QR app non generato:", e);
+        }
+        /* fine mini QR */
 
         const baseName =
           slugify(state.p || state.e || "Evento") + "_" +
