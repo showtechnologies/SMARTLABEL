@@ -1790,7 +1790,7 @@ def unpack_to_pretty(s: str) -> str:
 
           const miniSize = 18; // mm, piccolo/discreto
           const miniX = pageW - FRAME_INSET - miniSize - 4; // 4 mm di margine dal bordo destro interno
-          const miniY = pageH - FRAME_INSET - FOOTER_AREA - miniSize - 2; // sopra il footer, dentro al frame
+          const miniY = pageH - FRAME_INSET - FOOTER_AREA - miniSize - 4; // sopra il footer, dentro al frame
 
           for (let i = 1; i <= pageCount; i++){
             doc.setPage(i);
