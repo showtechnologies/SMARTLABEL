@@ -1789,9 +1789,9 @@ def unpack_to_pretty(s: str) -> str:
           const miniQrDataURL = miniQrCanvas.toDataURL("image/png");
 
           const miniSize = 18; // mm, piccolo/discreto
-          const miniX = pageW - FRAME_INSET - miniSize;
+          const miniX = pageW - FRAME_INSET - miniSize - 10;
           // sopra l'area footer, dentro al frame
-          const miniY = pageH - FRAME_INSET - miniSize - 20;
+          const miniY = pageH - FRAME_INSET - miniSize - 10;
 
           for (let i = 1; i <= pageCount; i++){
             doc.setPage(i);
