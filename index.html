@@ -2050,7 +2050,7 @@ def unpack_to_pretty(s: str) -> str:
         try{
           const img=new Image();
           await new Promise(r=>{ img.onload=r; img.src=url; });
-          const text=await robustDecodeFromImage(img);
+          const text=await robustDecodeQRJ1FromImage(img);
           URL.revokeObjectURL(url);
           await handleDecodedText(text);
         }catch(e){
@@ -2069,7 +2069,7 @@ def unpack_to_pretty(s: str) -> str:
       try{
         const img=new Image();
         await new Promise(r=>{ img.onload=r; img.src=url; });
-        const text=await robustDecodeFromImage(img);
+        const text=await robustDecodeQRJ1FromImage(img);
         URL.revokeObjectURL(url);
         await handleDecodedText(text);
       }catch(e){
@@ -2178,7 +2178,7 @@ def unpack_to_pretty(s: str) -> str:
         const gx = camCanvas.getContext('2d');
         gx.drawImage(camVideo,0,0,camCanvas.width,camCanvas.height);
 
-        robustDecodeFromCanvas(camCanvas).then(async text=>{
+        robustDecodeQRJ1FromCanvas(camCanvas).then(async text=>{
           if (text && camScanning){
             camScanning=false;
             await handleDecodedText(text);
@@ -2195,7 +2195,7 @@ def unpack_to_pretty(s: str) -> str:
 
     async function handleDecodedText(text){
       if(!text){
-        decStatus.innerHTML=`<span class="warn">Nessun QR leggibile.</span>`;
+        decStatus.innerHTML=`<span class="warn">Nessun QRJ1 leggibile.</span>`;
         rawOut.textContent="";
         jsonDecoded.value="";
         btnSetCurrent.disabled=true;
@@ -2505,6 +2505,16 @@ def unpack_to_pretty(s: str) -> str:
             const t=await tryDecodeCanvas(c);
             if(t) return t;
           }
+
+    async function robustDecodeQRJ1FromCanvas(baseCanvas){
+      const res = await robustDecodeFromCanvas(baseCanvas);
+      if (res && typeof res === "string" && res.startsWith("QRJ1:")) return res;
+      return null;
+    }
+    async function robustDecodeQRJ1FromImage(imgEl){
+      const base = drawToCanvas(imgEl);
+      return robustDecodeQRJ1FromCanvas(base);
+    }
         }
       }
       return null;
@@ -2515,11 +2525,26 @@ def unpack_to_pretty(s: str) -> str:
       return robustDecodeFromCanvas(base);
     }
 
+    
     async function decodeFromPDF(file){
       if(!pdfjsLib) throw new Error("pdf.js non caricato");
-
       const arrBuf = await file.arrayBuffer();
       const pdf = await pdfjsLib.getDocument({data:arrBuf}).promise;
+      const total = pdf.numPages || 1;
+      for (let p = 1; p <= total; p++){
+        const page = await pdf.getPage(p);
+        const viewport = page.getViewport({scale:2});
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+        await page.render({canvasContext:ctx, viewport}).promise;
+        const text = await robustDecodeFromCanvas(canvas);
+        if (text && typeof text === "string" && text.startsWith("QRJ1:")) return text;
+      }
+      return null;
+    }
+    ).promise;
       const page = await pdf.getPage(1);
 
       const viewport = page.getViewport({scale:2});
