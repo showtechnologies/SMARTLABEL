@@ -2532,24 +2532,69 @@ def unpack_to_pretty(s: str) -> str:
       return robustDecodeFromCanvas(base);
     }
 
-    async function decodeFromPDF(file){
-      if(!pdfjsLib) throw new Error("pdf.js non caricato");
+      async function decodeFromPDF(file){
+        if(!pdfjsLib) throw new Error("pdf.js non caricato");
 
-      const arrBuf = await file.arrayBuffer();
-      const pdf = await pdfjsLib.getDocument({data:arrBuf}).promise;
-      const page = await pdf.getPage(1);
+        // 1) Carico il PDF e renderizzo la prima pagina su un canvas
+        const arrBuf = await file.arrayBuffer();
+        const pdf = await pdfjsLib.getDocument({data:arrBuf}).promise;
+        const page = await pdf.getPage(1);
 
-      const viewport = page.getViewport({scale:2});
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
-      canvas.width = viewport.width;
-      canvas.height = viewport.height;
+        const viewport = page.getViewport({scale: 2});
+        const canvas = document.createElement("canvas");
+        const ctx = canvas.getContext("2d");
+        canvas.width  = viewport.width;
+        canvas.height = viewport.height;
 
-      await page.render({canvasContext:ctx, viewport}).promise;
+        await page.render({ canvasContext: ctx, viewport }).promise;
 
-      const text = await robustDecodeFromCanvas(canvas);
-      return text;
-    }
+        // 2) Ritaglio la zona dove sta il QR grande con il JSON
+        //    (coerente con come lo hai disegnato nel PDF: in alto a destra)
+        const pageWmm = 297;  // A4 orizzontale in mm
+        const pageHmm = 210;
+        const qrSizeMm = 80;
+        const marginTmm = 20;
+        const qrTopOffsetMm = 12;
+        const qrXmm = pageWmm - qrSizeMm - 20;        // come nel generatore
+        const qrYmm = marginTmm + qrTopOffsetMm;
+        const padMm = 10;                             // margine extra attorno al QR
+
+        const scaleX = canvas.width  / pageWmm;
+        const scaleY = canvas.height / pageHmm;
+
+        const cropX = Math.max(0, Math.floor((qrXmm - padMm) * scaleX));
+        const cropY = Math.max(0, Math.floor((qrYmm - padMm) * scaleY));
+        const cropW = Math.min(
+          canvas.width  - cropX,
+          Math.ceil((qrSizeMm + 2 * padMm) * scaleX)
+        );
+        const cropH = Math.min(
+          canvas.height - cropY,
+          Math.ceil((qrSizeMm + 2 * padMm) * scaleY)
+        );
+
+        const cropCanvas = document.createElement("canvas");
+        cropCanvas.width  = cropW;
+        cropCanvas.height = cropH;
+        const cropCtx = cropCanvas.getContext("2d");
+
+        // copio solo il quadrato intorno al QR grande
+        cropCtx.drawImage(
+          canvas,
+          cropX, cropY,         // sorgente (pagina intera)
+          cropW, cropH,
+          0, 0,                 // destinazione
+          cropW, cropH
+        );
+
+        // 3) Prima provo a decodificare SOLO la zona ritagliata
+        let text = await robustDecodeFromCanvas(cropCanvas);
+        if (text) return text;
+
+        // 4) Fallback: se per qualche motivo non va, torno al comportamento vecchio
+        text = await robustDecodeFromCanvas(canvas);
+        return text;
+      }
 
     // HTTPS warning
     (function(){
