@@ -2489,6 +2489,27 @@ def unpack_to_pretty(s: str) -> str:
             }
           }catch{}
         }
+        
+        async function tryDecodeCanvasNoBD(cnv){
+          // come tryDecodeCanvas, ma SENZA BarcodeDetector
+
+          if (zxingReader && typeof zxingReader.decodeFromCanvas === 'function'){
+            try{
+              const r = await zxingReader.decodeFromCanvas(cnv);
+              if (r?.text) return r.text;
+            }catch(e){}
+          }
+
+          if (typeof jsQR === 'function'){
+            try{
+              const id = getImageData(cnv);
+              const r = jsQR(id.data, id.width, id.height, { inversionAttempts: "attemptBoth" });
+              if (r?.data) return r.data;
+            }catch(e){}
+          }
+
+          return null;
+        }
 
         // 2) ZXing (fallback singolo QR)
         if (zxingReader && typeof zxingReader.decodeFromCanvas === 'function'){
@@ -2510,22 +2531,34 @@ def unpack_to_pretty(s: str) -> str:
         return null;
       }
 
-    async function robustDecodeFromCanvas(baseCanvas){
-      const vars=[baseCanvas, toGray(baseCanvas), otsu(baseCanvas)];
-      const ang=[0,90,180,270],
-            sc=[1.0,1.4,1.8,2.2];
-      for(const a of ang){
-        const rot=vars.map(v=>a?rotate(v,a):v);
-        for(const s of sc){
-          for(const v of rot){
-            const c=(Math.abs(s-1)<1e-3)?v:scale(v,s);
-            const t=await tryDecodeCanvas(c);
-            if(t) return t;
+      async function robustDecodeFromCanvas(baseCanvas){
+        // 🔹 FAST PATH: prova tutti i decoder solo sul canvas base
+        const fast = await tryDecodeCanvas(baseCanvas);
+        if (fast) return fast;
+
+        // 🔹 FALLBACK ROBUSTO: rotazioni / scale / filtri,
+        // ma SENZA più chiamare BarcodeDetector ogni volta
+        const vars = [baseCanvas, toGray(baseCanvas), otsu(baseCanvas)];
+        const ang  = [0, 90, 180, 270];
+        const sc   = [1.0, 1.4, 1.8, 2.2];
+
+        for (const a of ang){
+          const rot = vars.map(v => a ? rotate(v, a) : v);
+
+          for (const s of sc){
+            for (const v of rot){
+              // salta il caso (ang=0, scale=1, baseCanvas) già provato sopra
+              if (a === 0 && Math.abs(s - 1) < 1e-3 && v === baseCanvas) continue;
+
+              const c = (Math.abs(s - 1) < 1e-3) ? v : scale(v, s);
+              const t = await tryDecodeCanvasNoBD(c);
+              if (t) return t;
+            }
           }
         }
+
+        return null;
       }
-      return null;
-    }
 
     async function robustDecodeFromImage(imgEl){
       const base=drawToCanvas(imgEl);
