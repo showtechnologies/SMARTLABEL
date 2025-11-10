@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-          <title>Inventario QR – Mobile</title>
+          <title>SHOWMOBILE</title>
           <style>
               :root{
                   --gap:14px;--muted:#6b7280;--b:#e5e7eb;--ok:#10b981;--warn:#f59e0b;--err:#ef4444;
@@ -642,6 +642,10 @@
               #tickFlash.show{
                 opacity:0.7;
               }
+              /* 🔠 Tutti i campi testuali scrivono in MAIUSCOLO */
+              input[type="text"], textarea {
+                text-transform: uppercase;
+              }
           </style>
       </head>
 
@@ -989,6 +993,23 @@
       const url=URL.createObjectURL(blob);
       navigator.serviceWorker.register(url).catch(()=>{});
     }
+      /* 🔠 Conversione automatica in MAIUSCOLO per tutti gli input di testo */
+      document.addEventListener('input', (e) => {
+        const el = e.target;
+        if ((el.tagName === 'INPUT' && el.type === 'text') || el.tagName === 'TEXTAREA') {
+          const pos = el.selectionStart; // per non perdere il cursore
+          el.value = el.value.toUpperCase();
+          el.setSelectionRange(pos, pos);
+        }
+      });
+      /* 🚫 Disattiva correzione automatica e capitalizzazione delle tastiere mobili */
+      window.addEventListener('DOMContentLoaded', () => {
+        document.querySelectorAll('input[type="text"], textarea').forEach(el => {
+          el.autocorrect = "off";
+          el.autocapitalize = "characters";
+          el.spellcheck = false;
+        });
+      });
   </script>
 
   <!-- APP SCRIPT -->
