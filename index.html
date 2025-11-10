@@ -2470,28 +2470,45 @@ def unpack_to_pretty(s: str) -> str:
       return c.getContext('2d',{willReadFrequently:true}).getImageData(0,0,c.width,c.height);
     }
 
-    async function tryDecodeCanvas(cnv){
-      if(barcodeDetector){
-        try{
-          const codes=await barcodeDetector.detect(cnv);
-          if(codes?.length && codes[0].rawValue) return codes[0].rawValue;
-        }catch{}
+      async function tryDecodeCanvas(cnv){
+        // 1) BarcodeDetector: preferisce QRJ1 se presente
+        if (barcodeDetector){
+          try{
+            const codes = await barcodeDetector.detect(cnv);
+            if (codes?.length){
+              // cerca esplicitamente un QR con prefisso QRJ1:
+              const qrj = codes.find(c =>
+                typeof c.rawValue === "string" &&
+                c.rawValue.startsWith("QRJ1:")
+              );
+              if (qrj) return qrj.rawValue;
+
+              // altrimenti comportati come prima: primo con rawValue valido
+              const first = codes.find(c => typeof c.rawValue === "string" && c.rawValue.length);
+              if (first) return first.rawValue;
+            }
+          }catch{}
+        }
+
+        // 2) ZXing (fallback singolo QR)
+        if (zxingReader && typeof zxingReader.decodeFromCanvas === 'function'){
+          try{
+            const r = await zxingReader.decodeFromCanvas(cnv);
+            if (r?.text) return r.text;
+          }catch{}
+        }
+
+        // 3) jsQR (fallback singolo QR)
+        if (typeof jsQR === 'function'){
+          try{
+            const id = getImageData(cnv);
+            const r = jsQR(id.data, id.width, id.height, { inversionAttempts:"attemptBoth" });
+            if (r?.data) return r.data;
+          }catch{}
+        }
+
+        return null;
       }
-      if(zxingReader && typeof zxingReader.decodeFromCanvas==='function'){
-        try{
-          const r=await zxingReader.decodeFromCanvas(cnv);
-          if(r?.text) return r.text;
-        }catch{}
-      }
-      if(typeof jsQR==='function'){
-        try{
-          const id=getImageData(cnv);
-          const r=jsQR(id.data,id.width,id.height,{inversionAttempts:"attemptBoth"});
-          if(r?.data) return r.data;
-        }catch{}
-      }
-      return null;
-    }
 
     async function robustDecodeFromCanvas(baseCanvas){
       const vars=[baseCanvas, toGray(baseCanvas), otsu(baseCanvas)];
