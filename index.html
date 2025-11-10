@@ -938,7 +938,7 @@
 
   <!-- SERVICE WORKER -->
   <script>
-    const CACHE_VERSION='qrj1-mobile-v5';
+      const CACHE_VERSION='qrj1-mobile-v6';
     const PRECACHE=[
       'https://cdn.jsdelivr.net/pyodide/v0.25.1/full/pyodide.js',
       'https://cdn.jsdelivr.net/pyodide/v0.25.1/full/pyodide.asm.wasm',
@@ -2069,7 +2069,7 @@ def unpack_to_pretty(s: str) -> str:
       try{
         const img=new Image();
         await new Promise(r=>{ img.onload=r; img.src=url; });
-        const text=await robustDecodeFromImage(img);
+        const text=await robustDecodeQRJ1FromImage(img);
         URL.revokeObjectURL(url);
         await handleDecodedText(text);
       }catch(e){
@@ -2493,33 +2493,37 @@ def unpack_to_pretty(s: str) -> str:
       return null;
     }
 
-    async function robustDecodeFromCanvas(baseCanvas){
-      const vars=[baseCanvas, toGray(baseCanvas), otsu(baseCanvas)];
-      const ang=[0,90,180,270],
-            sc=[1.0,1.4,1.8,2.2];
-      for(const a of ang){
-        const rot=vars.map(v=>a?rotate(v,a):v);
-        for(const s of sc){
-          for(const v of rot){
-            const c=(Math.abs(s-1)<1e-3)?v:scale(v,s);
-            const t=await tryDecodeCanvas(c);
-            if(t) return t;
-          }
-          // --- QRJ1-only helpers ---
-          async function robustDecodeQRJ1FromCanvas(baseCanvas){
-            const res = await robustDecodeFromCanvas(baseCanvas);
-            if (res && typeof res === "string" && res.startsWith("QRJ1:")) return res;
-            return null;
-          }
-          async function robustDecodeQRJ1FromImage(imgEl){
-            const base = drawToCanvas(imgEl);
-            return robustDecodeQRJ1FromCanvas(base);
-          }
+      async function robustDecodeFromCanvas(baseCanvas){
+        const vars=[baseCanvas, toGray(baseCanvas), otsu(baseCanvas)];
+        const ang=[0,90,180,270],
+              sc=[1.0,1.4,1.8,2.2];
 
+        for(const a of ang){
+          const rot=vars.map(v=>a?rotate(v,a):v);
+          for(const s of sc){
+            for(const v of rot){
+              const c=(Math.abs(s-1)<1e-3)?v:scale(v,s);
+              const t=await tryDecodeCanvas(c);
+              if(t) return t;
+            }
+          }
         }
+        return null;
       }
-      return null;
-    }
+      
+      // --- QRJ1-only helpers (globali) ---
+      async function robustDecodeQRJ1FromCanvas(baseCanvas){
+        const res = await robustDecodeFromCanvas(baseCanvas);
+        if (res && typeof res === "string" && res.startsWith("QRJ1:")) return res;
+        return null;
+      }
+      async function robustDecodeQRJ1FromImage(imgEl){
+        const base = drawToCanvas(imgEl);
+        return robustDecodeQRJ1FromCanvas(base);
+      }
+      // alias anti-refuso (i/I)
+      function robustDecodeQRJ1Fromimage(imgEl){ return robustDecodeQRJ1FromImage(imgEl); }
+
 
     async function robustDecodeFromImage(imgEl){
       const base=drawToCanvas(imgEl);
