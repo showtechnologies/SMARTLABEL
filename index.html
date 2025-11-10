@@ -503,17 +503,17 @@
               
               /* ----------- LOGIN OVERLAY (PATCH) ----------- */
               #loginOverlay{
-          position:fixed !important;
-          inset:0;
-          height:calc(var(--vh, 1vh) * 100);
-          background:rgba(0,0,0,.8);
-          color:#fff;
-          z-index:7000;           /* sopra a tutti */
-          display:none;           /* hidden by default; JS will show when needed */
-          align-items:center;
-          justify-content:center;
-          padding:24px;
-      }
+                  position:fixed !important;
+                  inset:0;
+                  height:calc(var(--vh, 1vh) * 100);
+                  background:rgba(0,0,0,.8);
+                  color:#fff;
+                  z-index:4000;           /* sopra a cameraOverlay */
+                  display:flex;
+                  align-items:center;
+                  justify-content:center;
+                  padding:24px;
+              }
               /* --------- FINE LOGIN OVERLAY ----------- */
               /* COUNTER OVERLAY */
               #counterOverlay{
@@ -916,7 +916,7 @@
       <p>Metti il tuo nome. Verrà stampato sull'etichetta e sul PDF.<br>Rimane salvato in questo dispositivo.</p>
       <div class="row" style="gap:10px">
         <input id="loginNameInput" placeholder="Es. Luca R." autocomplete="name">
-        <button id="loginBtn" class="btn" type="button">Entra</button>
+        <button id="loginBtn" class="btn">Entra</button>
       </div>
     </div>
   </div>
@@ -938,7 +938,7 @@
 
   <!-- SERVICE WORKER -->
   <script>
-    const CACHE_VERSION='qrj1-mobile-v6';
+    const CACHE_VERSION='qrj1-mobile-v5';
     const PRECACHE=[
       'https://cdn.jsdelivr.net/pyodide/v0.25.1/full/pyodide.js',
       'https://cdn.jsdelivr.net/pyodide/v0.25.1/full/pyodide.asm.wasm',
@@ -2050,7 +2050,7 @@ def unpack_to_pretty(s: str) -> str:
         try{
           const img=new Image();
           await new Promise(r=>{ img.onload=r; img.src=url; });
-          const text=await robustDecodeQRJ1FromImage(img);
+          const text=await robustDecodeFromImage(img);
           URL.revokeObjectURL(url);
           await handleDecodedText(text);
         }catch(e){
@@ -2069,7 +2069,7 @@ def unpack_to_pretty(s: str) -> str:
       try{
         const img=new Image();
         await new Promise(r=>{ img.onload=r; img.src=url; });
-        const text=await robustDecodeQRJ1FromImage(img);
+        const text=await robustDecodeFromImage(img);
         URL.revokeObjectURL(url);
         await handleDecodedText(text);
       }catch(e){
@@ -2178,7 +2178,7 @@ def unpack_to_pretty(s: str) -> str:
         const gx = camCanvas.getContext('2d');
         gx.drawImage(camVideo,0,0,camCanvas.width,camCanvas.height);
 
-        robustDecodeQRJ1FromCanvas(camCanvas).then(async text=>{
+        robustDecodeFromCanvas(camCanvas).then(async text=>{
           if (text && camScanning){
             camScanning=false;
             await handleDecodedText(text);
@@ -2195,7 +2195,7 @@ def unpack_to_pretty(s: str) -> str:
 
     async function handleDecodedText(text){
       if(!text){
-        decStatus.innerHTML=`<span class="warn">Nessun QRJ1 leggibile.</span>`;
+        decStatus.innerHTML=`<span class="warn">Nessun QR leggibile.</span>`;
         rawOut.textContent="";
         jsonDecoded.value="";
         btnSetCurrent.disabled=true;
@@ -2505,16 +2505,6 @@ def unpack_to_pretty(s: str) -> str:
             const t=await tryDecodeCanvas(c);
             if(t) return t;
           }
-
-    async function robustDecodeQRJ1FromCanvas(baseCanvas){
-      const res = await robustDecodeFromCanvas(baseCanvas);
-      if (res && typeof res === "string" && res.startsWith("QRJ1:")) return res;
-      return null;
-    }
-    async function robustDecodeQRJ1FromImage(imgEl){
-      const base = drawToCanvas(imgEl);
-      return robustDecodeQRJ1FromCanvas(base);
-    }
         }
       }
       return null;
@@ -2525,26 +2515,11 @@ def unpack_to_pretty(s: str) -> str:
       return robustDecodeFromCanvas(base);
     }
 
-    
     async function decodeFromPDF(file){
       if(!pdfjsLib) throw new Error("pdf.js non caricato");
+
       const arrBuf = await file.arrayBuffer();
       const pdf = await pdfjsLib.getDocument({data:arrBuf}).promise;
-      const n = pdf.numPages || 1;
-      for (let i = 1; i <= n; i++){
-        const page = await pdf.getPage(i);
-        const viewport = page.getViewport({scale:2});
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
-        canvas.width = viewport.width;
-        canvas.height = viewport.height;
-        await page.render({canvasContext:ctx, viewport}).promise;
-        const text = await robustDecodeFromCanvas(canvas);
-        if (text && typeof text === "string" && text.startsWith("QRJ1:")) return text;
-      }
-      return null;
-    }
-    ).promise;
       const page = await pdf.getPage(1);
 
       const viewport = page.getViewport({scale:2});
@@ -2585,21 +2560,9 @@ def unpack_to_pretty(s: str) -> str:
     (function(){
       let lastTouch = 0;
       document.addEventListener('touchend', function(e){
-        const login = document.getElementById('loginOverlay');
-        // allow any taps while login overlay is open
-        if (login && login.style.display === 'flex' && login.contains(e.target)) {
-          lastTouch = Date.now();
-          return;
-        }
-        // allow taps on interactive elements to avoid 'dead' UI
-        const el = e.target.closest('button, input, select, textarea, label, a, [role="button"], [contenteditable="true"]');
-        if (el) {
-          lastTouch = Date.now();
-          return;
-        }
         const now = Date.now();
         const dt = now - lastTouch;
-        if (dt > 0 && dt < 280) {
+        if (dt > 0 && dt < 300) {
           e.preventDefault();
         }
         lastTouch = now;
