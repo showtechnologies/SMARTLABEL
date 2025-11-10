@@ -938,7 +938,7 @@
 
   <!-- SERVICE WORKER -->
   <script>
-    const CACHE_VERSION='qrj1-mobile-v5';
+    const CACHE_VERSION='qrj1-mobile-v6';
     const PRECACHE=[
       'https://cdn.jsdelivr.net/pyodide/v0.25.1/full/pyodide.js',
       'https://cdn.jsdelivr.net/pyodide/v0.25.1/full/pyodide.asm.wasm',
@@ -2540,7 +2540,7 @@ def unpack_to_pretty(s: str) -> str:
         canvas.height = viewport.height;
         await page.render({canvasContext:ctx, viewport}).promise;
         const text = await robustDecodeFromCanvas(canvas);
-        if (text && text.startsWith("QRJ1:")) return text;
+        if (text && typeof text === "string" && text.startsWith("QRJ1:")) return text;
       }
       return null;
     }
@@ -2586,13 +2586,20 @@ def unpack_to_pretty(s: str) -> str:
       let lastTouch = 0;
       document.addEventListener('touchend', function(e){
         const login = document.getElementById('loginOverlay');
+        // allow any taps while login overlay is open
         if (login && login.style.display === 'flex' && login.contains(e.target)) {
           lastTouch = Date.now();
-          return; // allow taps inside login UI
+          return;
+        }
+        // allow taps on interactive elements to avoid 'dead' UI
+        const el = e.target.closest('button, input, select, textarea, label, a, [role="button"], [contenteditable="true"]');
+        if (el) {
+          lastTouch = Date.now();
+          return;
         }
         const now = Date.now();
         const dt = now - lastTouch;
-        if (dt > 0 && dt < 300) {
+        if (dt > 0 && dt < 280) {
           e.preventDefault();
         }
         lastTouch = now;
