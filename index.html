@@ -1661,7 +1661,12 @@ def unpack_to_pretty(s: str) -> str:
       }
       drawPageFrame(doc);
       
-      // ✅ Watermark diagonale dalla NOTA (solo testo, nessun QR)
+      // ✅ Watermark sulla PRIMA pagina (dietro a tutto il resto)
+      if (mode === "etichetta" && watermarkEnabled && watermarkText){
+        drawDiagonalWatermark(doc, watermarkText);
+      }
+      
+      // ✅ Watermark diagonale dalla NOTA (centrato, lungo la diagonale A4 landscape)
       function drawDiagonalWatermark(doc, text){
         if (!text) return;
 
@@ -1672,19 +1677,18 @@ def unpack_to_pretty(s: str) -> str:
           wmText = wmText.slice(0, maxChars) + "…";
         }
 
-        // Angolo reale della diagonale A4 landscape: arctan(210 / 297) ≈ 35.3°
-        const angleRad = Math.atan(pageH / pageW);
-        const angleDeg = angleRad * 180 / Math.PI;
+        // Angolo reale della diagonale A4 orizzontale: arctan(210 / 297) ≈ 35.3°
+        const angleDeg = Math.atan(pageH / pageW) * 180 / Math.PI;
 
-        // Centro del testo spostato a sinistra per NON passare sul QR (che sta a destra)
-        const centerX = pageW * 0.25;  // circa 1/4 della larghezza
-        const centerY = pageH * 0.60;  // zona centrale-bassa
+        // Centro esatto della pagina
+        const centerX = pageW / 2;
+        const centerY = pageH / 2;
 
         if (doc.saveGraphicsState) doc.saveGraphicsState();
 
         doc.setFont("helvetica", "bold");
-        doc.setFontSize(40);              // grande, ma regolabile
-        doc.setTextColor(210, 210, 210);  // grigio chiaro, non invasivo
+        doc.setFontSize(40);              // puoi alzare/abbassare se vuoi
+        doc.setTextColor(210, 210, 210);  // molto chiaro → non invadente
 
         doc.text(wmText, centerX, centerY, {
           angle: angleDeg,
@@ -1852,21 +1856,6 @@ def unpack_to_pretty(s: str) -> str:
         }
         /* fine numerazione */
 
-        /* 💧 WATERMARK DIAGONALE DALLA NOTA
-           - attivo SOLO se:
-             - siamo in modalità "etichetta"
-             - la checkbox è flaggata
-             - la nota non è vuota
-           - viene disegnato su TUTTE le pagine create
-        */
-        if (mode === "etichetta" && watermarkEnabled && watermarkText){
-          for (let i = 1; i <= pageCount; i++){
-            doc.setPage(i);
-            drawDiagonalWatermark(doc, watermarkText);
-          }
-        }
-        /* fine watermark */
-
         /* 📱 Mini QR dell'app in basso a destra, discreto */
         try{
           // riuso il generatore QR già esistente
@@ -1879,7 +1868,7 @@ def unpack_to_pretty(s: str) -> str:
 
           for (let i = 1; i <= pageCount; i++){
             doc.setPage(i);
-            doc.addImage(miniQrDataURL, "PNG", miniX, miniSize, miniSize);
+            doc.addImage(miniQrDataURL, "PNG", miniX, miniY, miniSize, miniSize);
           }
         }catch(e){
           console.warn("Mini QR app non generato:", e);
@@ -2096,6 +2085,12 @@ def unpack_to_pretty(s: str) -> str:
             cfg.addFooterFn(doc);
             doc.addPage("a4","landscape");
             drawPageFrame(doc);
+
+            // ✅ Watermark anche sulle PAGINE SUCCESSIVE (sempre dietro la tabella)
+            if (cfg.mode === "etichetta" && watermarkEnabled && watermarkText){
+              drawDiagonalWatermark(doc, watermarkText);
+            }
+
             localY = cfg.marginT;
             doc.setFont("helvetica","bold");
             doc.setFontSize(16);
