@@ -1677,27 +1677,28 @@ def unpack_to_pretty(s: str) -> str:
           wmText = wmText.slice(0, maxChars) + "…";
         }
 
-        // Angolo reale della diagonale A4 orizzontale: arctan(210 / 297) ≈ 35.3°
+        // Angolo reale della diagonale A4 orizzontale
         const angleDeg = Math.atan(pageH / pageW) * 180 / Math.PI;
 
-        // Centro esatto della pagina
+        // Centro geometrico della pagina (corretto verticalmente)
         const centerX = pageW / 2;
-        const centerY = pageH / 2;
+        // alziamo leggermente il testo (≈ altezza media del font 40)
+        const centerY = (pageH / 2) + 6;
 
         if (doc.saveGraphicsState) doc.saveGraphicsState();
 
         doc.setFont("helvetica", "bold");
-        doc.setFontSize(40);              // puoi alzare/abbassare se vuoi
-        doc.setTextColor(210, 210, 210);  // molto chiaro → non invadente
+        doc.setFontSize(40);
+        doc.setTextColor(210, 210, 210);
 
+        // Stampa centrata lungo la diagonale
         doc.text(wmText, centerX, centerY, {
           angle: angleDeg,
-          align: "center"
+          align: "center",
+          baseline: "middle" // 👈 nuovo: centro verticale reale
         });
 
-        // ripristino colore testo standard
         doc.setTextColor(0, 0, 0);
-
         if (doc.restoreGraphicsState) doc.restoreGraphicsState();
       }
 
