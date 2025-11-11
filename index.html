@@ -806,6 +806,14 @@
               </select>
             </div>
           </div>
+          
+          <!-- ✅ Opzione watermark diagonale dalla NOTA -->
+          <div class="row" style="margin-top:8px">
+            <label style="display:flex;align-items:center;gap:8px;font-size:13px">
+              <input type="checkbox" id="watermarkToggle" style="width:auto;flex:0 0 auto;">
+              <span>STAMPA NOTA COME WATERMARK DIAGONALE SUL PDF</span>
+            </label>
+          </div>
 
           <div class="row" style="margin-top:10px">
             <button id="btnGenQR" class="btn">Genera QR / Aggiorna anteprima</button>
@@ -1622,6 +1630,11 @@ def unpack_to_pretty(s: str) -> str:
       ensureRientroStore();
       syncMeta();
 
+      // ✅ Stato del watermark: lettura checkbox (solo PDF / stampa)
+      const watermarkToggleEl = document.getElementById("watermarkToggle");
+      const watermarkEnabled = watermarkToggleEl && watermarkToggleEl.checked;
+      const watermarkText = (state.note || "").trim();
+
       let incompleto = false;
       state.l.forEach(it=>{
         if ((it.r||0) < it.q) incompleto=true;
@@ -1647,6 +1660,42 @@ def unpack_to_pretty(s: str) -> str:
         );
       }
       drawPageFrame(doc);
+      
+      // ✅ Watermark diagonale dalla NOTA (solo testo, nessun QR)
+      function drawDiagonalWatermark(doc, text){
+        if (!text) return;
+
+        // Limitiamo la lunghezza per non uscire troppo dalla pagina
+        const maxChars = 40;
+        let wmText = text.toString();
+        if (wmText.length > maxChars){
+          wmText = wmText.slice(0, maxChars) + "…";
+        }
+
+        // Angolo reale della diagonale A4 landscape: arctan(210 / 297) ≈ 35.3°
+        const angleRad = Math.atan(pageH / pageW);
+        const angleDeg = angleRad * 180 / Math.PI;
+
+        // Centro del testo spostato a sinistra per NON passare sul QR (che sta a destra)
+        const centerX = pageW * 0.25;  // circa 1/4 della larghezza
+        const centerY = pageH * 0.60;  // zona centrale-bassa
+
+        if (doc.saveGraphicsState) doc.saveGraphicsState();
+
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(40);              // grande, ma regolabile
+        doc.setTextColor(210, 210, 210);  // grigio chiaro, non invasivo
+
+        doc.text(wmText, centerX, centerY, {
+          angle: angleDeg,
+          align: "center"
+        });
+
+        // ripristino colore testo standard
+        doc.setTextColor(0, 0, 0);
+
+        if (doc.restoreGraphicsState) doc.restoreGraphicsState();
+      }
 
 
       function addFooter(d){
@@ -1803,6 +1852,21 @@ def unpack_to_pretty(s: str) -> str:
         }
         /* fine numerazione */
 
+        /* 💧 WATERMARK DIAGONALE DALLA NOTA
+           - attivo SOLO se:
+             - siamo in modalità "etichetta"
+             - la checkbox è flaggata
+             - la nota non è vuota
+           - viene disegnato su TUTTE le pagine create
+        */
+        if (mode === "etichetta" && watermarkEnabled && watermarkText){
+          for (let i = 1; i <= pageCount; i++){
+            doc.setPage(i);
+            drawDiagonalWatermark(doc, watermarkText);
+          }
+        }
+        /* fine watermark */
+
         /* 📱 Mini QR dell'app in basso a destra, discreto */
         try{
           // riuso il generatore QR già esistente
@@ -1815,7 +1879,7 @@ def unpack_to_pretty(s: str) -> str:
 
           for (let i = 1; i <= pageCount; i++){
             doc.setPage(i);
-            doc.addImage(miniQrDataURL, "PNG", miniX, miniY, miniSize, miniSize);
+            doc.addImage(miniQrDataURL, "PNG", miniX, miniSize, miniSize);
           }
         }catch(e){
           console.warn("Mini QR app non generato:", e);
