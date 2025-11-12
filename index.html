@@ -806,12 +806,11 @@
               </select>
             </div>
           </div>
-          
-          <!-- ✅ Opzione watermark diagonale dalla NOTA -->
+          <!-- Watermark NOTE -->
           <div class="row" style="margin-top:8px">
-            <label style="display:flex;align-items:center;gap:8px;font-size:13px">
-              <input type="checkbox" id="watermarkToggle" style="width:auto;flex:0 0 auto;">
-              <span>STAMPA NOTA COME WATERMARK DIAGONALE SUL PDF</span>
+            <label style="display:flex;gap:.5rem;align-items:center">
+              <input id="wmNoteToggle" type="checkbox">
+              <span>Mostra NOTE come watermark nel PDF (diagonale reale, dentro la cornice)</span>
             </label>
           </div>
 
@@ -1263,6 +1262,7 @@ def unpack_to_pretty(s: str) -> str:
         if(obj.pos===undefined) obj.pos="";
         if(obj.note===undefined)obj.note="";
         if(obj.c===undefined)   obj.c=0;
+        if(obj.wm===undefined)  obj.wm=0;      // ⬅️ AGGIUNTA
         if(!obj.l) obj.l=[];
         return obj;
       }catch{
@@ -1388,6 +1388,8 @@ def unpack_to_pretty(s: str) -> str:
     const posNameEl    = document.getElementById('posName');
     const noteFieldEl  = document.getElementById('noteField');
     const colorSelEl   = document.getElementById('colorSel');
+    const wmNoteToggle = document.getElementById('wmNoteToggle'); // ⬅️ AGGIUNTA
+
 
     boxIdEl.value     = state.b || "";
     eventNameEl.value = state.e || "";
@@ -1400,6 +1402,7 @@ def unpack_to_pretty(s: str) -> str:
       state.note = noteFieldEl.value.trim()|| state.note||"";
       state.c = parseInt(colorSelEl.value||"0",10);
       state.t = state.t || today();
+      state.wm  = wmNoteToggle.checked ? 1 : 0;        // ⬅️ AGGIUNTA
     }
 
     function applyMeta(){
@@ -1409,6 +1412,7 @@ def unpack_to_pretty(s: str) -> str:
       posNameEl.value   = state.pos || "";
       noteFieldEl.value = state.note || "";
       colorSelEl.value  = (typeof state.c==="number"?state.c:0);
+      wmNoteToggle.checked = !!state.wm;               // ⬅️ AGGIUNTA
     }
 
     // LISTA HANDLERS
@@ -1607,6 +1611,70 @@ def unpack_to_pretty(s: str) -> str:
       if(state.note===undefined)state.note="";
       if(state.c===undefined)   state.c=0;
     }
+      
+      function applyWatermark(doc, text, frameRect, options = {}) {
+        if (!text || !text.trim()) return;
+
+        const {
+          padding = 14,          // mm – distanza dalla cornice
+          targetOpacity = 0.10,  // ~10%
+          fontName = "helvetica",
+          fontStyle = "bold",
+          minFont = 18,
+          fitFactor = 0.92
+        } = options;
+
+        const inner = {
+          x: frameRect.x + padding,
+          y: frameRect.y + padding,
+          w: Math.max(0, frameRect.w - 2*padding),
+          h: Math.max(0, frameRect.h - 2*padding)
+        };
+        if (inner.w <= 0 || inner.h <= 0) return;
+
+        // Angolo reale della diagonale dell’area utile
+        const angleRad = Math.atan2(inner.h, inner.w);
+        const angleDeg = angleRad * 180 / Math.PI;
+        const diag     = Math.hypot(inner.w, inner.h);
+
+        try { doc.setFont(fontName, fontStyle); } catch {}
+        const probeSize = 100;
+        doc.setFontSize(probeSize);
+        const probeW = doc.getTextWidth(text);
+        let fontSize = (diag * fitFactor) * (probeSize / Math.max(1e-6, probeW));
+        fontSize = Math.max(minFont, fontSize);
+
+        // Opacità (fallback a grigio chiaro)
+        let gOk = false;
+        try {
+          const gs = new doc.GState({ opacity: targetOpacity, fillOpacity: targetOpacity, strokeOpacity: targetOpacity });
+          doc.setGState(gs);
+          gOk = true;
+        } catch {
+          doc.setTextColor(200);
+        }
+
+        const cx = inner.x + inner.w/2;
+        const cy = inner.y + inner.h/2;
+
+        doc.save?.();
+        doc.saveGraphicsState?.();
+
+        doc.translate(cx, cy);
+        doc.rotate(angleDeg, { origin: [0, 0] });
+
+        doc.setFontSize(fontSize);
+        const tW = doc.getTextWidth(text);
+        const drawX = -tW/2;
+        const drawY = fontSize * 0.30; // baseline compensation
+        doc.text(text, drawX, drawY, { baseline: "alphabetic" });
+
+        doc.restoreGraphicsState?.();
+        doc.restore?.();
+
+        if (!gOk) doc.setTextColor(0,0,0);
+      }
+
 
     function generateAndHandlePDF(mode, action){
       // unified font sizes for tables
@@ -1629,11 +1697,6 @@ def unpack_to_pretty(s: str) -> str:
 
       ensureRientroStore();
       syncMeta();
-
-      // ✅ Stato del watermark: lettura checkbox (solo PDF / stampa)
-      const watermarkToggleEl = document.getElementById("watermarkToggle");
-      const watermarkEnabled = watermarkToggleEl && watermarkToggleEl.checked;
-      const watermarkText = (state.note || "").trim();
 
       let incompleto = false;
       state.l.forEach(it=>{
@@ -1659,97 +1722,29 @@ def unpack_to_pretty(s: str) -> str:
           6, 6, "S"
         );
       }
-      
-      function getFrameRect(){
-        return {
-          x: FRAME_INSET,
-          y: FRAME_INSET,
-          w: pageW - 2*FRAME_INSET,
-          h: pageH - 2*FRAME_INSET - FOOTER_AREA
-        };
-      }
 
-      //drawPageFrame(doc);
-      
-      // ✅ Watermark sulla PRIMA pagina (dietro a tutto il resto)
-      if (mode === "etichetta" && watermarkEnabled && watermarkText){
-          applyWatermark(doc, watermarkText);
-      }
-      
-      // ✅ Watermark diagonale dalla NOTA (centrato, lungo la diagonale A4 landscape)
-      function applyWatermark(doc, text, frameRect, options = {}) {
-        if (!text || !text.trim()) return;
-
-        const {
-          padding = 14,          // mm di aria dai bordi della cornice
-          targetOpacity = 0.10,  // trasparenza ~10%
-          fontName = "helvetica",
-          fontStyle = "bold",
-          fitFactor = 0.92,      // margine sulla diagonale utile
-          minFontSingle = 18,    // soglia minima per rimanere su una riga
-          multiFont = 22,        // corpo per il multilinea
-          lineGap = 1.2          // interlinea (moltiplicatore)
-        } = options;
-
-        const inner = {
-          x: frameRect.x + padding,
-          y: frameRect.y + padding,
-          w: Math.max(0, frameRect.w - 2*padding),
-          h: Math.max(0, frameRect.h - 2*padding)
-        };
-        if (inner.w <= 0 || inner.h <= 0) return;
-
-        // Angolo reale della diagonale dell’area utile
-        const angleDeg = Math.atan2(inner.h, inner.w) * 180 / Math.PI;
-        const diag     = Math.hypot(inner.w, inner.h);
-
-        // Font & misura (sonda a 100pt)
-        try { doc.setFont(fontName, fontStyle); } catch {}
-        const probeSize = 100;
-        doc.setFontSize(probeSize);
-        const probeW = Math.max(1e-6, doc.getTextWidth(text));
-        let singleFont = (diag * fitFactor) * (probeSize / probeW);
-
-        // Opacità (fallback grigio chiaro se GState non c’è)
-        let gOk = false;
-        try {
-          const gs = new doc.GState({ opacity: targetOpacity, fillOpacity: targetOpacity, strokeOpacity: targetOpacity });
-          doc.setGState(gs);
-          gOk = true;
-        } catch {
-          doc.setTextColor(200);
-        }
-
-        // Centro dell’area utile
-        const cx = inner.x + inner.w/2;
-        const cy = inner.y + inner.h/2;
-
-        doc.save?.();
-        doc.saveGraphicsState?.();
-        doc.translate(cx, cy);
-        doc.rotate(angleDeg, { origin: [0, 0] });
-
-        if (singleFont >= minFontSingle) {
-          // ——— Modalità 1: UNA RIGA, centrata geometricamente
-          doc.setFontSize(singleFont);
-          doc.text(text, 0, 0, { align: "center", baseline: "middle" });
-        } else {
-          // ——— Modalità 2: MULTILINEA centrato
-          doc.setFontSize(multiFont);
-          const maxW = diag * fitFactor;                // larghezza lungo la diagonale
-          const lines = doc.splitTextToSize(text, maxW);
-          const step  = multiFont * lineGap;
-          const startY = -((lines.length - 1) * step) / 2;
-          for (let i = 0; i < lines.length; i++) {
-            doc.text(String(lines[i]), 0, startY + i * step, { align: "center", baseline: "middle" });
+        // ⬇️ AGGIUNGI sotto a drawPageFrame(d)
+        function getFrameRect(){
+          return {
+            x: FRAME_INSET,
+            y: FRAME_INSET,
+            w: pageW - 2*FRAME_INSET,
+            h: pageH - 2*FRAME_INSET - FOOTER_AREA
+          };
+          // Watermark NOTE (se attivo e presente)
+          if (state.wm && (state.note||"").trim()){
+            applyWatermark(
+              doc,
+              (state.note||"").trim().toUpperCase(),
+              getFrameRect(),
+              { padding: 14, targetOpacity: 0.10 }
+            );
           }
+
         }
 
-        doc.restoreGraphicsState?.();
-        doc.restore?.();
-        if (!gOk) doc.setTextColor(0,0,0);
       }
-
+      // drawPageFrame(doc);
 
 
       function addFooter(d){
@@ -1765,21 +1760,6 @@ def unpack_to_pretty(s: str) -> str:
         d.text(footerText, x, y);
         d.setTextColor(0,0,0);              // reset colore testo
       }
-      
-      // Watermark NOTE: prima dei contenuti, nella pagina 1
-      const watermarkToggleEl = document.getElementById("watermarkToggle");
-      const watermarkEnabled  = watermarkToggleEl && watermarkToggleEl.checked;
-      const watermarkText     = (state.note || "").trim();
-
-      if (mode === "etichetta" && watermarkEnabled && watermarkText){
-        applyWatermark(
-          doc,
-          watermarkText,
-          getFrameRect(),
-          { padding: 14, targetOpacity: 0.10 }
-        );
-      }
-
 
       let curY = marginT;
       if (mode === "rientro"){
@@ -2147,21 +2127,24 @@ def unpack_to_pretty(s: str) -> str:
           localY = res.nextY;
 
           if(rowIdx < allRows.length){
+            // chiudi pagina corrente: prima footer, poi cornice sopra a tutto
             cfg.addFooterFn(doc);
-            doc.addPage("a4","landscape");
             drawPageFrame(doc);
 
-            // Watermark anche sulle pagine successive, prima delle intestazioni
-            if (cfg.mode === "etichetta" && watermarkEnabled && watermarkText){
+            // nuova pagina
+            doc.addPage("a4","landscape");
+
+            // watermark PRIMA dei contenuti anche qui
+            if (state.wm && (state.note||"").trim()){
               applyWatermark(
                 doc,
-                watermarkText,
+                (state.note||"").trim().toUpperCase(),
                 getFrameRect(),
                 { padding: 14, targetOpacity: 0.10 }
               );
             }
 
-
+            // intestazioni pagina successiva
             localY = cfg.marginT;
             doc.setFont("helvetica","bold");
             doc.setFontSize(16);
@@ -2172,6 +2155,7 @@ def unpack_to_pretty(s: str) -> str:
             }
             localY += 8;
           }
+
         }
       }
     }
