@@ -1659,48 +1659,97 @@ def unpack_to_pretty(s: str) -> str:
           6, 6, "S"
         );
       }
-      drawPageFrame(doc);
+      
+      function getFrameRect(){
+        return {
+          x: FRAME_INSET,
+          y: FRAME_INSET,
+          w: pageW - 2*FRAME_INSET,
+          h: pageH - 2*FRAME_INSET - FOOTER_AREA
+        };
+      }
+
+      //drawPageFrame(doc);
       
       // ✅ Watermark sulla PRIMA pagina (dietro a tutto il resto)
       if (mode === "etichetta" && watermarkEnabled && watermarkText){
-        drawDiagonalWatermark(doc, watermarkText);
+          applyWatermark(doc, watermarkText);
       }
       
       // ✅ Watermark diagonale dalla NOTA (centrato, lungo la diagonale A4 landscape)
-      function drawDiagonalWatermark(doc, text){
-        if (!text) return;
+      function applyWatermark(doc, text, frameRect, options = {}) {
+        if (!text || !text.trim()) return;
 
-        // Limitiamo la lunghezza per non uscire troppo dalla pagina
-        const maxChars = 40;
-        let wmText = text.toString();
-        if (wmText.length > maxChars){
-          wmText = wmText.slice(0, maxChars) + "…";
+        const {
+          padding = 14,          // mm di aria dai bordi della cornice
+          targetOpacity = 0.10,  // trasparenza ~10%
+          fontName = "helvetica",
+          fontStyle = "bold",
+          fitFactor = 0.92,      // margine sulla diagonale utile
+          minFontSingle = 18,    // soglia minima per rimanere su una riga
+          multiFont = 22,        // corpo per il multilinea
+          lineGap = 1.2          // interlinea (moltiplicatore)
+        } = options;
+
+        const inner = {
+          x: frameRect.x + padding,
+          y: frameRect.y + padding,
+          w: Math.max(0, frameRect.w - 2*padding),
+          h: Math.max(0, frameRect.h - 2*padding)
+        };
+        if (inner.w <= 0 || inner.h <= 0) return;
+
+        // Angolo reale della diagonale dell’area utile
+        const angleDeg = Math.atan2(inner.h, inner.w) * 180 / Math.PI;
+        const diag     = Math.hypot(inner.w, inner.h);
+
+        // Font & misura (sonda a 100pt)
+        try { doc.setFont(fontName, fontStyle); } catch {}
+        const probeSize = 100;
+        doc.setFontSize(probeSize);
+        const probeW = Math.max(1e-6, doc.getTextWidth(text));
+        let singleFont = (diag * fitFactor) * (probeSize / probeW);
+
+        // Opacità (fallback grigio chiaro se GState non c’è)
+        let gOk = false;
+        try {
+          const gs = new doc.GState({ opacity: targetOpacity, fillOpacity: targetOpacity, strokeOpacity: targetOpacity });
+          doc.setGState(gs);
+          gOk = true;
+        } catch {
+          doc.setTextColor(200);
         }
 
-        // Angolo reale della diagonale A4 orizzontale
-        const angleDeg = Math.atan(pageH / pageW) * 180 / Math.PI;
+        // Centro dell’area utile
+        const cx = inner.x + inner.w/2;
+        const cy = inner.y + inner.h/2;
 
-        // Centro geometrico della pagina (corretto verticalmente)
-        const centerX = pageW / 2;
-        // alziamo leggermente il testo (≈ altezza media del font 40)
-        const centerY = (pageH / 2) + 6;
+        doc.save?.();
+        doc.saveGraphicsState?.();
+        doc.translate(cx, cy);
+        doc.rotate(angleDeg, { origin: [0, 0] });
 
-        if (doc.saveGraphicsState) doc.saveGraphicsState();
+        if (singleFont >= minFontSingle) {
+          // ——— Modalità 1: UNA RIGA, centrata geometricamente
+          doc.setFontSize(singleFont);
+          doc.text(text, 0, 0, { align: "center", baseline: "middle" });
+        } else {
+          // ——— Modalità 2: MULTILINEA centrato
+          doc.setFontSize(multiFont);
+          const maxW = diag * fitFactor;                // larghezza lungo la diagonale
+          const lines = doc.splitTextToSize(text, maxW);
+          const step  = multiFont * lineGap;
+          const startY = -((lines.length - 1) * step) / 2;
+          for (let i = 0; i < lines.length; i++) {
+            doc.text(String(lines[i]), 0, startY + i * step, { align: "center", baseline: "middle" });
+          }
+        }
 
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(40);
-        doc.setTextColor(210, 210, 210);
-
-        // Stampa centrata lungo la diagonale
-        doc.text(wmText, centerX, centerY, {
-          angle: angleDeg,
-          align: "center",
-          baseline: "middle" // 👈 nuovo: centro verticale reale
-        });
-
-        doc.setTextColor(0, 0, 0);
-        if (doc.restoreGraphicsState) doc.restoreGraphicsState();
+        doc.restoreGraphicsState?.();
+        doc.restore?.();
+        if (!gOk) doc.setTextColor(0,0,0);
       }
+
 
 
       function addFooter(d){
@@ -1716,6 +1765,21 @@ def unpack_to_pretty(s: str) -> str:
         d.text(footerText, x, y);
         d.setTextColor(0,0,0);              // reset colore testo
       }
+      
+      // Watermark NOTE: prima dei contenuti, nella pagina 1
+      const watermarkToggleEl = document.getElementById("watermarkToggle");
+      const watermarkEnabled  = watermarkToggleEl && watermarkToggleEl.checked;
+      const watermarkText     = (state.note || "").trim();
+
+      if (mode === "etichetta" && watermarkEnabled && watermarkText){
+        applyWatermark(
+          doc,
+          watermarkText,
+          getFrameRect(),
+          { padding: 14, targetOpacity: 0.10 }
+        );
+      }
+
 
       let curY = marginT;
       if (mode === "rientro"){
@@ -2087,10 +2151,16 @@ def unpack_to_pretty(s: str) -> str:
             doc.addPage("a4","landscape");
             drawPageFrame(doc);
 
-            // ✅ Watermark anche sulle PAGINE SUCCESSIVE (sempre dietro la tabella)
+            // Watermark anche sulle pagine successive, prima delle intestazioni
             if (cfg.mode === "etichetta" && watermarkEnabled && watermarkText){
-              drawDiagonalWatermark(doc, watermarkText);
+              applyWatermark(
+                doc,
+                watermarkText,
+                getFrameRect(),
+                { padding: 14, targetOpacity: 0.10 }
+              );
             }
+
 
             localY = cfg.marginT;
             doc.setFont("helvetica","bold");
