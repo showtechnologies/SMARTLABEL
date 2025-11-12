@@ -1667,38 +1667,47 @@ def unpack_to_pretty(s: str) -> str:
       }
       
       // ✅ Watermark diagonale dalla NOTA (centrato, lungo la diagonale A4 landscape)
+      // ✅ Watermark diagonale multiriga, centrato sul centro geometrico pagina
       function drawDiagonalWatermark(doc, text){
         if (!text) return;
 
-        // Limitiamo la lunghezza per non uscire troppo dalla pagina
-        const maxChars = 40;
-        let wmText = text.toString();
-        if (wmText.length > maxChars){
-          wmText = wmText.slice(0, maxChars) + "…";
-        }
-
         // Angolo reale della diagonale A4 orizzontale
-        const angleDeg = Math.atan(pageH / pageW) * 180 / Math.PI;
+        const angleRad = Math.atan(pageH / pageW);
+        const angleDeg = angleRad * 180 / Math.PI;
 
-        // Centro geometrico della pagina (corretto verticalmente)
+        // Centro pagina
         const centerX = pageW / 2;
-        // alziamo leggermente il testo (≈ altezza media del font 40)
-        const centerY = (pageH / 2) + 6;
+        const centerY = pageH / 2;
+
+        // Max larghezza blocco (rispetta i margini interni al frame)
+        const usableW = (pageW - 2*FRAME_INSET) * 0.80; // 80% del frame per stare leggeri
+        const lines = doc.splitTextToSize(text.toString(), usableW);
+
+        // misura blocco testo (in “mm testo”, coerente con lineHeightFactor)
+        const dims = doc.getTextDimensions(lines);
+        const blockH = dims.h;
+
+        // Compensazione: sposta l'ancora verso l'alto lungo la direzione di crescita delle righe
+        // così che il CENTRO del blocco coincida con (centerX, centerY).
+        const half = blockH / 2;
+        const anchorX = centerX - Math.sin(angleRad) * half;
+        const anchorY = centerY - Math.cos(angleRad) * half;
 
         if (doc.saveGraphicsState) doc.saveGraphicsState();
 
         doc.setFont("helvetica", "bold");
         doc.setFontSize(40);
-        doc.setTextColor(210, 210, 210);
+        doc.setTextColor(210,210,210);
 
-        // Stampa centrata lungo la diagonale
-        doc.text(wmText, centerX, centerY, {
+        // baseline 'top': l'array di linee parte dall'ancora e cresce nella direzione ruotata
+        doc.text(lines, anchorX, anchorY, {
           angle: angleDeg,
           align: "center",
-          baseline: "middle" // 👈 nuovo: centro verticale reale
+          baseline: "top"
         });
 
-        doc.setTextColor(0, 0, 0);
+        // ripristino
+        doc.setTextColor(0,0,0);
         if (doc.restoreGraphicsState) doc.restoreGraphicsState();
       }
 
@@ -1737,40 +1746,66 @@ def unpack_to_pretty(s: str) -> str:
       doc.setFont("helvetica","normal");
       doc.setFontSize(FONT_CELL);
 
-      const tableX = marginL;
-      const tableY = curY;
-      const rowH   = 7;
-      const labelW = 35;
-      const valueW = 100;
-      const radius = 2.0;
+                                   const tableX = marginL;
+                                   const tableY = curY;
+                                   const labelW = 35;
+                                   const valueW = 100;
+                                   const radius = 2.0;
+                                   const metaPaddingTop = 4;   // padding top testo dentro la riga
+                                   const metaSidePad    = 2;   // padding laterale
 
-      const rowsMeta = [
-        ["Operatore:", operatorName || ""],
-        ["Evento:",    state.e || ""],       // ⬅️ AGGIUNTO
-        ["Produzione:", state.p || ""],
-                ["ID Baule:", state.b || ""],
-        ["Note:", state.note || ""],
-        ["Stampato:", nowStamp()]
-      ];
-      const metaTableW = labelW + valueW;
-      const metaTableH = rowsMeta.length * rowH;
+                                   const rowsMeta = [
+                                     ["Operatore:", operatorName || ""],
+                                     ["Evento:",    state.e || ""],
+                                     ["Produzione:", state.p || ""],
+                                     ["ID Baule:",   state.b || ""],
+                                     ["Note:",       state.note || ""],
+                                     ["Stampato:",   nowStamp()]
+                                   ];
 
-      doc.setDrawColor(0,0,0);
-      doc.setLineWidth(TABLE_LINE);
-      doc.roundedRect(tableX, tableY, metaTableW, metaTableH, radius, radius, "S");
+                                   const metaTableW = labelW + valueW;
 
-      for(let i=1;i<rowsMeta.length;i++){
-        const y = tableY + i*rowH;
-        doc.line(tableX, y, tableX+metaTableW, y);
-      }
-      doc.line(tableX+labelW, tableY, tableX+labelW, tableY+metaTableH);
+                                   // 1) misura linee per ogni riga (label e valore)
+                                   const measured = rowsMeta.map(([lab,val])=>{
+                                     const labLines = doc.splitTextToSize(lab, labelW - metaSidePad*2);
+                                     const valLines = doc.splitTextToSize(val || "", valueW - metaSidePad*2);
+                                     // altezza blocco con getTextDimensions (coerente con lineHeightFactor del doc)
+                                     const labH = doc.getTextDimensions(labLines).h;
+                                     const valH = doc.getTextDimensions(valLines).h;
+                                     // riga = max(label, value) + padding top/bottom (qui usiamo top + 2mm extra)
+                                     const rowH = Math.max(labH, valH) + metaPaddingTop + 2;
+                                     return { labLines, valLines, rowH };
+                                   });
 
-      rowsMeta.forEach((row,i)=>{
-        const yTextBase = tableY + i*rowH + (rowH-2);
-        doc.text(row[0], tableX+2, yTextBase);
-        const vLines = doc.splitTextToSize(row[1], valueW-4);
-        doc.text(vLines, tableX+labelW+2, yTextBase);
-      });
+                                   // 2) altezza totale tabella
+                                   const metaTableH = measured.reduce((acc,m)=>acc + m.rowH, 0);
+
+                                   // 3) cornice esterna
+                                   doc.setDrawColor(0,0,0);
+                                   doc.setLineWidth(TABLE_LINE);
+                                   doc.roundedRect(tableX, tableY, metaTableW, metaTableH, radius, radius, "S");
+
+                                   // 4) separatori orizzontali + separatore verticale label/valore
+                                   let yCursorMeta = tableY;
+                                   for (let i=0;i<measured.length;i++){
+                                     yCursorMeta += measured[i].rowH;
+                                     if (i < measured.length-1){
+                                       doc.line(tableX, yCursorMeta, tableX + metaTableW, yCursorMeta);
+                                     }
+                                   }
+                                   doc.line(tableX+labelW, tableY, tableX+labelW, tableY+metaTableH);
+
+                                   // 5) stampa testi (top-aligned dentro ogni riga)
+                                   yCursorMeta = tableY;
+                                   for (let i=0;i<measured.length;i++){
+                                     const { labLines, valLines, rowH } = measured[i];
+                                     const yTop = yCursorMeta + metaPaddingTop;
+
+                                     doc.text(labLines, tableX + metaSidePad, yTop);                  // label
+                                     doc.text(valLines, tableX + labelW + metaSidePad, yTop);         // valore
+
+                                     yCursorMeta += rowH;
+                                   }
 
       const qrSizeMm = 80;
       const qrX = pageW - qrSizeMm - 20;
@@ -1932,16 +1967,22 @@ def unpack_to_pretty(s: str) -> str:
         }
 
         const finalTableW = colWidths.reduce((a,b)=>a+b,0);
-        const headH = 9;
+        // linee: usiamo il motore di jsPDF (coerente con splitTextToSize)
         const baseLineH = 8;
-        const textLineStep = 6;
+
+        // header multiriga (wrap su ogni colonna)
+        const headerLines = headers.map((h, idx)=>{
+          const usableW = Math.max(6, colWidths[idx] - 4); // 2mm padding per lato
+          return doc.splitTextToSize(h, usableW);
+        });
+        const headerH = Math.max(...headerLines.map(ls => doc.getTextDimensions(ls).h)) + 4; // + padding
         function buildRowObjects(){
           const rowsOut=[];
 
           rowsOut.push({
             type:"header",
-            cells: headers,
-            h: headH,
+            cells: headerLines,   // << array di linee per ogni cella header
+            h: headerH,
             descLines: null
           });
 
@@ -1951,25 +1992,36 @@ def unpack_to_pretty(s: str) -> str:
             const manc = Math.max(0, prev - rin);
 
             const descCell = it.d || "";
-            const descLines = doc.splitTextToSize(descCell, colWidths[0]-4);
-            let rowH = baseLineH;
-            const dynH = 4 + (descLines.length * textLineStep);
-            if (dynH > rowH) rowH = dynH;
+            const descLines = doc.splitTextToSize(descCell, colWidths[0] - 4);
 
-            let cells;
+            // prepara array di celle in base alla modalità
+            let rawCells;
             if (cfg.mode === "rientro"){
-              cells = [
-                descLines,
+              rawCells = [
+                descLines,                 // col 0 (array già avvolto)
                 String(prev),
                 String(rin),
                 String(manc)
               ];
             } else {
-              cells = [
+              rawCells = [
                 descLines,
                 String(prev)
               ];
             }
+
+            // avvolgi anche le colonne NON descrizione
+            const cellsWrapped = rawCells.map((val, idx)=>{
+              if (Array.isArray(val)) return val; // descrizione già ok
+              const usableW = Math.max(6, colWidths[idx] - 4);
+              return doc.splitTextToSize(String(val||""), usableW);
+            });
+
+            // altezza riga = max altezza tra tutte le celle + padding
+            const cellHeights = cellsWrapped.map(ls => doc.getTextDimensions(ls).h);
+            const rowH = Math.max(baseLineH, Math.max(...cellHeights) + 4);
+
+            const cells = cellsWrapped;
 
             rowsOut.push({
               type:"data",
@@ -2043,16 +2095,16 @@ def unpack_to_pretty(s: str) -> str:
             let cellX = cfg.leftX;
             for(let c=0;c<colWidths.length;c++){
               const cellW = colWidths[c];
-              const cellVal = row.cells[c];
-              if (Array.isArray(cellVal)){
-                let textY = drawY + 6;
-                cellVal.forEach(line=>{
-                  doc.text(line, cellX+2, textY);
-                  textY += textLineStep;
-                });
-              } else {
-                doc.text(String(cellVal||""), cellX+2, drawY+6);
-              }
+              const lines = Array.isArray(row.cells[c]) ? row.cells[c] : [String(row.cells[c]||"")];
+
+              // top padding 3mm per dare respiro
+              let textY = drawY + 3;
+              lines.forEach(line=>{
+                doc.text(line, cellX + 2, textY);
+                // incrementa seguendo l'altezza font del doc (coerente con splitTextToSize)
+                textY += doc.getTextDimensions(line).h;
+              });
+
               cellX += cellW;
             }
 
