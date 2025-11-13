@@ -1667,11 +1667,11 @@ def unpack_to_pretty(s: str) -> str:
       }
       
       // ✅ Watermark diagonale dalla NOTA (centrato, lungo la diagonale A4 landscape)
-      // ✅ Watermark diagonale multiriga, centrato sul centro geometrico della pagina
-      function drawDiagonalWatermark(doc, text) {
+      // ✅ Watermark diagonale multiriga, centrato sul centro geometrico pagina
+      function drawDiagonalWatermark(doc, text){
         if (!text) return;
 
-        // Angolo della diagonale di un A4 landscape
+        // Angolo reale della diagonale A4 orizzontale
         const angleRad = Math.atan(pageH / pageW);
         const angleDeg = angleRad * 180 / Math.PI;
 
@@ -1679,26 +1679,35 @@ def unpack_to_pretty(s: str) -> str:
         const centerX = pageW / 2;
         const centerY = pageH / 2;
 
-        // Larghezza massima del blocco testo dentro il frame
-        const usableW = (pageW - 2 * FRAME_INSET) * 0.80;
-        const lines = doc.splitTextToSize(String(text), usableW);
+        // Max larghezza blocco (rispetta i margini interni al frame)
+        const usableW = (pageW - 2*FRAME_INSET) * 0.80; // 80% del frame per stare leggeri
+        const lines = doc.splitTextToSize(text.toString(), usableW);
+
+        // misura blocco testo (in “mm testo”, coerente con lineHeightFactor)
+        const dims = doc.getTextDimensions(lines);
+        const blockH = dims.h;
+
+        // Compensazione: sposta l'ancora verso l'alto lungo la direzione di crescita delle righe
+        // così che il CENTRO del blocco coincida con (centerX, centerY).
+        const half = blockH / 2;
+        const anchorX = centerX - Math.sin(angleRad) * half;
+        const anchorY = centerY - Math.cos(angleRad) * half;
 
         if (doc.saveGraphicsState) doc.saveGraphicsState();
 
         doc.setFont("helvetica", "bold");
         doc.setFontSize(40);
-        doc.setTextColor(210, 210, 210);
+        doc.setTextColor(210,210,210);
 
-        // 👉 Lasciamo alla libreria il compito di centrare il blocco:
-        //    - align: "center"  → centro orizzontale sul punto
-        //    - baseline: "middle" → centro verticale sul punto
-        doc.text(lines, centerX, centerY, {
+        // baseline 'top': l'array di linee parte dall'ancora e cresce nella direzione ruotata
+        doc.text(lines, anchorX, anchorY, {
           angle: angleDeg,
           align: "center",
-          baseline: "middle"
+          baseline: "top"
         });
 
-        doc.setTextColor(0, 0, 0);
+        // ripristino
+        doc.setTextColor(0,0,0);
         if (doc.restoreGraphicsState) doc.restoreGraphicsState();
       }
 
@@ -1786,20 +1795,14 @@ def unpack_to_pretty(s: str) -> str:
                                    }
                                    doc.line(tableX+labelW, tableY, tableX+labelW, tableY+metaTableH);
 
-                                   // 5) stampa testi (verticalmente centrati dentro ogni riga)
+                                   // 5) stampa testi (top-aligned dentro ogni riga)
                                    yCursorMeta = tableY;
-                                   for (let i = 0; i < measured.length; i++) {
+                                   for (let i=0;i<measured.length;i++){
                                      const { labLines, valLines, rowH } = measured[i];
+                                     const yTop = yCursorMeta + metaPaddingTop;
 
-                                     const labH = doc.getTextDimensions(labLines).h;
-                                     const valH = doc.getTextDimensions(valLines).h;
-
-                                     // centro verticale per label e valore (ognuno rispetto alla sua “metà riga”)
-                                     const yLab = yCursorMeta + ((rowH - labH) / 2);
-                                     const yVal = yCursorMeta + ((rowH - valH) / 2);
-
-                                     doc.text(labLines, tableX + metaSidePad, yLab);
-                                     doc.text(valLines, tableX + labelW + metaSidePad, yVal);
+                                     doc.text(labLines, tableX + metaSidePad, yTop);                  // label
+                                     doc.text(valLines, tableX + labelW + metaSidePad, yTop);         // valore
 
                                      yCursorMeta += rowH;
                                    }
@@ -2078,49 +2081,40 @@ def unpack_to_pretty(s: str) -> str:
           }
 
           let drawY = yTopTable;
-          for (let r = 0; r < rowsThisPage.length; r++) {
+          for(let r=0;r<rowsThisPage.length;r++){
             const row = rowsThisPage[r];
 
-            // Header o riga normale
-            if (row.type === "header") {
-              doc.setFont("helvetica", "bold");
+            if(row.type==="header"){
+              doc.setFont("helvetica","bold");
               doc.setFontSize(FONT_HEADER);
-            } else {
-              doc.setFont("helvetica", "normal");
+            }else{
+              doc.setFont("helvetica","normal");
               doc.setFontSize(FONT_CELL);
             }
 
             let cellX = cfg.leftX;
-
-            for (let c = 0; c < colWidths.length; c++) {
+            for(let c=0;c<colWidths.length;c++){
               const cellW = colWidths[c];
-              const lines = Array.isArray(row.cells[c])
-                ? row.cells[c]
-                : [String(row.cells[c] || "")];
+              const lines = Array.isArray(row.cells[c]) ? row.cells[c] : [String(row.cells[c]||"")];
 
-              // Altezza effettiva del blocco testo in questa cella
-              const blockH = doc.getTextDimensions(lines).h;
-
-              // Centro verticale della riga → sottraggo metà del blocco
-              let textY = drawY + (row.h - blockH) / 2;
-
-              lines.forEach(line => {
+              // top padding 3mm per dare respiro
+              let textY = drawY + 3;
+              lines.forEach(line=>{
                 doc.text(line, cellX + 2, textY);
+                // incrementa seguendo l'altezza font del doc (coerente con splitTextToSize)
                 textY += doc.getTextDimensions(line).h;
               });
 
               cellX += cellW;
             }
 
-            // Avanza alla riga successiva
-            drawY += row.h;
-
-            // Linea orizzontale tra le righe (no dopo l’ultima)
-            if (r < rowsThisPage.length - 1) {
+            const rowH = row.h;
+            drawY += rowH;
+            if(r < rowsThisPage.length-1){
               doc.line(
                 cfg.leftX,
                 drawY,
-                cfg.leftX + finalTableW,
+                cfg.leftX+finalTableW,
                 drawY
               );
             }
