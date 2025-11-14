@@ -1805,8 +1805,8 @@ def unpack_to_pretty(s: str) -> str:
                                      const valH = doc.getTextDimensions(valLines).h;
 
                                      // Centro verticale della riga meno metà del blocco
-                                     const yLab = yCursorMeta + (rowH - labH) / 2;
-                                     const yVal = yCursorMeta + (rowH - valH) / 2;
+                                     const yLab = yCursorMeta + (rowH - labH) / 2 + 1.5;
+                                     const yVal = yCursorMeta + (rowH - valH) / 2 + 1.5;
 
                                      doc.text(labLines, tableX + metaSidePad, yLab);               // label centrata
                                      doc.text(valLines, tableX + labelW + metaSidePad, yVal);      // valore centrato
@@ -2111,8 +2111,9 @@ def unpack_to_pretty(s: str) -> str:
               const blockH = doc.getTextDimensions(lines).h;
 
               // Centro verticale della riga meno metà altezza del blocco
-              let textY = drawY + (row.h - blockH) / 2;
-
+              // Centro verticale + piccola correzione verso il basso per compensare la baseline
+              let textY = drawY + (row.h - blockH) / 2 + 1.5;
+              
               lines.forEach(line => {
                 doc.text(line, cellX + 2, textY);
                 textY += doc.getTextDimensions(line).h;
