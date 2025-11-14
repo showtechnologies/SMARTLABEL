@@ -1795,14 +1795,21 @@ def unpack_to_pretty(s: str) -> str:
                                    }
                                    doc.line(tableX+labelW, tableY, tableX+labelW, tableY+metaTableH);
 
-                                   // 5) stampa testi (top-aligned dentro ogni riga)
+                                   // 5) stampa testi (verticalmente centrati dentro ogni riga)
                                    yCursorMeta = tableY;
-                                   for (let i=0;i<measured.length;i++){
+                                   for (let i = 0; i < measured.length; i++) {
                                      const { labLines, valLines, rowH } = measured[i];
-                                     const yTop = yCursorMeta + metaPaddingTop;
 
-                                     doc.text(labLines, tableX + metaSidePad, yTop);                  // label
-                                     doc.text(valLines, tableX + labelW + metaSidePad, yTop);         // valore
+                                     // Altezza effettiva dei blocchi testo (label e valore)
+                                     const labH = doc.getTextDimensions(labLines).h;
+                                     const valH = doc.getTextDimensions(valLines).h;
+
+                                     // Centro verticale della riga meno metà del blocco
+                                     const yLab = yCursorMeta + (rowH - labH) / 2;
+                                     const yVal = yCursorMeta + (rowH - valH) / 2;
+
+                                     doc.text(labLines, tableX + metaSidePad, yLab);               // label centrata
+                                     doc.text(valLines, tableX + labelW + metaSidePad, yVal);      // valore centrato
 
                                      yCursorMeta += rowH;
                                    }
@@ -2093,15 +2100,20 @@ def unpack_to_pretty(s: str) -> str:
             }
 
             let cellX = cfg.leftX;
-            for(let c=0;c<colWidths.length;c++){
+            for (let c = 0; c < colWidths.length; c++) {
               const cellW = colWidths[c];
-              const lines = Array.isArray(row.cells[c]) ? row.cells[c] : [String(row.cells[c]||"")];
+              const lines = Array.isArray(row.cells[c])
+                ? row.cells[c]
+                : [String(row.cells[c] || "")];
 
-              // top padding 3mm per dare respiro
-              let textY = drawY + 3;
-              lines.forEach(line=>{
+              // Altezza effettiva del blocco testo (tutte le righe di quella cella)
+              const blockH = doc.getTextDimensions(lines).h;
+
+              // Centro verticale della riga meno metà altezza del blocco
+              let textY = drawY + (row.h - blockH) / 2;
+
+              lines.forEach(line => {
                 doc.text(line, cellX + 2, textY);
-                // incrementa seguendo l'altezza font del doc (coerente con splitTextToSize)
                 textY += doc.getTextDimensions(line).h;
               });
 
