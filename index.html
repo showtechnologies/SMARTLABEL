@@ -1773,8 +1773,8 @@ def unpack_to_pretty(s: str) -> str:
                                      const labH = doc.getTextDimensions(labLines).h;
                                      const valH = doc.getTextDimensions(valLines).h;
                                      // riga = max(label, value) + padding top/bottom (qui usiamo top + 2mm extra)
-                                     const rowH = Math.max(labH, valH) + metaPaddingTop + 2;
-                                     return { labLines, valLines, rowH };
+                                     // riga = max(label, value) + padding extra più generoso
+                                     const rowH = Math.max(labH, valH) + metaPaddingTop + 8;                                     return { labLines, valLines, rowH };
                                    });
 
                                    // 2) altezza totale tabella
@@ -1982,7 +1982,7 @@ def unpack_to_pretty(s: str) -> str:
           const usableW = Math.max(6, colWidths[idx] - 4); // 2mm padding per lato
           return doc.splitTextToSize(h, usableW);
         });
-        const headerH = Math.max(...headerLines.map(ls => doc.getTextDimensions(ls).h)) + 4; // + padding
+        const headerH = Math.max(...headerLines.map(ls => doc.getTextDimensions(ls).h)) + 10; // + padding extra
         function buildRowObjects(){
           const rowsOut=[];
 
@@ -2026,7 +2026,8 @@ def unpack_to_pretty(s: str) -> str:
 
             // altezza riga = max altezza tra tutte le celle + padding
             const cellHeights = cellsWrapped.map(ls => doc.getTextDimensions(ls).h);
-            const rowH = Math.max(baseLineH, Math.max(...cellHeights) + 4);
+            // +10 mm rispetto al blocco testo → più aria sopra/sotto
+            const rowH = Math.max(baseLineH, Math.max(...cellHeights) + 10);
 
             const cells = cellsWrapped;
 
