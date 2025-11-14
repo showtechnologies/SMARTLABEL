@@ -1967,7 +1967,7 @@ def unpack_to_pretty(s: str) -> str:
         let headers, colWidths;
 
         if (cfg.mode === "rientro"){
-          headers   = ["Descrizione","Prev.","Rientrati","Manca"];
+          headers   = ["Descrizione","Q.tà","IN","OUT"];
           colWidths = ratiosRientro.map(r => Math.round(r * availableW));
         } else {
           headers   = ["Descrizione","Q.tà"];
