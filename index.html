@@ -1774,7 +1774,7 @@ def unpack_to_pretty(s: str) -> str:
                                      const valH = doc.getTextDimensions(valLines).h;
                                      // riga = max(label, value) + padding top/bottom (qui usiamo top + 2mm extra)
                                      // riga = max(label, value) + padding extra più generoso
-                                     const rowH = Math.max(labH, valH) + metaPaddingTop + 4;                                     return { labLines, valLines, rowH };
+                                     const rowH = Math.max(labH, valH) + metaPaddingTop + 2;                                     return { labLines, valLines, rowH };
                                    });
 
                                    // 2) altezza totale tabella
@@ -1805,8 +1805,8 @@ def unpack_to_pretty(s: str) -> str:
                                      const valH = doc.getTextDimensions(valLines).h;
 
                                      // Centro verticale della riga meno metà del blocco
-                                     const yLab = yCursorMeta + (rowH - labH) / 2 + 1.5;
-                                     const yVal = yCursorMeta + (rowH - valH) / 2 + 1.5;
+                                     const yLab = yCursorMeta + (rowH - labH) / 2 + 1;
+                                     const yVal = yCursorMeta + (rowH - valH) / 2 + 1;
 
                                      doc.text(labLines, tableX + metaSidePad, yLab);               // label centrata
                                      doc.text(valLines, tableX + labelW + metaSidePad, yVal);      // valore centrato
@@ -2027,7 +2027,7 @@ def unpack_to_pretty(s: str) -> str:
             // altezza riga = max altezza tra tutte le celle + padding
             const cellHeights = cellsWrapped.map(ls => doc.getTextDimensions(ls).h);
             // +10 mm rispetto al blocco testo → più aria sopra/sotto
-            const rowH = Math.max(baseLineH, Math.max(...cellHeights) + 6);
+            const rowH = Math.max(baseLineH, Math.max(...cellHeights) + 4);
 
             const cells = cellsWrapped;
 
@@ -2112,7 +2112,7 @@ def unpack_to_pretty(s: str) -> str:
 
               // Centro verticale della riga meno metà altezza del blocco
               // Centro verticale + piccola correzione verso il basso per compensare la baseline
-              let textY = drawY + (row.h - blockH) / 2 + 1.5;
+              let textY = drawY + (row.h - blockH) / 2 + 1;
               
               lines.forEach(line => {
                 doc.text(line, cellX + 2, textY);
