@@ -1800,16 +1800,32 @@ def unpack_to_pretty(s: str) -> str:
                                    for (let i = 0; i < measured.length; i++) {
                                      const { labLines, valLines, rowH } = measured[i];
 
-                                     // Altezza effettiva dei blocchi testo (label e valore)
-                                     const labH = doc.getTextDimensions(labLines).h;
-                                     const valH = doc.getTextDimensions(valLines).h;
+                                     // LABEL
+                                     const labIsSingle = labLines.length === 1;
+                                     let yLab;
+                                     if (labIsSingle) {
+                                       const labH = doc.getTextDimensions(labLines[0]).h;
+                                       const centerRow = yCursorMeta + rowH / 2;
+                                       yLab = centerRow + labH / 2 - 1;
+                                     } else {
+                                       const labH = doc.getTextDimensions(labLines).h;
+                                       yLab = yCursorMeta + (rowH - labH) / 2;
+                                     }
 
-                                     // Centro verticale della riga meno metà del blocco
-                                     const yLab = yCursorMeta + (rowH - labH) / 2 + 1;
-                                     const yVal = yCursorMeta + (rowH - valH) / 2 + 1;
+                                     // VALORE
+                                     const valIsSingle = valLines.length === 1;
+                                     let yVal;
+                                     if (valIsSingle) {
+                                       const valH = doc.getTextDimensions(valLines[0]).h;
+                                       const centerRow = yCursorMeta + rowH / 2;
+                                       yVal = centerRow + valH / 2 - 1;
+                                     } else {
+                                       const valH = doc.getTextDimensions(valLines).h;
+                                       yVal = yCursorMeta + (rowH - valH) / 2;
+                                     }
 
-                                     doc.text(labLines, tableX + metaSidePad, yLab);               // label centrata
-                                     doc.text(valLines, tableX + labelW + metaSidePad, yVal);      // valore centrato
+                                     doc.text(labLines, tableX + metaSidePad, yLab);
+                                     doc.text(valLines, tableX + labelW + metaSidePad, yVal);
 
                                      yCursorMeta += rowH;
                                    }
@@ -2107,13 +2123,28 @@ def unpack_to_pretty(s: str) -> str:
                 ? row.cells[c]
                 : [String(row.cells[c] || "")];
 
-              // Altezza effettiva del blocco testo (tutte le righe di quella cella)
-              const blockH = doc.getTextDimensions(lines).h;
+              const isSingleLine = lines.length === 1;
 
-              // Centro verticale della riga meno metà altezza del blocco
-              // Centro verticale + piccola correzione verso il basso per compensare la baseline
-              let textY = drawY + (row.h - blockH) / 2 + 1;
-              
+              let textY;
+
+              if (isSingleLine) {
+                // 🔹 Caso UNA SOLA RIGA
+                // Simuliamo il comportamento "vecchio stile":
+                // - calcoliamo l'altezza della riga di testo
+                // - la posizioniamo leggermente sotto il centro,
+                //   come faceva il tuo offset fisso (tipo drawY+6 su rowH=8)
+                const lineH = doc.getTextDimensions(lines[0]).h;
+
+                const centerRow = drawY + row.h / 2;
+                // baseline = centro riga + metà altezza font - piccola correzione
+                textY = centerRow + lineH / 2 - 1; // se vuoi più centrato, prova -0.5 o -0.8
+              } else {
+                // 🔹 Caso MULTIRIGA
+                // Usando il blocco completo, centrato geometricamente
+                const blockH = doc.getTextDimensions(lines).h;
+                textY = drawY + (row.h - blockH) / 2;
+              }
+
               lines.forEach(line => {
                 doc.text(line, cellX + 2, textY);
                 textY += doc.getTextDimensions(line).h;
