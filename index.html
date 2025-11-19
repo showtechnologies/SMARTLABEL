@@ -543,16 +543,29 @@
                   overflow:hidden;
                   text-overflow:ellipsis;
               }
-              #counterClose{
+              .hdr-actions{
+                  display:flex;
+                  gap:10px;
+              }
+              .hdr-btn{
                   background:#1f2937;
                   border:1px solid #374151;
                   color:#fff;
                   border-radius:10px;
-                  padding:8px 10px;
+                  padding:8px 12px;
                   font-size:14px;
                   line-height:1.2;
                   cursor:pointer;
+                  display:flex;
+                  align-items:center;
+                  justify-content:center;
               }
+              .hdr-btn.active{
+                  background:#4f46e5;
+                  border-color:#6366f1;
+                  color:#fff;
+              }
+              
               #counterBody{
                   flex:1;
                   display:flex;
@@ -649,11 +662,13 @@
           </style>
       </head>
 
-          <!-- COUNTER OVERLAY -->
           <div id="counterOverlay" aria-modal="true" role="dialog">
             <div id="counterHeader">
               <div id="counterTitle">Contatore</div>
-              <button id="counterClose" aria-label="Chiudi">✕</button>
+              <div class="hdr-actions">
+                 <button id="cntSoundToggle" class="hdr-btn" aria-label="Suono">🔊</button>
+                 <button id="counterClose" class="hdr-btn" aria-label="Chiudi">✕</button>
+              </div>
             </div>
             <div id="counterBody">
               <div class="cntInfo">
@@ -677,8 +692,7 @@
               <div class="cntFoot">Tocca per contare. Un tap = ±1. Preset per salti rapidi.</div>
             </div>
           </div>
-          <!-- FINE COUNTER OVERLAY -->
-<body>
+          <body>
   <header>
     <div class="wrap">
       <h1>
@@ -697,7 +711,6 @@
   </header>
 
   <div class="wrap">
-    <!-- HOME -->
     <section id="tab-home" class="tab">
       <div class="home-cta">
         <div class="cta" data-go="tab-lista">
@@ -717,7 +730,6 @@
       </div>
     </section>
 
-    <!-- LISTA -->
     <section id="tab-lista" class="tab hidden">
       <h2>Lista articoli</h2>
       <div class="grid cols-2">
@@ -772,7 +784,6 @@
       </div>
     </section>
 
-    <!-- QR & STAMPA -->
     <section id="tab-qr" class="tab hidden">
       <h2>QR & Stampa</h2>
       <div class="grid cols-2">
@@ -807,7 +818,6 @@
             </div>
           </div>
           
-          <!-- ✅ Opzione watermark diagonale dalla NOTA -->
           <div class="row" style="margin-top:8px">
             <label style="display:flex;align-items:center;gap:8px;font-size:13px">
               <input type="checkbox" id="watermarkToggle" style="width:auto;flex:0 0 auto;">
@@ -838,7 +848,6 @@
       </div>
     </section>
 
-    <!-- DECODE -->
     <section id="tab-decode" class="tab hidden">
       <h2>Leggi/Verifica QR o PDF</h2>
       <div class="grid cols-2">
@@ -880,7 +889,6 @@
       </div>
     </section>
 
-    <!-- RIENTRO -->
     <section id="tab-rientro" class="tab hidden">
       <h2>Spunta articoli</h2>
       <div class="card">
@@ -921,7 +929,6 @@
     </section>
   </div>
 
-  <!-- LOGIN OVERLAY -->
   <div id="loginOverlay">
     <div id="loginCard">
       <h2>Chi sta usando l'app?</h2>
@@ -933,7 +940,6 @@
     </div>
   </div>
 
-  <!-- CAMERA OVERLAY -->
   <div id="cameraOverlay">
     <div id="cameraHeader">
       <div class="cam-status" id="camStatus">Inizializzo camera…</div>
@@ -948,7 +954,6 @@
     </div>
   </div>
 
-  <!-- SERVICE WORKER -->
   <script>
     const CACHE_VERSION='qrj1-mobile-v5';
     const PRECACHE=[
@@ -1020,7 +1025,6 @@
       });
   </script>
 
-  <!-- APP SCRIPT -->
   <script>
     const PYODIDE_URL="https://cdn.jsdelivr.net/pyodide/v0.25.1/full/pyodide.js";
     const ZXING_URL="https://cdn.jsdelivr.net/npm/@zxing/library@0.21.2/umd/index.min.js";
@@ -2856,12 +2860,73 @@ def unpack_to_pretty(s: str) -> str:
         setTimeout(()=>el.classList.remove('show'), 90);
       }
 
-      function haptic(ms=12){
-        // prova comunque a vibrare (Android ecc.)
+      /* 🔊 AUDIO SYSTEM SENZA FILE ESTERNI (Web Audio API) */
+      const KEY_SOUND = 'qrj1_sound_enabled';
+      let soundEnabled = (localStorage.getItem(KEY_SOUND) !== 'false'); // default true
+      let audioCtx = null;
+
+      function initAudio(){
+        if(!audioCtx){
+          const AC = window.AudioContext || window.webkitAudioContext;
+          if(AC) audioCtx = new AC();
+        }
+        if(audioCtx && audioCtx.state === 'suspended'){
+          audioCtx.resume().catch(()=>{});
+        }
+      }
+
+      function playTone(freq, type='sine', duration=0.1){
+        if(!soundEnabled) return;
+        initAudio();
+        if(!audioCtx) return;
+
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+
+        osc.frequency.value = freq;
+        osc.type = type;
+        
+        // inviluppo volume per evitare "click"
+        gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + duration);
+
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+
+        osc.start();
+        osc.stop(audioCtx.currentTime + duration);
+      }
+
+      // Toggle Button Logic
+      const sndBtn = document.getElementById('cntSoundToggle');
+      function updateSoundBtn(){
+        if(sndBtn){
+           sndBtn.textContent = soundEnabled ? "🔊" : "🔇";
+           sndBtn.classList.toggle('active', soundEnabled);
+        }
+      }
+      if(sndBtn){
+        sndBtn.addEventListener('click', ()=>{
+          soundEnabled = !soundEnabled;
+          localStorage.setItem(KEY_SOUND, soundEnabled);
+          updateSoundBtn();
+        });
+        updateSoundBtn();
+      }
+      /* -------------------------------------------------- */
+
+      function haptic(type='tick'){
+        // Audio feedback
+        if(type==='tick') playTone(600, 'sine', 0.08); // bip normale
+        if(type==='tock') playTone(300, 'triangle', 0.1); // bip basso (minus)
+        if(type==='reset') playTone(150, 'sawtooth', 0.2); // bip svuotamento
+
+        // Haptic feedback
         try{
-          if(navigator.vibrate) navigator.vibrate(ms);
+          if(navigator.vibrate) navigator.vibrate(12);
         }catch{}
-        // feedback visivo
+        
+        // Visual feedback
         flashTick();
       }
 
@@ -2879,6 +2944,10 @@ def unpack_to_pretty(s: str) -> str:
 
     function openCounter(index){
       if(index<0 || !state || !state.l || index>=state.l.length) return;
+      
+      // Inizializza audio al primo tocco utente (necessario per policy browser)
+      initAudio();
+
       currentCounterIndex = index;
       const it = state.l[index];
       cntDesc.textContent = it.d || "";
@@ -2932,14 +3001,11 @@ def unpack_to_pretty(s: str) -> str:
         let v = oldV - step;
         v = Math.max(0, v);
 
-        if (v === oldV) {
-          // fine corsa: non facciamo flash/vibrazione
-          return;
-        }
+        if (v === oldV) return;
 
         it.r = v;
         cntValueEl.textContent = String(v);
-        haptic();
+        haptic('tock'); // suono grave
         saveLocal(state);
         updateProgress();
         syncRowFromCounter(currentCounterIndex, v);
@@ -2954,14 +3020,11 @@ def unpack_to_pretty(s: str) -> str:
         let v = oldV + step;
         v = Math.min(it.q, v);
 
-        if (v === oldV) {
-          // fine corsa: non facciamo flash/vibrazione
-          return;
-        }
+        if (v === oldV) return;
 
         it.r = v;
         cntValueEl.textContent = String(v);
-        haptic();
+        haptic('tick'); // suono acuto
         saveLocal(state);
         updateProgress();
         syncRowFromCounter(currentCounterIndex, v);
@@ -2972,14 +3035,11 @@ def unpack_to_pretty(s: str) -> str:
         const it = state.l[currentCounterIndex];
         const oldV = it.r || 0;
 
-        if (oldV === 0) {
-          // era già zero: nessun flash
-          return;
-        }
+        if (oldV === 0) return;
 
         it.r = 0;
         cntValueEl.textContent = "0";
-        haptic(18);
+        haptic('reset'); // suono reset
         saveLocal(state);
         updateProgress();
         syncRowFromCounter(currentCounterIndex, 0);
