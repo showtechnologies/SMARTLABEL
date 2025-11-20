@@ -634,6 +634,7 @@
               .presetBtn.active{
                 background:#4f46e5;
                 border-color:#6366f1;
+                color:#fff;
               }
               .cntFoot{
                   margin-top:auto;
@@ -800,7 +801,8 @@
                   margin-bottom:10px;
                   border:1px solid #1b2230;
                   border-radius:12px;
-                  padding:6px 8px;
+                  /* Aumento leggermente il padding generale per un respiro */
+                  padding: 8px 10px;
                   background:#0f141b;
                 }
 
@@ -810,6 +812,14 @@
                   padding:4px 0;
                   font-size:13px;
                 }
+                
+                /* 🆕 RIENTRO: FORZA LA DESCRIZIONE IN ALTO E AGGIUNGE SEPARATORE */
+                #rTbl td[data-label="Descrizione"] {
+                  border-bottom: 1px solid #141a25;
+                  padding-bottom: 8px;
+                  margin-bottom: 8px;
+                }
+                /* FINE DESCRIZIONE */
 
                 #itemsTbl td::before,
                 #rTbl td::before{
@@ -823,6 +833,76 @@
                 #itemsTbl td:last-child,
                 #rTbl td:last-child{
                   margin-top:4px;
+                }
+
+                /* 🆕 RIENTRO: COMPATTAMENTO STATISTICHE AFFIANCATE */
+                #rTbl td[data-label="Prev."],
+                #rTbl td[data-label="Manca"] {
+                  display: inline-block;
+                  width: 33%;
+                  padding: 4px 6px 4px 0;
+                  text-align: left;
+                  font-size: 14px;
+                  /* Rimuove il separatore orizzontale in mezzo alle statistiche affiancate */
+                  border-bottom: none;
+                }
+
+                /* Rimuovi l'etichetta sopra il valore, la mettiamo inline (il JS genera solo i valori) */
+                #rTbl td[data-label="Prev."]::before,
+                #rTbl td[data-label="Manca"]::before {
+                  display: inline;
+                  content: attr(data-label) ": ";
+                  font-size: 12px;
+                  margin-bottom: 0;
+                  font-weight: 500;
+                  color: var(--muted);
+                }
+                /* FINE STATISTICHE */
+
+                /* 🆕 RIENTRO: CONTROLLI IN LINEA */
+                .rCtrl-wrap {
+                  /* Container wrapper aggiunto nel JS. */
+                  border-top: 1px solid #141a25; /* Separatore visivo */
+                  padding-top: 8px !important;
+                  margin-top: 8px;
+                }
+
+                /* Sovrascrivi il display: block generico per la cella Controlli */
+                #rTbl td[data-label="Controlli"] {
+                    /* Non ha l'etichetta generata nel :before, quindi usiamo flex */
+                    display: block;
+                    padding: 4px 0 !important;
+                    text-align: left;
+                    font-size: 14px;
+                    border-bottom: none;
+                }
+                
+                #rTbl td[data-label="Controlli"]::before {
+                    content: "Controlli Rientro:";
+                    display: block;
+                    font-size: 12px;
+                    margin-bottom: 4px;
+                    font-weight: 500;
+                    color: var(--muted);
+                }
+
+                .rCtrl {
+                  /* Contenitore effettivo dei pulsanti/input */
+                  display: flex;
+                  gap: 6px;
+                  align-items: center;
+                  justify-content: flex-start;
+                  width: 100%;
+                  padding-right: 12px;
+                }
+                .rCtrl .rQtyInputBig {
+                  width: 60px; /* leggermente più largo */
+                  padding: 6px 8px;
+                  font-size: 14px;
+                }
+                .rCtrl .countOpenBtn {
+                  padding: 8px 10px; /* Rendi il bottone "Conta" leggibile */
+                  font-size: 13px;
                 }
               }
 
@@ -2715,15 +2795,20 @@ def unpack_to_pretty(s: str) -> str:
         const manca=Math.max(0, it.q - r);
 
         const tr=document.createElement('tr');
+        // 🚨 CAMBIO STRUTTURA PER LAYOUT MOBILE COMPATTATO 🚨
         tr.innerHTML=`
           <td data-label="#">${idx+1}</td>
           <td data-label="Descrizione">${escapeHtml(it.d)}</td>
+          
           <td data-label="Prev.">${it.q}</td>
-          <td class="rCtrl" data-label="Rientro">
-            <input class="rQtyInputBig" type="number" min="0" max="${it.q}" value="${r}" data-i="${idx}">
-            <button class="btn sm ghost countOpenBtn" data-i="${idx}">Conta</button>
+          <td data-label="Manca" class="mancaCell">${manca}</td>
+          
+          <td class="rCtrl-wrap" data-label="Controlli">
+            <div class="rCtrl" data-label="Rientro">
+              <input class="rQtyInputBig" type="number" min="0" max="${it.q}" value="${r}" data-i="${idx}">
+              <button class="btn sm ghost countOpenBtn" data-i="${idx}">Conta</button>
+            </div>
           </td>
-          <td class="mancaCell" data-label="Manca">${manca}</td>
         `;
         tb.appendChild(tr);
       });
