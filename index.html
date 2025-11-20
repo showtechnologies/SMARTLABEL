@@ -798,12 +798,14 @@
 
                 #itemsTbl tr,
                 #rTbl tr{
-                  margin-bottom:10px;
+                  /* Aumento il margin-bottom per separare visivamente le righe (effetto card) */
+                  margin-bottom:14px;
                   border:1px solid #1b2230;
                   border-radius:12px;
-                  /* Aumento leggermente il padding generale per un respiro */
                   padding: 8px 10px;
                   background:#0f141b;
+                  /* 🆕 Aggiungo una sottile ombra per sollevare la "card" */
+                  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
                 }
 
                 #itemsTbl td,
@@ -843,7 +845,6 @@
                   padding: 4px 6px 4px 0;
                   text-align: left;
                   font-size: 14px;
-                  /* Rimuove il separatore orizzontale in mezzo alle statistiche affiancate */
                   border-bottom: none;
                 }
 
@@ -869,7 +870,6 @@
 
                 /* Sovrascrivi il display: block generico per la cella Controlli */
                 #rTbl td[data-label="Controlli"] {
-                    /* Non ha l'etichetta generata nel :before, quindi usiamo flex */
                     display: block;
                     padding: 4px 0 !important;
                     text-align: left;
@@ -3241,7 +3241,6 @@ def unpack_to_pretty(s: str) -> str:
         osc.type = type;
         
         // 🆕 MODIFICA QUI: Inizializza il volume al MAX_GAIN e poi fallo decadere.
-          // Questo renderà il suono molto più forte rispetto a 0.1
           gain.gain.setValueAtTime(MAX_GAIN, audioCtx.currentTime);
           gain.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + duration)
 
