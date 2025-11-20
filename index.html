@@ -659,6 +659,180 @@
               input[type="text"], textarea {
                 text-transform: uppercase;
               }
+              /* --- Mobile-first enhancements --- */
+              nav.noprint{
+                display:flex;
+                flex-direction:column;
+                gap:6px;
+              }
+              .nav-scroll{
+                display:flex;
+                gap:8px;
+                flex-wrap:nowrap;
+                overflow-x:auto;
+                padding-bottom:4px;
+                -webkit-overflow-scrolling:touch;
+              }
+              .nav-scroll::-webkit-scrollbar{
+                display:none;
+              }
+              nav.noprint button{
+                white-space:nowrap;
+                flex:0 0 auto;
+              }
+              #status{
+                font-size:12px;
+              }
+              nav.noprint button.active{
+                position:relative;
+              }
+              nav.noprint button.active::after{
+                content:"";
+                position:absolute;
+                left:20%;
+                right:20%;
+                bottom:-3px;
+                height:2px;
+                border-radius:999px;
+                background:var(--accent);
+              }
+
+              .btn:active,
+              .qtyBtn:active,
+              .bigCountBtn:active,
+              .cta:active{
+                transform:scale(0.97);
+                transition:transform 80ms ease-out;
+              }
+
+              #loginCard{
+                max-width:360px;
+                width:100%;
+                background:#0f141b;
+                border-radius:16px;
+                border:1px solid #1b2230;
+                padding:16px;
+              }
+              #loginCard h2{
+                margin-top:0;
+                margin-bottom:8px;
+                font-size:18px;
+              }
+              #loginCard p{
+                font-size:13px;
+                color:#9aa6b2;
+                margin-bottom:12px;
+              }
+
+              #scanFrame{
+                position:absolute;
+                inset:15%;
+                border:2px solid rgba(255,255,255,.7);
+                border-radius:12px;
+                box-shadow:0 0 0 9999px rgba(0,0,0,.35);
+                pointer-events:none;
+              }
+
+              @media(max-width:480px){
+                .wrap{
+                  padding:10px;
+                }
+                h1{
+                  font-size:18px;
+                }
+                h2{
+                  font-size:16px;
+                }
+                .card{
+                  padding:12px;
+                }
+                input,
+                textarea,
+                select{
+                  font-size:15px;
+                  padding:10px 12px;
+                }
+                .cntValue{
+                  font-size:42px;
+                }
+                .bigCountBtn{
+                  min-height:100px;
+                  font-size:36px;
+                }
+              }
+
+              @media(max-width:600px){
+                .table-scroll{
+                  overflow-x:visible;
+                }
+                #itemsTbl,
+                #itemsTbl thead,
+                #itemsTbl tbody,
+                #itemsTbl th,
+                #itemsTbl td,
+                #itemsTbl tr,
+                #rTbl,
+                #rTbl thead,
+                #rTbl tbody,
+                #rTbl th,
+                #rTbl td,
+                #rTbl tr{
+                  display:block;
+                  width:100%;
+                }
+
+                #itemsTbl thead,
+                #rTbl thead{
+                  display:none;
+                }
+
+                #itemsTbl tr,
+                #rTbl tr{
+                  margin-bottom:10px;
+                  border:1px solid #1b2230;
+                  border-radius:12px;
+                  padding:6px 8px;
+                  background:#0f141b;
+                }
+
+                #itemsTbl td,
+                #rTbl td{
+                  border-bottom:none;
+                  padding:4px 0;
+                  font-size:13px;
+                }
+
+                #itemsTbl td::before,
+                #rTbl td::before{
+                  content:attr(data-label);
+                  display:block;
+                  font-size:11px;
+                  color:var(--muted);
+                  margin-bottom:2px;
+                }
+
+                #itemsTbl td:last-child,
+                #rTbl td:last-child{
+                  margin-top:4px;
+                }
+              }
+
+              @media(min-width:768px){
+                nav.noprint{
+                  flex-direction:row;
+                  align-items:center;
+                }
+                .nav-scroll{
+                  flex-wrap:wrap;
+                  overflow-x:visible;
+                  padding-bottom:0;
+                }
+                #status{
+                  margin-left:auto;
+                  text-align:right;
+                }
+              }
+
           </style>
       </head>
 
@@ -700,12 +874,14 @@
         <span id="opNameTag" class="opNameTag hidden"></span>
       </h1>
       <nav class="noprint">
-        <button data-tab="tab-home" class="active">Home</button>
-        <button data-tab="tab-lista">Crea lista</button>
-        <button data-tab="tab-qr">QR & Stampa</button>
-        <button data-tab="tab-decode">Leggi lista</button>
-        <button data-tab="tab-rientro">Spunta</button>
-        <span id="status" class="muted" style="margin-left:auto;flex-grow:0;flex-basis:auto"></span>
+        <div class="nav-scroll">
+          <button data-tab="tab-home" class="active">Home</button>
+          <button data-tab="tab-lista">Crea lista</button>
+          <button data-tab="tab-qr">QR & Stampa</button>
+          <button data-tab="tab-decode">Leggi lista</button>
+          <button data-tab="tab-rientro">Spunta</button>
+        </div>
+        <span id="status" class="muted"></span>
       </nav>
     </div>
   </header>
@@ -950,6 +1126,7 @@
     </div>
     <div id="cameraVideoWrap">
       <video id="cameraVideo" autoplay playsinline muted></video>
+      <div id="scanFrame"></div>
       <canvas id="cameraCanvas"></canvas>
     </div>
   </div>
@@ -1469,10 +1646,10 @@ def unpack_to_pretty(s: str) -> str:
       state.l.forEach((it,idx)=>{
         const tr=document.createElement('tr');
         tr.innerHTML=`
-          <td>${idx+1}</td>
-          <td>${escapeHtml(it.d)}</td>
-          <td>${it.q}</td>
-          <td class="noprint">
+          <td data-label="#">${idx+1}</td>
+          <td data-label="Descrizione">${escapeHtml(it.d)}</td>
+          <td data-label="Q.tà">${it.q}</td>
+          <td class="noprint" data-label="Azioni">
             <button class="btn sm ghost" data-del="${idx}">Elimina</button>
           </td>`;
         tb.appendChild(tr);
@@ -2467,14 +2644,14 @@ def unpack_to_pretty(s: str) -> str:
 
         const tr=document.createElement('tr');
         tr.innerHTML=`
-          <td>${idx+1}</td>
-          <td>${escapeHtml(it.d)}</td>
-          <td>${it.q}</td>
-          <td class="rCtrl">
+          <td data-label="#">${idx+1}</td>
+          <td data-label="Descrizione">${escapeHtml(it.d)}</td>
+          <td data-label="Prev.">${it.q}</td>
+          <td class="rCtrl" data-label="Rientro">
             <input class="rQtyInputBig" type="number" min="0" max="${it.q}" value="${r}" data-i="${idx}">
             <button class="btn sm ghost countOpenBtn" data-i="${idx}">Conta</button>
           </td>
-          <td class="mancaCell">${manca}</td>
+          <td class="mancaCell" data-label="Manca">${manca}</td>
         `;
         tb.appendChild(tr);
       });
