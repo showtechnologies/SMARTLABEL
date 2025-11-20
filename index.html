@@ -3209,6 +3209,8 @@ def unpack_to_pretty(s: str) -> str:
       const KEY_SOUND = 'qrj1_sound_enabled';
       let soundEnabled = (localStorage.getItem(KEY_SOUND) !== 'false'); // default true
       let audioCtx = null;
+      // 🆕 IMPOSTA IL GUADAGNO MASSIMO QUI (VALORE MAX 1.0)
+      const MAX_GAIN = 0.5; // Aumenta questo valore (es. a 1.0) se vuoi il suono più forte possibile.
 
       function initAudio(){
         if(!audioCtx){
@@ -3231,9 +3233,10 @@ def unpack_to_pretty(s: str) -> str:
         osc.frequency.value = freq;
         osc.type = type;
         
-        // inviluppo volume per evitare "click"
-        gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + duration);
+        // 🆕 MODIFICA QUI: Inizializza il volume al MAX_GAIN e poi fallo decadere.
+          // Questo renderà il suono molto più forte rispetto a 0.1
+          gain.gain.setValueAtTime(MAX_GAIN, audioCtx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + duration)
 
         osc.connect(gain);
         gain.connect(audioCtx.destination);
