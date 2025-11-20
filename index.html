@@ -3193,17 +3193,24 @@ def unpack_to_pretty(s: str) -> str:
 
       // 🗑️ Rimosso 'let lastPayloadText="";' duplicato
 
-      function flashTick(durationMs=90){
-        const el = document.getElementById('tickFlash');
-        if(!el) return;
-        // reset animazione
-        el.classList.remove('show');
-        // forza reflow per riavviare la transition anche su tap rapidi
-        void el.offsetWidth;
-        el.classList.add('show');
-        // spegni il flash dopo pochissimo
-        setTimeout(()=>el.classList.remove('show'), durationMs);
-      }
+      // 🆕 Corretta la logica per forzare il reflow e riattivare la transizione.
+            function flashTick(durationMs=90){
+              const el = document.getElementById('tickFlash');
+              if(!el) return;
+              
+              // 1. Rimuovi immediatamente la classe per resettare lo stato
+              el.classList.remove('show');
+              
+              // 2. Forza il reflow/repaint del browser.
+              // Questo è CRUCIALE perché il browser registra il cambio di stato e prepara la transizione.
+              void el.offsetWidth;
+              
+              // 3. Aggiungi la classe 'show' per avviare la transizione CSS (opacity: 0.7)
+              el.classList.add('show');
+              
+              // 4. Pianifica la rimozione della classe per spegnere il flash
+              setTimeout(()=>el.classList.remove('show'), durationMs);
+            }
 
       /* 🔊 AUDIO SYSTEM SENZA FILE ESTERNI (Web Audio API) */
       const KEY_SOUND = 'qrj1_sound_enabled';
