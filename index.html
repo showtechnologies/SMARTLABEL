@@ -806,6 +806,15 @@
                   background:#0f141b;
                   /* 🆕 Aggiungo una sottile ombra per sollevare la "card" */
                   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+                  cursor: pointer; /* Indice che la riga è cliccabile */
+                }
+                
+                /* Rimuovo la cella del numero progressivo per recuperare spazio */
+                #rTbl tr td[data-label="#"] {
+                    display: none;
+                }
+                #rTbl tr th:first-child {
+                    display: none;
                 }
 
                 #itemsTbl td,
@@ -861,49 +870,12 @@
                 /* FINE STATISTICHE */
 
                 /* 🆕 RIENTRO: CONTROLLI IN LINEA */
-                .rCtrl-wrap {
-                  /* Container wrapper aggiunto nel JS. */
-                  border-top: 1px solid #141a25; /* Separatore visivo */
-                  padding-top: 8px !important;
-                  margin-top: 8px;
-                }
-
-                /* Sovrascrivi il display: block generico per la cella Controlli */
+                /* Rimuovi il vecchio controllo Controlli/Rientro dalla visualizzazione diretta */
+                #rTbl td[data-label="Rientro"],
                 #rTbl td[data-label="Controlli"] {
-                    display: block;
-                    padding: 4px 0 !important;
-                    text-align: left;
-                    font-size: 14px;
-                    border-bottom: none;
-                }
-                
-                #rTbl td[data-label="Controlli"]::before {
-                    content: "Controlli Rientro:";
-                    display: block;
-                    font-size: 12px;
-                    margin-bottom: 4px;
-                    font-weight: 500;
-                    color: var(--muted);
+                    display: none !important;
                 }
 
-                .rCtrl {
-                  /* Contenitore effettivo dei pulsanti/input */
-                  display: flex;
-                  gap: 6px;
-                  align-items: center;
-                  justify-content: flex-start;
-                  width: 100%;
-                  padding-right: 12px;
-                }
-                .rCtrl .rQtyInputBig {
-                  width: 60px; /* leggermente più largo */
-                  padding: 6px 8px;
-                  font-size: 14px;
-                }
-                .rCtrl .countOpenBtn {
-                  padding: 8px 10px; /* Rendi il bottone "Conta" leggibile */
-                  font-size: 13px;
-                }
               }
 
               @media(min-width:768px){
@@ -1183,12 +1155,11 @@
             <table id="rTbl">
               <thead>
                 <tr>
-                  <th>#</th>
                   <th>Descrizione</th>
                   <th>Prev.</th>
                   <th>Rientro</th>
                   <th>Manca</th>
-                </tr>
+                  </tr>
               </thead>
               <tbody></tbody>
             </table>
@@ -2795,24 +2766,32 @@ def unpack_to_pretty(s: str) -> str:
         const manca=Math.max(0, it.q - r);
 
         const tr=document.createElement('tr');
-        // 🚨 CAMBIO STRUTTURA PER LAYOUT MOBILE COMPATTATO 🚨
+        // 🆕 Aggiungo l'indice alla riga per la selezione diretta
+        tr.setAttribute('data-i', idx);
+        
         tr.innerHTML=`
-          <td data-label="#">${idx+1}</td>
           <td data-label="Descrizione">${escapeHtml(it.d)}</td>
           
           <td data-label="Prev.">${it.q}</td>
           <td data-label="Manca" class="mancaCell">${manca}</td>
           
-          <td class="rCtrl-wrap" data-label="Controlli">
-            <div class="rCtrl" data-label="Rientro">
+          <td class="rCtrl-wrap" style="display:none;" data-label="Controlli">
+            <div class="rCtrl">
               <input class="rQtyInputBig" type="number" min="0" max="${it.q}" value="${r}" data-i="${idx}">
-              <button class="btn sm ghost countOpenBtn" data-i="${idx}">Conta</button>
             </div>
           </td>
         `;
         tb.appendChild(tr);
       });
 
+      // 🆕 Nuovo: Gestore click per la selezione diretta della riga
+      tb.querySelectorAll('tr').forEach(row => {
+          row.addEventListener('click', () => {
+              const i = parseInt(row.dataset.i, 10);
+              openCounter(i);
+          });
+      });
+      
       // input manuale con clamp
       tb.querySelectorAll('.rQtyInputBig').forEach(inp=>{
         inp.addEventListener('change', ()=>{
@@ -2828,17 +2807,11 @@ def unpack_to_pretty(s: str) -> str:
           updateProgress();
           const row = tb.children[i];
           if(row){
-            row.querySelector('.mancaCell').textContent = String(Math.max(0, it.q - v));
+            // Assicura che la cella "Manca" visibile venga aggiornata (desktop e mobile)
+            const mancaCell = row.querySelector('.mancaCell');
+            if (mancaCell) mancaCell.textContent = String(Math.max(0, it.q - v));
           }
           haptic('light'); // 🆕 Feedback aptico/visivo al cambio manuale
-        });
-      });
-
-      // bottone "Conta" -> overlay fullscreen
-      tb.querySelectorAll('.countOpenBtn').forEach(btn=>{
-        btn.addEventListener('click', ()=>{
-          const i = parseInt(btn.dataset.i,10);
-          openCounter(i);
         });
       });
 
@@ -3427,11 +3400,26 @@ def unpack_to_pretty(s: str) -> str:
     function syncRowFromCounter(i,v){
       const rows = document.querySelectorAll('#rTbl tbody tr');
       const tr = rows[i]; if(!tr) return;
-      const inp = tr.querySelector('.rQtyInputBig');
+      // Aggiorna l'input nascosto per mantenere lo stato
+      const inp = tr.querySelector('.rCtrl-wrap .rQtyInputBig');
       if(inp){ inp.value=String(v); }
+      
       const prev = state.l[i].q;
       const manca = Math.max(0, prev - v);
-      tr.querySelector('.mancaCell').textContent = String(manca);
+      
+      // Aggiorna la quantità rientrata e mancante visibile
+      const mancaCell = tr.querySelector('.mancaCell');
+      const prevCell = [...tr.children].find(td => td.getAttribute('data-label') === 'Prev.');
+      const rientroCell = [...tr.children].find(td => td.getAttribute('data-label') === 'Rientro');
+      
+      if(mancaCell) mancaCell.textContent = String(manca);
+      // Su mobile, Prev è l'unica visibile, ma su desktop Rientro lo è.
+      // Su desktop/tabella normale, Rientro è il terzo <td>
+      if (window.innerWidth >= 600 && rientroCell) rientroCell.textContent = String(v);
+      else if (window.innerWidth < 600 && prevCell) {
+          // Niente, le celle sono affiancate e già aggiornate.
+      }
+      
     }
     /* === End counter overlay logic === */
   </script>
