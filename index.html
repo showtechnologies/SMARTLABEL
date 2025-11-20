@@ -704,6 +704,15 @@
                 transform:scale(0.97);
                 transition:transform 80ms ease-out;
               }
+              
+              /* Miglioramento UX focus input */
+              input:focus,
+              textarea:focus,
+              select:focus{
+                outline:none;
+                border-color:var(--accent);
+                box-shadow:0 0 0 2px rgba(79, 70, 229, 0.5); /* Accent con opacità */
+              }
 
               #loginCard{
                 max-width:360px;
@@ -831,6 +840,11 @@
                   margin-left:auto;
                   text-align:right;
                 }
+              }
+              
+              /* 🆕 Stile per il bottone Rientro con icona */
+              nav button[data-tab="tab-rientro"]::before {
+                content: "✓ ";
               }
 
           </style>
@@ -1132,7 +1146,7 @@
   </div>
 
   <script>
-    const CACHE_VERSION='qrj1-mobile-v5';
+    const CACHE_VERSION='qrj1-mobile-v5-enhanced';
     const PRECACHE=[
       'https://cdn.jsdelivr.net/pyodide/v0.25.1/full/pyodide.js',
       'https://cdn.jsdelivr.net/pyodide/v0.25.1/full/pyodide.asm.wasm',
@@ -1200,6 +1214,29 @@
           el.spellcheck = false;
         });
       });
+      /* ⌨️ Intercetta "Enter" per prevenire refresh involontari su mobile/form impliciti */
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          const tagName = e.target.tagName;
+          const type = e.target.type;
+          
+          // Previene il refresh se non è un textarea (dove Enter è una nuova riga)
+          if (tagName === 'INPUT' && type !== 'submit') {
+            const hasExplicitButton =
+              e.target.closest('.row')?.querySelector('button') ||
+              document.activeElement?.closest('.row')?.querySelector('button');
+
+            // Se c'è un bottone adiacente (es. Aggiungi), simula il click, altrimenti previeni il default
+            if (hasExplicitButton && e.target.id !== 'loginNameInput') {
+              // eccezione per il login gestito separatamente
+              hasExplicitButton.click();
+              e.preventDefault();
+            } else if (e.target.id !== 'loginNameInput') {
+              e.preventDefault();
+            }
+          }
+        }
+      });
   </script>
 
   <script>
@@ -1241,7 +1278,10 @@
       c:0,
       l:[]
     };
+    // 🆕 Normalizza lo stato iniziale
+    state = normalizeState(state);
     let operatorName = loadOperatorName() || "";
+    let lastPayloadText=""; // Variabile riposizionata
 
     // LOGIN
     document.addEventListener('DOMContentLoaded', ()=>{
@@ -1263,7 +1303,7 @@
       // ⬇️ ENTER per inviare
       loginNameInput.addEventListener('keydown', (e)=>{
         if(e.key === 'Enter'){
-          e.preventDefault();      // evita invii/refresh indesiderati su mobile
+          e.preventDefault();
           loginBtn.click();
         }
       });
@@ -1322,30 +1362,36 @@
     ;(async()=>{
       setStatus("Carico runtime…");
 
-      await loadScript(PYODIDE_URL);
-      await Promise.all([
-        loadScript(ZXING_URL),
-        loadScript(JSQR_URL),
-        loadScript(QRG_URL),
-        loadScript(JSPDF_URL),
-        loadScript(PDFJS_URL),
-        loadScript(PDFJS_WORKER_URL)
-      ]);
+      try {
+          await loadScript(PYODIDE_URL);
+          await Promise.all([
+            loadScript(ZXING_URL),
+            loadScript(JSQR_URL),
+            loadScript(QRG_URL),
+            loadScript(JSPDF_URL),
+            loadScript(PDFJS_URL),
+            loadScript(PDFJS_WORKER_URL)
+          ]);
 
-      pyodide = await loadPyodide({ indexURL:"https://cdn.jsdelivr.net/pyodide/v0.25.1/full/" });
-      await initPython();
-      await initDecoders();
+          pyodide = await loadPyodide({ indexURL:"https://cdn.jsdelivr.net/pyodide/v0.25.1/full/" });
+          await initPython();
+          await initDecoders();
 
-      jsPDFmod = window.jspdf;
-      pdfjsLib = window['pdfjs-dist/build/pdf'];
-      if (pdfjsLib) {
-        pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_WORKER_URL;
+          jsPDFmod = window.jspdf;
+          pdfjsLib = window['pdfjs-dist/build/pdf'];
+          if (pdfjsLib) {
+            pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_WORKER_URL;
+          }
+
+          setStatus("Pronto (offline dopo primo avvio).");
+          applyMeta();
+          renderTables();
+          unlockButtons();
+
+      } catch (e) {
+          console.error("Errore critico durante il boot:", e);
+          setStatus(`<span class="err">Errore critico all'avvio: ${e.message||'vedi console'}</span>`);
       }
-
-      setStatus("Pronto (offline dopo primo avvio).");
-      applyMeta();
-      renderTables();
-      unlockButtons();
     })();
 
     function unlockButtons(){
@@ -1366,7 +1412,7 @@
     }
 
     function setStatus(t){
-      document.getElementById('status').textContent=t;
+      document.getElementById('status').innerHTML=t;
     }
 
     async function initPython(){
@@ -1440,11 +1486,7 @@ def unpack_to_pretty(s: str) -> str:
         const s=localStorage.getItem(KEY_STORE);
         const obj=s?JSON.parse(s):null;
         if(!obj) return null;
-        if(obj.p===undefined)   obj.p="";
-        if(obj.pos===undefined) obj.pos="";
-        if(obj.note===undefined)obj.note="";
-        if(obj.c===undefined)   obj.c=0;
-        if(!obj.l) obj.l=[];
+        // 🆕 La normalizzazione avviene dopo
         return obj;
       }catch{
         return null;
@@ -1456,23 +1498,47 @@ def unpack_to_pretty(s: str) -> str:
         localStorage.setItem(KEY_STORE, JSON.stringify(obj));
       }catch{}
     }
+    
+    // 🆕 FUNZIONE DI NORMALIZZAZIONE DELLO STATO (CENTRALIZZATA)
+    function normalizeState(obj){
+      if(!obj || typeof obj !== 'object') {
+        obj = { v:1, t:today(), l:[] };
+      }
+      obj.t = obj.t || today();
+      obj.b = obj.b || "";
+      obj.e = obj.e || "";
+      obj.p = obj.p || "";
+      obj.pos = obj.pos || "";
+      obj.note = obj.note || "";
+      obj.c = (typeof obj.c==="number"?obj.c:0);
+      
+      obj.l = (obj.l || []).map(it => ({
+        d: it.d || "",
+        q: it.q || 0,
+        r: it.r || 0 // Assicura che 'r' sia sempre un numero
+      }));
+      return obj;
+    }
 
     function escapeHtml(s){
       return s.replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
     }
 
     function canonicalJSON(obj, includeRientro){
+      // 🆕 Usa lo stato normalizzato per generare il JSON canonico
+      const normalizedObj = normalizeState(obj);
+
       const o = {
-        v:1,
-        t: obj.t || today(),
-        b: obj.b || "",
-        e: obj.e || "",
+        v:normalizedObj.v,
+        t: normalizedObj.t,
+        b: normalizedObj.b,
+        e: normalizedObj.e,
         o: operatorName || "",
-        p: obj.p || "",
-        pos: obj.pos || "",
-        note: obj.note || "",
-        c: (typeof obj.c==="number"?obj.c:0),
-        l: (obj.l||[]).map(x=>({
+        p: normalizedObj.p,
+        pos: normalizedObj.pos,
+        note: normalizedObj.note,
+        c: normalizedObj.c,
+        l: (normalizedObj.l||[]).map(x=>({
           d:x.d,
           q:x.q,
           r:(includeRientro ? (x.r||0) : 0)
@@ -1559,7 +1625,10 @@ def unpack_to_pretty(s: str) -> str:
       if(nb) nb.classList.add('active');
       document.querySelectorAll('.tab').forEach(t=>t.classList.add('hidden'));
       document.getElementById(id).classList.remove('hidden');
-      if(fromUser) window.scrollTo({top:0,behavior:'smooth'});
+      if(fromUser) {
+          window.scrollTo({top:0,behavior:'smooth'});
+          haptic('light'); // 🆕 Feedback aptico/visivo al cambio tab
+      }
     }
 
     // META FIELDS
@@ -1576,9 +1645,9 @@ def unpack_to_pretty(s: str) -> str:
     function syncMeta(){
       state.b = boxIdEl.value.trim();
       state.e = eventNameEl.value.trim();
-      state.p = prodNameEl.value.trim()   || state.p || "";
-      state.pos = posNameEl.value.trim()  || state.pos || "";
-      state.note = noteFieldEl.value.trim()|| state.note||"";
+      state.p = prodNameEl.value.trim();
+      state.pos = posNameEl.value.trim();
+      state.note = noteFieldEl.value.trim();
       state.c = parseInt(colorSelEl.value||"0",10);
       state.t = state.t || today();
     }
@@ -1600,27 +1669,34 @@ def unpack_to_pretty(s: str) -> str:
         alert("Inserisci descrizione e quantità > 0");
         return;
       }
-      ensureRientroStore();
+      // 🆕 Normalizza solo per sicurezza, ma lo stato dovrebbe essere già pulito
+      state = normalizeState(state);
       state.l.push({d,q,r:0});
       document.getElementById('desc').value="";
       document.getElementById('qty').value="1";
       renderTables();
+      haptic('tick'); // 🆕 Feedback aptico/visivo all'aggiunta
     };
 
     document.getElementById('saveLocal').onclick=()=>{
       syncMeta();
+      // 🆕 Normalizza prima di salvare
+      state = normalizeState(state);
       saveLocal(state);
       alert("Salvato in locale.");
+      haptic('light'); // 🆕 Feedback aptico/visivo al salvataggio
     };
 
     document.getElementById('loadLocal').onclick=()=>{
       const s=loadLocal();
       if(s){
-        state=s;
+        // 🆕 Normalizza lo stato caricato
+        state = normalizeState(s);
         applyMeta();
         renderTables();
         updateProgress();
         saveLocal(state);
+        haptic('light'); // 🆕 Feedback aptico/visivo al caricamento
       } else {
         alert("Nessun dato locale.");
       }
@@ -1629,12 +1705,17 @@ def unpack_to_pretty(s: str) -> str:
     document.getElementById('clearList').onclick=()=>{
       if(confirm("Svuotare la lista?")){
         state.l=[];
+        // 🆕 Normalizza lo stato dopo l'azzeramento
+        state = normalizeState(state);
         renderTables();
+        haptic('reset'); // 🆕 Feedback aptico/visivo all'azzeramento
       }
     };
 
     document.getElementById('exportJson').onclick=()=>{
       syncMeta();
+      // 🆕 Normalizza lo stato prima di esportare
+      state = normalizeState(state);
       const j = canonicalJSON(state,true);
       downloadBlob(new Blob([j],{type:'application/json'}),'lista.json');
     };
@@ -1659,6 +1740,7 @@ def unpack_to_pretty(s: str) -> str:
           const i=parseInt(b.dataset.del,10);
           state.l.splice(i,1);
           renderTables();
+          haptic('tock'); // 🆕 Feedback aptico/visivo all'eliminazione
         };
       });
 
@@ -1678,6 +1760,9 @@ def unpack_to_pretty(s: str) -> str:
         return;
       }
       syncMeta();
+      // 🆕 Normalizza lo stato prima di generare
+      state = normalizeState(state);
+      haptic('light'); // 🆕 Feedback aptico/visivo all'inizio generazione
 
       if(!state.b || !state.e){
         alert("Compila ID baule ed Evento.");
@@ -1728,18 +1813,22 @@ def unpack_to_pretty(s: str) -> str:
       g.fillRect(0,0,px,px);
       g.drawImage(currentQRCanvas,0,0,px,px);
       downloadBlob(dataURLtoBlob(out.toDataURL('image/png')), 'qr_baule.png');
+      haptic('light');
     };
 
     btnPrint.onclick=()=>{
       generateAndHandlePDF("etichetta","print");
+      haptic('light');
     };
 
     btnPDFMain.onclick=()=>{
       generateAndHandlePDF("etichetta","download");
+      haptic('light');
     };
 
     document.getElementById('rPDF').onclick=()=>{
       generateAndHandlePDF("rientro","download");
+      haptic('light');
     };
 
     function makeQrCanvas(text, borderMods){
@@ -1776,19 +1865,8 @@ def unpack_to_pretty(s: str) -> str:
     }
 
     // === PDF (omesso: identico alla tua versione, tranne fix minori dove servono) ===
-    function ensureRientroStore(){
-      if(!state.l){ state.l=[]; }
-      state.l = state.l.map(it=>({
-        d:it.d,
-        q:it.q,
-        r:(typeof it.r==="number"?it.r:0)
-      }));
-      if(state.p===undefined)   state.p="";
-      if(state.pos===undefined) state.pos="";
-      if(state.note===undefined)state.note="";
-      if(state.c===undefined)   state.c=0;
-    }
-
+    // 🗑️ Rimuovi `ensureRientroStore` qui e lascia solo `normalizeState`
+    
     function generateAndHandlePDF(mode, action){
       // unified font sizes for tables
       const FONT_HEADER = 12;
@@ -1800,6 +1878,10 @@ def unpack_to_pretty(s: str) -> str:
         alert("Runtime non pronto, ricarica la pagina.");
         return;
       }
+      
+      // 🆕 Normalizza lo stato prima di creare il PDF
+      state = normalizeState(state);
+      syncMeta();
 
       const { jsPDF } = jsPDFmod;
       const doc = new jsPDF({
@@ -1807,9 +1889,6 @@ def unpack_to_pretty(s: str) -> str:
         unit:"mm",
         format:"a4"
       });
-
-      ensureRientroStore();
-      syncMeta();
 
       // ✅ Stato del watermark: lettura checkbox (solo PDF / stampa)
       const watermarkToggleEl = document.getElementById("watermarkToggle");
@@ -2543,12 +2622,14 @@ def unpack_to_pretty(s: str) -> str:
             await handleDecodedText(text);
             camStatusEl.textContent="QR rilevato.";
             stopCameraOverlay("QR letto.");
+            haptic('success'); // 🆕 Feedback aptico/visivo al successo della scansione
           }
         });
       }
 
       if(camScanning){
-        setTimeout(()=>{ requestAnimationFrame(tickLiveScan); },200);
+        // 🗑️ Rimuovi setTimeout per migliorare la fluidità (lascia solo rAF)
+        requestAnimationFrame(tickLiveScan);
       }
     }
 
@@ -2569,15 +2650,8 @@ def unpack_to_pretty(s: str) -> str:
         jsonDecoded.value=pretty;
         decodedObj=JSON.parse(pretty);
 
-        decodedObj.l = (decodedObj.l||[]).map(it=>({
-          d:it.d,
-          q:it.q,
-          r:it.r||0
-        }));
-        if(decodedObj.p===undefined)   decodedObj.p="";
-        if(decodedObj.pos===undefined) decodedObj.pos="";
-        if(decodedObj.note===undefined)decodedObj.note="";
-        if(decodedObj.c===undefined)   decodedObj.c=0;
+        // 🆕 Normalizza l'oggetto decodificato
+        decodedObj = normalizeState(decodedObj);
 
         decStatus.innerHTML=`<span class="ok">QRJ1 decodificato.</span>`;
         btnSetCurrent.disabled=false;
@@ -2595,22 +2669,15 @@ def unpack_to_pretty(s: str) -> str:
       try{
         const obj=JSON.parse(jsonDecoded.value);
 
-        obj.l = (obj.l || []).map(item=>({
-          d:item.d,
-          q:item.q,
-          r:item.r || 0
-        }));
-        if(obj.p===undefined)   obj.p="";
-        if(obj.pos===undefined) obj.pos="";
-        if(obj.note===undefined)obj.note="";
-        if(obj.c===undefined)   obj.c=0;
-
-        state=obj;
+        // 🆕 Normalizza l'oggetto da JSON ricostruito
+        state = normalizeState(obj);
+        
         applyMeta();
         renderTables();
         updateProgress();
         saveLocal(state);
         alert("Lista impostata come corrente.");
+        haptic('light'); // 🆕 Feedback aptico/visivo all'impostazione
       }catch(e){
         alert("JSON non valido.");
       }
@@ -2618,20 +2685,25 @@ def unpack_to_pretty(s: str) -> str:
 
     btnCompare.onclick=async()=>{
       try{
+        // 🆕 Normalizza gli stati prima di confrontare
         const a = canonicalJSON(state,true);
         const b = canonicalJSON(JSON.parse(jsonDecoded.value),true);
         const equal = (await sha256hex(a)) === (await sha256hex(b));
         cmpResult.innerHTML = equal
           ? '<span class="ok">La lista coincide.</span>'
           : '<span class="warn">Le liste sono diverse.</span>';
+          haptic(equal ? 'light' : 'tock'); // 🆕 Feedback aptico/visivo al confronto
       }catch(e){
         cmpResult.innerHTML=`<span class="err">${e}</span>`;
+        haptic('error'); // 🆕 Feedback aptico/visivo all'errore
       }
     };
 
     // RIENTRO
     function renderRientroTable(){
-      ensureRientroStore();
+      // 🆕 Normalizza lo stato prima del rendering
+      state = normalizeState(state);
+      
       const tb=document.querySelector('#rTbl tbody');
       tb.innerHTML="";
 
@@ -2673,6 +2745,7 @@ def unpack_to_pretty(s: str) -> str:
           if(row){
             row.querySelector('.mancaCell').textContent = String(Math.max(0, it.q - v));
           }
+          haptic('light'); // 🆕 Feedback aptico/visivo al cambio manuale
         });
       });
 
@@ -2688,7 +2761,9 @@ def unpack_to_pretty(s: str) -> str:
       updateProgress();
     }
     function updateProgress(){
-      ensureRientroStore();
+      // 🆕 Normalizza lo stato prima del calcolo
+      state = normalizeState(state);
+      
       let totPrev=0, totR=0;
       state.l.forEach(it=>{
         totPrev+=it.q;
@@ -2702,23 +2777,31 @@ def unpack_to_pretty(s: str) -> str:
     }
 
     document.getElementById('rReset').onclick=()=>{
-      ensureRientroStore();
+      // 🆕 Normalizza lo stato prima di resettare
+      state = normalizeState(state);
+      
       state.l.forEach(it=>{it.r=0;});
       updateProgress();
       renderRientroTable();
       saveLocal(state);
+      haptic('reset');
     };
 
     document.getElementById('rAll').onclick=()=>{
-      ensureRientroStore();
+      // 🆕 Normalizza lo stato prima di marcare
+      state = normalizeState(state);
+      
       state.l.forEach(it=>{it.r=it.q;});
       updateProgress();
       renderRientroTable();
       saveLocal(state);
+      haptic('success');
     };
 
     document.getElementById('rExport').onclick=()=>{
-      ensureRientroStore();
+      // 🆕 Normalizza lo stato prima di esportare
+      state = normalizeState(state);
+      
       const rows=[
         ["ID baule", state.b],
         ["Evento", state.e],
@@ -3023,9 +3106,9 @@ def unpack_to_pretty(s: str) -> str:
       }, { passive:false });
     })();
 
-      let lastPayloadText="";
+      // 🗑️ Rimosso 'let lastPayloadText="";' duplicato
 
-      function flashTick(){
+      function flashTick(durationMs=90){
         const el = document.getElementById('tickFlash');
         if(!el) return;
         // reset animazione
@@ -3034,7 +3117,7 @@ def unpack_to_pretty(s: str) -> str:
         void el.offsetWidth;
         el.classList.add('show');
         // spegni il flash dopo pochissimo
-        setTimeout(()=>el.classList.remove('show'), 90);
+        setTimeout(()=>el.classList.remove('show'), durationMs);
       }
 
       /* 🔊 AUDIO SYSTEM SENZA FILE ESTERNI (Web Audio API) */
@@ -3094,17 +3177,27 @@ def unpack_to_pretty(s: str) -> str:
 
       function haptic(type='tick'){
         // Audio feedback
-        if(type==='tick') playTone(600, 'sine', 0.08); // bip normale
-        if(type==='tock') playTone(300, 'triangle', 0.1); // bip basso (minus)
+        if(type==='tick') playTone(600, 'sine', 0.08); // bip normale (conteggio +)
+        if(type==='tock') playTone(300, 'triangle', 0.1); // bip basso (conteggio -, delete)
         if(type==='reset') playTone(150, 'sawtooth', 0.2); // bip svuotamento
+        if(type==='success') playTone(900, 'sine', 0.05); // bip successo (all done)
+        if(type==='light') playTone(500, 'sine', 0.04); // bip leggero (save, load, tab, gen QR)
+        if(type==='error') playTone(100, 'square', 0.3); // bip errore
 
         // Haptic feedback
         try{
-          if(navigator.vibrate) navigator.vibrate(12);
+          if(!navigator.vibrate) return;
+          if(type==='tick') navigator.vibrate(12);
+          if(type==='tock') navigator.vibrate(20);
+          if(type==='reset') navigator.vibrate([20,10,20]);
+          if(type==='success') navigator.vibrate([5,5,5]);
+          if(type==='light') navigator.vibrate(5);
+          if(type==='error') navigator.vibrate([100,50,100]);
         }catch{}
         
         // Visual feedback
-        flashTick();
+        if(type==='error') flashTick(150); // errore più lungo
+        else flashTick(90);
       }
 
     /* === Counter overlay logic === */
@@ -3120,6 +3213,9 @@ def unpack_to_pretty(s: str) -> str:
     let currentStep = 1; // step di default per +/−
 
     function openCounter(index){
+      // 🆕 Normalizza lo stato all'apertura
+      state = normalizeState(state);
+      
       if(index<0 || !state || !state.l || index>=state.l.length) return;
       
       // Inizializza audio al primo tocco utente (necessario per policy browser)
