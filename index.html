@@ -561,8 +561,8 @@
                   justify-content:center;
               }
               .hdr-btn.active{
-                  background:var(--accent);
-                  border-color:var(--accent);
+                  background:#4f46e5;
+                  border-color:#6366f1;
                   color:#fff;
               }
               
@@ -810,15 +810,12 @@
                 }
                 
                 /* Rimuovo la cella del numero progressivo per recuperare spazio */
-                #itemsTbl tr td[data-label="#"],
                 #rTbl tr td[data-label="#"] {
                     display: none;
                 }
-                #itemsTbl tr th:first-child,
                 #rTbl tr th:first-child {
                     display: none;
                 }
-                /* Fine rimozione # */
 
                 #itemsTbl td,
                 #rTbl td{
@@ -872,7 +869,8 @@
                 }
                 /* FINE STATISTICHE */
 
-                /* 🆕 RIENTRO: CONTROLLI RIMOSSI DALLA VISUALIZZAZIONE NORMALE */
+                /* 🆕 RIENTRO: CONTROLLI IN LINEA */
+                /* Rimuovi il vecchio controllo Controlli/Rientro dalla visualizzazione diretta */
                 #rTbl td[data-label="Rientro"],
                 #rTbl td[data-label="Controlli"] {
                     display: none !important;
@@ -1016,6 +1014,7 @@
           <table id="itemsTbl">
             <thead>
               <tr>
+                <th>#</th>
                 <th>Descrizione</th>
                 <th>Q.tà</th>
                 <th class="noprint">Azioni</th>
@@ -1779,6 +1778,7 @@ def unpack_to_pretty(s: str) -> str:
       state.l.forEach((it,idx)=>{
         const tr=document.createElement('tr');
         tr.innerHTML=`
+          <td data-label="#">${idx+1}</td>
           <td data-label="Descrizione">${escapeHtml(it.d)}</td>
           <td data-label="Q.tà">${it.q}</td>
           <td class="noprint" data-label="Azioni">
@@ -1994,7 +1994,7 @@ def unpack_to_pretty(s: str) -> str:
         const usableW = (pageW - 2*FRAME_INSET) * 0.80; // 80% del frame per stare leggeri
         const lines = doc.splitTextToSize(text.toString(), usableW);
 
-        // misura blocco testo (in “mm testo”, coerente con lineHeightFactor del doc)
+        // misura blocco testo (in “mm testo”, coerente con lineHeightFactor)
         const dims = doc.getTextDimensions(lines);
         const blockH = dims.h;
 
@@ -2127,11 +2127,11 @@ def unpack_to_pretty(s: str) -> str:
                                      const valIsSingle = valLines.length === 1;
                                      let yVal;
                                      if (valIsSingle) {
-                                       const valH = doc.getTextDimensions(lines[0]).h;
+                                       const valH = doc.getTextDimensions(valLines[0]).h;
                                        const centerRow = yCursorMeta + rowH / 2;
                                        yVal = centerRow + valH / 2 - 1;
                                      } else {
-                                       const valH = doc.getTextDimensions(lines).h;
+                                       const valH = doc.getTextDimensions(valLines).h;
                                        yVal = yCursorMeta + (rowH - valH) / 2;
                                      }
 
@@ -3409,12 +3409,17 @@ def unpack_to_pretty(s: str) -> str:
       
       // Aggiorna la quantità rientrata e mancante visibile
       const mancaCell = tr.querySelector('.mancaCell');
+      const prevCell = [...tr.children].find(td => td.getAttribute('data-label') === 'Prev.');
       const rientroCell = [...tr.children].find(td => td.getAttribute('data-label') === 'Rientro');
       
       if(mancaCell) mancaCell.textContent = String(manca);
-      
-      // La visualizzazione desktop ha Rientro separato
+      // Su mobile, Prev è l'unica visibile, ma su desktop Rientro lo è.
+      // Su desktop/tabella normale, Rientro è il terzo <td>
       if (window.innerWidth >= 600 && rientroCell) rientroCell.textContent = String(v);
+      else if (window.innerWidth < 600 && prevCell) {
+          // Niente, le celle sono affiancate e già aggiornate.
+      }
+      
     }
     /* === End counter overlay logic === */
   </script>
