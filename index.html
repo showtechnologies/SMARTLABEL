@@ -1091,25 +1091,6 @@
           </div>
 
           <div class="row" style="margin-top:10px">
-            <div style="flex:1;min-width:180px">
-              <label>Formato etichetta</label>
-              <select id="labelFormat">
-                <option value="A4_1UP" selected>A4 (1 etichetta, come ora)</option>
-                <option value="A5_1UP">A5 (1 etichetta)</option>
-                <option value="A4_2UP_A5">A4 (2×A5 da tagliare)</option>
-              </select>
-            </div>
-            <div style="flex:1;min-width:180px">
-              <label>Densità tabella</label>
-              <select id="labelDensity">
-                <option value="NORMAL" selected>Normale</option>
-                <option value="COMPACT">Compatta (più righe)</option>
-                <option value="ULTRA">Ultra (max righe)</option>
-              </select>
-            </div>
-          </div>
-
-          <div class="row" style="margin-top:10px">
             <button id="btnGenQR" class="btn">Genera QR / Aggiorna anteprima</button>
             <button id="btnDownloadPNG" class="btn ghost" disabled>Scarica PNG QR</button>
             <button id="btnPrint" class="btn ghost" disabled>Stampa etichetta</button>
@@ -1732,8 +1713,6 @@ def unpack_to_pretty(s: str) -> str:
     const posNameEl    = document.getElementById('posName');
     const noteFieldEl  = document.getElementById('noteField');
     const colorSelEl   = document.getElementById('colorSel');
-    const labelFormatEl  = document.getElementById('labelFormat');
-    const labelDensityEl = document.getElementById('labelDensity');
 
     boxIdEl.value     = state.b || "";
     eventNameEl.value = state.e || "";
@@ -1745,8 +1724,6 @@ def unpack_to_pretty(s: str) -> str:
       state.pos = posNameEl.value.trim();
       state.note = noteFieldEl.value.trim();
       state.c = parseInt(colorSelEl.value||"0",10);
-      state.fmt = (labelFormatEl?.value || "A4_1UP");
-      state.density = (labelDensityEl?.value || "NORMAL");
       state.t = state.t || today();
     }
 
@@ -1757,8 +1734,6 @@ def unpack_to_pretty(s: str) -> str:
       posNameEl.value   = state.pos || "";
       noteFieldEl.value = state.note || "";
       colorSelEl.value  = (typeof state.c==="number"?state.c:0);
-      if (labelFormatEl)  labelFormatEl.value  = (state.fmt || "A4_1UP");
-      if (labelDensityEl) labelDensityEl.value = (state.density || "NORMAL");
     }
 
     // LISTA HANDLERS
@@ -1968,584 +1943,550 @@ def unpack_to_pretty(s: str) -> str:
     // 🗑️ Rimuovi `ensureRientroStore` qui e lascia solo `normalizeState`
     
     function generateAndHandlePDF(mode, action){
-  // unified font sizes for tables (NON cambiare per richiesta)
-  const FONT_HEADER = 12;
-  const FONT_CELL   = 12;
-  const TABLE_LINE  = 0.35;
+      // unified font sizes for tables
+      const FONT_HEADER = 12;
+      const FONT_CELL = 12;
+      const TABLE_LINE = 0.35;   // spessore unico per tutti i bordi tabella
 
-  if(!jsPDFmod || !pyodide){
-    alert("Runtime non pronto, ricarica la pagina.");
-    return;
-  }
 
-  // Normalizza + sync
-  state = normalizeState(state);
-  syncMeta();
-
-  const fmt     = (mode==="etichetta" ? (state.fmt || "A4_1UP") : "A4_1UP");
-  const density = (mode==="etichetta" ? (state.density || "NORMAL") : "NORMAL");
-
-  // Stima rapida: il 2×A5 è pensato per liste corte; se supera soglia, fallback automatico su A4 1UP
-  const rows = (state.l||[]).length;
-  const max2up =
-    density==="ULTRA"   ? 22 :
-    density==="COMPACT" ? 20 :
-                          16;
-
-  let effectiveFmt = fmt;
-  if (mode==="etichetta" && fmt==="A4_2UP_A5" && rows > max2up){
-    effectiveFmt = "A4_1UP";
-  }
-
-  const { jsPDF } = jsPDFmod;
-
-  function makeDocForFormat(formatId){
-    if (formatId==="A5_1UP"){
-      return new jsPDF({ orientation:"landscape", unit:"mm", format:"a5" });
-    }
-    if (formatId==="A4_2UP_A5"){
-      // A4 portrait per mettere 2 A5 landscape (sopra/sotto)
-      return new jsPDF({ orientation:"portrait", unit:"mm", format:"a4" });
-    }
-    // default: A4 landscape
-    return new jsPDF({ orientation:"landscape", unit:"mm", format:"a4" });
-  }
-
-  const doc = makeDocForFormat(effectiveFmt);
-
-  // watermark (solo etichetta)
-  const watermarkToggleEl = document.getElementById("watermarkToggle");
-  const watermarkEnabled  = (mode==="etichetta") && watermarkToggleEl && watermarkToggleEl.checked;
-  const watermarkText     = (state.note || "").trim();
-
-  // densità (più righe senza ridurre font)
-  const densCfg = (density==="ULTRA")
-    ? { marginL:10, marginT:14, baseLineH:6.0, rowPad:2.0, headPad:4, titleGap:6.5 }
-    : (density==="COMPACT")
-      ? { marginL:12, marginT:16, baseLineH:6.6, rowPad:2.5, headPad:5, titleGap:7.0 }
-      : { marginL:15, marginT:20, baseLineH:8.0, rowPad:4.0, headPad:6, titleGap:8.0 };
-
-  // ---------- helpers disegno ----------
-  function drawDiagonalWatermark(doc, text, pageW, pageH){
-    if (!text) return;
-    const FRAME_INSET = 8;
-
-    const angleRad = Math.atan(pageH / pageW);
-    const angleDeg = angleRad * 180 / Math.PI;
-
-    const centerX = pageW / 2;
-    const centerY = pageH / 2;
-
-    const usableW = (pageW - 2*FRAME_INSET) * 0.80;
-    const lines = doc.splitTextToSize(text.toString(), usableW);
-    const dims = doc.getTextDimensions(lines);
-    const blockH = dims.h;
-
-    const half = blockH / 2;
-    const anchorX = centerX - Math.sin(angleRad) * half;
-    const anchorY = centerY - Math.cos(angleRad) * half;
-
-    if (doc.saveGraphicsState) doc.saveGraphicsState();
-    doc.setFont("helvetica","bold");
-    doc.setFontSize(40);
-    doc.setTextColor(210,210,210);
-    doc.text(lines, anchorX, anchorY, { angle: angleDeg, align:"center", baseline:"top" });
-    doc.setTextColor(0,0,0);
-    if (doc.restoreGraphicsState) doc.restoreGraphicsState();
-  }
-
-  function addFooter(doc, pageW, pageH){
-    doc.setFont("helvetica","bold");
-    doc.setFontSize(11);
-    doc.setTextColor(30,30,30);
-
-    const footerText = "Show Technologies™ · info@showtechnologies.it · +39 (0)185 720185";
-    const textW = doc.getTextWidth(footerText);
-    const x = (pageW - textW)/2;
-    const y = pageH - 10;
-
-    doc.text(footerText, x, y);
-    doc.setTextColor(0,0,0);
-  }
-
-  function drawCutLine(doc, pageW, y){
-    doc.setDrawColor(120,120,120);
-    doc.setLineWidth(0.2);
-    if (doc.setLineDashPattern) doc.setLineDashPattern([2,2], 0);
-    doc.line(6, y, pageW-6, y);
-    if (doc.setLineDashPattern) doc.setLineDashPattern([], 0);
-    doc.setDrawColor(0,0,0);
-  }
-
-  function drawLabel(doc, originX, originY, labelW, labelH, labelIndex){
-    // layout label-local (tutto in mm)
-    const pageW = labelW;
-    const pageH = labelH;
-
-    // frame interno e footer
-    const FRAME_INSET = 8;
-    const FOOTER_AREA = 12;
-
-    function drawPageFrameLocal(){
-      doc.setDrawColor(0,0,0);
-      doc.setLineWidth(0.6);
-      doc.roundedRect(
-        originX + FRAME_INSET,
-        originY + FRAME_INSET,
-        pageW - 2*FRAME_INSET,
-        pageH - 2*FRAME_INSET - FOOTER_AREA,
-        6, 6, "S"
-      );
-    }
-
-    // watermark dietro
-    if (mode==="etichetta" && watermarkEnabled && watermarkText){
-      // watermark: per 1-up usa il centro pagina; per 2-up la centriamo sul riquadro
-      if (effectiveFmt!=="A4_2UP_A5"){
-        drawDiagonalWatermark(doc, watermarkText, pageW, pageH);
+      if(!jsPDFmod || !pyodide){
+        alert("Runtime non pronto, ricarica la pagina.");
+        return;
       }
-      if (effectiveFmt==="A4_2UP_A5"){
-        // sovrascrivi con una watermark centrata nel riquadro usando trasformazione manuale:
-        const cx = originX + pageW/2;
-        const cy = originY + pageH/2;
+      
+      // 🆕 Normalizza lo stato prima di creare il PDF
+      state = normalizeState(state);
+      syncMeta();
+
+      const { jsPDF } = jsPDFmod;
+      const doc = new jsPDF({
+        orientation:"landscape",
+        unit:"mm",
+        format:"a4"
+      });
+
+      // ✅ Stato del watermark: lettura checkbox (solo PDF / stampa)
+      const watermarkToggleEl = document.getElementById("watermarkToggle");
+      const watermarkEnabled = watermarkToggleEl && watermarkToggleEl.checked;
+      const watermarkText = (state.note || "").trim();
+
+      let incompleto = false;
+      state.l.forEach(it=>{
+        if ((it.r||0) < it.q) incompleto=true;
+      });
+
+      const marginL = 15;
+      const marginT = 20;
+      const pageW   = 297;
+      const pageH   = 210;
+      // spazio extra per il footer fuori dal bordo
+      const FRAME_INSET = 8;      // distanza dai lati
+      const FOOTER_AREA = 12;     // altezza riservata al footer fuori dal bordo
+      function drawPageFrame(d){
+        d.setDrawColor(0,0,0);        // NERO
+        d.setLineWidth(0.6);
+        // altezza ridotta per non toccare il footer esterno
+        d.roundedRect(
+          FRAME_INSET,
+          FRAME_INSET,
+          pageW - 2*FRAME_INSET,
+          pageH - 2*FRAME_INSET - FOOTER_AREA,
+          6, 6, "S"
+        );
+      }
+      drawPageFrame(doc);
+      
+      // ✅ Watermark sulla PRIMA pagina (dietro a tutto il resto)
+      if (mode === "etichetta" && watermarkEnabled && watermarkText){
+        drawDiagonalWatermark(doc, watermarkText);
+      }
+      
+      // ✅ Watermark diagonale dalla NOTA (centrato, lungo la diagonale A4 landscape)
+      // ✅ Watermark diagonale multiriga, centrato sul centro geometrico pagina
+      function drawDiagonalWatermark(doc, text){
+        if (!text) return;
+
+        // Angolo reale della diagonale A4 orizzontale
         const angleRad = Math.atan(pageH / pageW);
         const angleDeg = angleRad * 180 / Math.PI;
-        const usableW = (pageW - 16) * 0.80;
-        const lines = doc.splitTextToSize(watermarkText.toString(), usableW);
+
+        // Centro pagina
+        const centerX = pageW / 2;
+        const centerY = pageH / 2;
+
+        // Max larghezza blocco (rispetta i margini interni al frame)
+        const usableW = (pageW - 2*FRAME_INSET) * 0.80; // 80% del frame per stare leggeri
+        const lines = doc.splitTextToSize(text.toString(), usableW);
+
+        // misura blocco testo (in “mm testo”, coerente con lineHeightFactor)
         const dims = doc.getTextDimensions(lines);
         const blockH = dims.h;
+
+        // Compensazione: sposta l'ancora verso l'alto lungo la direzione di crescita delle righe
+        // così che il CENTRO del blocco coincida con (centerX, centerY).
         const half = blockH / 2;
-        const ax = cx - Math.sin(angleRad) * half;
-        const ay = cy - Math.cos(angleRad) * half;
+        const anchorX = centerX - Math.sin(angleRad) * half;
+        const anchorY = centerY - Math.cos(angleRad) * half;
 
         if (doc.saveGraphicsState) doc.saveGraphicsState();
-        doc.setFont("helvetica","bold");
+
+        doc.setFont("helvetica", "bold");
         doc.setFontSize(40);
         doc.setTextColor(210,210,210);
-        doc.text(lines, ax, ay, { angle: angleDeg, align:"center", baseline:"top" });
+
+        // baseline 'top': l'array di linee parte dall'ancora e cresce nella direzione ruotata
+        doc.text(lines, anchorX, anchorY, {
+          angle: angleDeg,
+          align: "center",
+          baseline: "top"
+        });
+
+        // ripristino
         doc.setTextColor(0,0,0);
         if (doc.restoreGraphicsState) doc.restoreGraphicsState();
       }
-    }
 
-    drawPageFrameLocal();
 
-    // rientro status
-    let incompleto=false;
-    (state.l||[]).forEach(it=>{ if ((it.r||0) < it.q) incompleto=true; });
+      function addFooter(d){
+        d.setFont("helvetica","bold");      // più marcato
+        d.setFontSize(11);                  // leggermente più grande
+        d.setTextColor(30,30,30);           // più scuro, quindi più leggibile
 
-    let curY = originY + densCfg.marginT;
-    const marginL = originX + densCfg.marginL;
+        const footerText = "Show Technologies™ · info@showtechnologies.it · +39 (0)185 720185";
+        const textW = d.getTextWidth(footerText);
+        const x = (pageW - textW)/2;
+        const y = pageH - 10;               // un filo più in alto per respirare
 
-    if (mode === "rientro"){
-      if (incompleto){
-        doc.setFont("helvetica","bold");
-        doc.setFontSize(32);
-        doc.setTextColor(255,0,0);
-        doc.text("INCOMPLETO", marginL, curY);
-      } else {
-        doc.setFont("helvetica","bold");
-        doc.setFontSize(24);
-        doc.setTextColor(16,185,129);
-        doc.text("TUTTO RIENTRATO", marginL, curY);
+        d.text(footerText, x, y);
+        d.setTextColor(0,0,0);              // reset colore testo
       }
-      doc.setTextColor(0,0,0);
-      curY += 14;
-    }
 
-    doc.setFont("helvetica","normal");
-    doc.setFontSize(FONT_CELL);
-
-    // --- meta table (stessa logica, ma dentro al riquadro) ---
-    const tableX = marginL;
-    const tableY = curY;
-    const labelWm = 35;
-    const valueWm = Math.min(100, Math.max(70, pageW*0.42));
-    const radius = 2.0;
-    const metaPaddingTop = 4;
-    const metaSidePad    = 2;
-
-    const rowsMeta = [
-      ["Operatore:", operatorName || ""],
-      ["Evento:",    state.e || ""],
-      ["Produzione:", state.p || ""],
-      ["ID Baule:",   state.b || ""],
-      ["Note:",       state.note || ""],
-      ["Stampato:",   nowStamp()]
-    ];
-
-    const metaTableW = labelWm + valueWm;
-
-    const measured = rowsMeta.map(([lab,val])=>{
-      const labLines = doc.splitTextToSize(lab, labelWm - metaSidePad*2);
-      const valLines = doc.splitTextToSize(val || "", valueWm - metaSidePad*2);
-      const labH = doc.getTextDimensions(labLines).h;
-      const valH = doc.getTextDimensions(valLines).h;
-      const rowH = Math.max(labH, valH) + metaPaddingTop + 2;
-      return { labLines, valLines, rowH };
-    });
-
-    const metaTableH = measured.reduce((acc,m)=>acc + m.rowH, 0);
-
-    doc.setDrawColor(0,0,0);
-    doc.setLineWidth(TABLE_LINE);
-    doc.roundedRect(tableX, tableY, metaTableW, metaTableH, radius, radius, "S");
-
-    let yCursorMeta = tableY;
-    for (let i=0;i<measured.length;i++){
-      yCursorMeta += measured[i].rowH;
-      if (i < measured.length-1){
-        doc.line(tableX, yCursorMeta, tableX + metaTableW, yCursorMeta);
+      let curY = marginT;
+      if (mode === "rientro"){
+        if (incompleto){
+          doc.setFont("helvetica","bold");
+          doc.setFontSize(32);
+          doc.setTextColor(255,0,0);
+          doc.text("INCOMPLETO", marginL, curY);
+        } else {
+          doc.setFont("helvetica","bold");
+          doc.setFontSize(24);
+          doc.setTextColor(16,185,129);
+          doc.text("TUTTO RIENTRATO", marginL, curY);
+        }
+        doc.setTextColor(0,0,0);
+        curY += 14;
       }
-    }
-    doc.line(tableX+labelWm, tableY, tableX+labelWm, tableY+metaTableH);
 
-    yCursorMeta = tableY;
-    for (let i = 0; i < measured.length; i++) {
-      const { labLines, valLines, rowH } = measured[i];
+      doc.setFont("helvetica","normal");
+      doc.setFontSize(FONT_CELL);
 
-      const labH = doc.getTextDimensions(labLines).h;
-      const valH = doc.getTextDimensions(valLines).h;
+                                   const tableX = marginL;
+                                   const tableY = curY;
+                                   const labelW = 35;
+                                   const valueW = 100;
+                                   const radius = 2.0;
+                                   const metaPaddingTop = 4;   // padding top testo dentro la riga
+                                   const metaSidePad    = 2;   // padding laterale
 
-      const yLab = yCursorMeta + (rowH - labH) / 2;
-      const yVal = yCursorMeta + (rowH - valH) / 2;
+                                   const rowsMeta = [
+                                     ["Operatore:", operatorName || ""],
+                                     ["Evento:",    state.e || ""],
+                                     ["Produzione:", state.p || ""],
+                                     ["ID Baule:",   state.b || ""],
+                                     ["Note:",       state.note || ""],
+                                     ["Stampato:",   nowStamp()]
+                                   ];
 
-      doc.text(labLines, tableX + metaSidePad, yLab);
-      doc.text(valLines, tableX + labelWm + metaSidePad, yVal);
+                                   const metaTableW = labelW + valueW;
 
-      yCursorMeta += rowH;
-    }
+                                   // 1) misura linee per ogni riga (label e valore)
+                                   const measured = rowsMeta.map(([lab,val])=>{
+                                     const labLines = doc.splitTextToSize(lab, labelW - metaSidePad*2);
+                                     const valLines = doc.splitTextToSize(val || "", valueW - metaSidePad*2);
+                                     // altezza blocco con getTextDimensions (coerente con lineHeightFactor del doc)
+                                     const labH = doc.getTextDimensions(labLines).h;
+                                     const valH = doc.getTextDimensions(valLines).h;
+                                     // riga = max(label, value) + padding top/bottom (qui usiamo top + 2mm extra)
+                                     // riga = max(label, value) + padding extra più generoso
+                                     const rowH = Math.max(labH, valH) + metaPaddingTop + 2;                                     return { labLines, valLines, rowH };
+                                   });
 
-    // --- QR ---
-    const qrSizeMm = (effectiveFmt==="A5_1UP" ? 65 : 80);
-    const qrX = originX + pageW - qrSizeMm - 20;
-    const QR_TOP_OFFSET = (effectiveFmt==="A5_1UP" ? 8 : 12);
-    const qrY = originY + densCfg.marginT + QR_TOP_OFFSET;
-    const GAP_AROUND_QR = 12;
+                                   // 2) altezza totale tabella
+                                   const metaTableH = measured.reduce((acc,m)=>acc + m.rowH, 0);
 
-    const canon = canonicalJSON(state,true);
+                                   // 3) cornice esterna
+                                   doc.setDrawColor(0,0,0);
+                                   doc.setLineWidth(TABLE_LINE);
+                                   doc.roundedRect(tableX, tableY, metaTableW, metaTableH, radius, radius, "S");
 
-    // la parte asincrona (pyodide) rimane: disegniamo il resto dopo il pack
-    return pyodide.runPythonAsync(`pack_json_str(${JSON.stringify(canon)})`).then(qp=>{
-      const qrCanvas = makeQrCanvas(qp, 4);
-      const qrDataURL = qrCanvas.toDataURL("image/png");
+                                   // 4) separatori orizzontali + separatore verticale label/valore
+                                   let yCursorMeta = tableY;
+                                   for (let i=0;i<measured.length;i++){
+                                     yCursorMeta += measured[i].rowH;
+                                     if (i < measured.length-1){
+                                       doc.line(tableX, yCursorMeta, tableX + metaTableW, yCursorMeta);
+                                     }
+                                   }
+                                   doc.line(tableX+labelW, tableY, tableX+labelW, tableY+metaTableH);
 
-      const rgb = colorFromIndex(state.c || 0);
-      doc.setDrawColor(rgb[0], rgb[1], rgb[2]);
-      doc.setLineWidth(3);
-      const pad=4;
-      doc.roundedRect(qrX - pad/2, qrY - pad/2, qrSizeMm + pad, qrSizeMm + pad, 3,3,"S");
-      doc.addImage(qrDataURL, "PNG", qrX, qrY, qrSizeMm, qrSizeMm);
+                                   // 5) stampa testi (verticalmente centrati dentro ogni riga)
+                                   yCursorMeta = tableY;
+                                   for (let i = 0; i < measured.length; i++) {
+                                     const { labLines, valLines, rowH } = measured[i];
 
-      // POS sopra QR
-      if ((state.pos || "").trim()) {
+                                     // LABEL
+                                     const labIsSingle = labLines.length === 1;
+                                     let yLab;
+                                     if (labIsSingle) {
+                                       const labH = doc.getTextDimensions(labLines[0]).h;
+                                       const centerRow = yCursorMeta + rowH / 2;
+                                       yLab = centerRow + labH / 2 - 1;
+                                     } else {
+                                       const labH = doc.getTextDimensions(labLines).h;
+                                       yLab = yCursorMeta + (rowH - labH) / 2;
+                                     }
+
+                                     // VALORE
+                                     const valIsSingle = valLines.length === 1;
+                                     let yVal;
+                                     if (valIsSingle) {
+                                       const valH = doc.getTextDimensions(valLines[0]).h;
+                                       const centerRow = yCursorMeta + rowH / 2;
+                                       yVal = centerRow + valH / 2 - 1;
+                                     } else {
+                                       const valH = doc.getTextDimensions(valLines).h;
+                                       yVal = yCursorMeta + (rowH - valH) / 2;
+                                     }
+
+                                     doc.text(labLines, tableX + metaSidePad, yLab);
+                                     doc.text(valLines, tableX + labelW + metaSidePad, yVal);
+
+                                     yCursorMeta += rowH;
+                                   }
+
+      const qrSizeMm = 80;
+      const qrX = pageW - qrSizeMm - 20;
+      // Offset per abbassare il QR rispetto al margine superiore pagina
+      const QR_TOP_OFFSET = 12;               // ↑ aumenta per scendere
+      const qrY = marginT + QR_TOP_OFFSET;
+      const GAP_AROUND_QR = 12;     // distanza identica sopra/sotto il QR
+
+      const canon = canonicalJSON(state,true);
+
+      pyodide.runPythonAsync(
+        `pack_json_str(${JSON.stringify(canon)})`
+      ).then(qp=>{
+        const qrCanvas = makeQrCanvas(qp, 4);
+        const qrDataURL = qrCanvas.toDataURL("image/png");
+
+        const rgb = colorFromIndex(state.c || 0);
+        doc.setDrawColor(rgb[0], rgb[1], rgb[2]);
+        doc.setLineWidth(3);
+        const pad=4;
+        doc.roundedRect(
+          qrX - pad/2,
+          qrY - pad/2,
+          qrSizeMm + pad,
+          qrSizeMm + pad,
+          3,3,"S"
+        );
+
+        doc.addImage(qrDataURL, "PNG", qrX, qrY, qrSizeMm, qrSizeMm);
+
+        // POSIZIONE sopra al QR (stile come etichetta colore)
+        if ((state.pos || "").trim()) {
+          doc.setFont("helvetica","bold");
+          doc.setFontSize(20);
+          const posText = state.pos.trim();
+          // equidistante: stessa distanza dal bordo superiore del QR
+          const desiredPosY = qrY - GAP_AROUND_QR;
+          const topSafe = marginT + 6;              // per non attaccarsi al bordo pagina
+          const posY = Math.max(topSafe, desiredPosY);
+          doc.text(posText, qrX + qrSizeMm/2, posY, { align: "center" });
+        }
+            // COLOR LABEL BELOW QR
+        const colorLabel = colorNameFromIndex(state.c || 0);
         doc.setFont("helvetica","bold");
         doc.setFontSize(20);
-        const posText = state.pos.trim();
-        const desiredPosY = qrY - GAP_AROUND_QR;
-        const topSafe = originY + densCfg.marginT + 6;
-        const posY = Math.max(topSafe, desiredPosY);
-        doc.text(posText, qrX + qrSizeMm/2, posY, { align:"center" });
-      }
+        doc.setTextColor(0,0,0);
+        // center under QR
+        const COLOR_BELOW_QR = 14; // ↑ aumenta per scendere
+        const colorY = qrY + qrSizeMm + GAP_AROUND_QR;   // stessa distanza del testo sopra
+        doc.text(colorLabel, qrX + qrSizeMm/2, colorY, { align: "center" });
 
-      // colore sotto QR
-      const colorLabel = colorNameFromIndex(state.c || 0);
-      doc.setFont("helvetica","bold");
-      doc.setFontSize(20);
-      doc.setTextColor(0,0,0);
-      const colorY = qrY + qrSizeMm + GAP_AROUND_QR;
-      doc.text(colorLabel, qrX + qrSizeMm/2, colorY, { align:"center" });
+        const maxRightBeforeQR = qrX - 10;
+        const matStartY = tableY + metaTableH + 8;
 
-      // tabella materiali a sinistra fino prima del QR
-      const maxRightBeforeQR = qrX - 10;
-      const matStartY = tableY + metaTableH + densCfg.titleGap;
-
-      drawMaterialsTable(doc, {
-        startY: matStartY,
-        leftX: marginL,
-        maxRight: maxRightBeforeQR,
-        mode: mode,
-        originX,
-        originY,
-        pageW,
-        pageH,
-        addFooterFn: (d)=>addFooter(d, originX+pageW, originY+pageH),
-        densityCfg: densCfg
-      });
-
-      addFooter(doc, originX+pageW, originY+pageH);
-    });
-
-    // --- tabella materiali (interna a drawLabel) ---
-    function drawMaterialsTable(doc, cfg){
-      let yCursor = cfg.startY;
-
-      doc.setFont("helvetica","bold");
-      doc.setFontSize(16);
-      doc.text(cfg.mode === "rientro" ? "DISTINTA RIENTRO" : "DISTINTA", cfg.leftX, yCursor);
-      yCursor += cfg.densityCfg.titleGap;
-
-      const availableW = Math.max(60, (cfg.maxRight - cfg.leftX));
-
-      const ratiosRientro = [0.68, 0.10, 0.12, 0.10];
-      const ratiosNormale = [0.82, 0.18];
-
-      let headers, colWidths;
-      if (cfg.mode === "rientro"){
-        headers   = ["Descrizione","Q.tà","IN","OUT"];
-        colWidths = ratiosRientro.map(r => Math.round(r * availableW));
-      } else {
-        headers   = ["Descrizione","Q.tà"];
-        colWidths = ratiosNormale.map(r => Math.round(r * availableW));
-      }
-
-      // fix rounding
-      {
-        const sumW = colWidths.reduce((a,b)=>a+b,0);
-        let diff = availableW - sumW;
-        let k = 0;
-        while (diff !== 0 && k < 50){
-          const idx = k % colWidths.length;
-          if (diff > 0) colWidths[idx] += 1;
-          else if (diff < 0 && colWidths[idx] > 1) colWidths[idx] -= 1;
-          k++;
-          diff = availableW - colWidths.reduce((a,b)=>a+b,0);
-        }
-      }
-
-      const finalTableW = colWidths.reduce((a,b)=>a+b,0);
-
-      const baseLineH = cfg.densityCfg.baseLineH;
-      const rowPad    = cfg.densityCfg.rowPad;
-      const headPad   = cfg.densityCfg.headPad;
-
-      // header wrap
-      const headerLines = headers.map((h, idx)=>{
-        const usableW = Math.max(6, colWidths[idx] - 4);
-        return doc.splitTextToSize(h, usableW);
-      });
-      const headerH = Math.max(...headerLines.map(ls => doc.getTextDimensions(ls).h)) + headPad;
-
-      function buildRowObjects(){
-        const out=[];
-        out.push({ type:"header", cells: headerLines, h: headerH });
-
-        (state.l||[]).forEach(it=>{
-          const prev = it.q;
-          const rin  = it.r || 0;
-          const manc = Math.max(0, prev - rin);
-
-          const descLines = doc.splitTextToSize((it.d||""), colWidths[0] - 4);
-
-          let rawCells;
-          if (cfg.mode === "rientro"){
-            rawCells = [ descLines, String(prev), String(rin), String(manc) ];
-          } else {
-            rawCells = [ descLines, String(prev) ];
-          }
-
-          const cellsWrapped = rawCells.map((val, idx)=>{
-            if (Array.isArray(val)) return val;
-            const usableW = Math.max(6, colWidths[idx] - 4);
-            return doc.splitTextToSize(String(val||""), usableW);
-          });
-
-          const cellHeights = cellsWrapped.map(ls => doc.getTextDimensions(ls).h);
-          const rowH = Math.max(baseLineH, Math.max(...cellHeights) + rowPad);
-
-          out.push({ type:"data", cells: cellsWrapped, h: rowH });
+        drawMaterialsTable(doc, {
+          startY: matStartY,
+          leftX: marginL,
+          maxRight: maxRightBeforeQR,
+          mode: mode,
+          marginT: marginT,
+          pageW: pageW,
+          pageH: pageH,
+          addFooterFn: addFooter
         });
 
-        return out;
-      }
-
-      const allRows = buildRowObjects();
-
-      function drawTablePage(rowIndex, startY){
-        let yTopTable = startY;
-        let curRow = rowIndex;
-
-        let rowsThisPage = [];
-        let totalH = 0;
-
-        // limite: dentro al riquadro (no footer)
-        const yLimit = cfg.originY + cfg.pageH - 8 - 12; // frame inset + footer area approx
-        for(let i=curRow;i<allRows.length;i++){
-          const h = allRows[i].h;
-          if (yTopTable + totalH + h > yLimit){
-            break;
-          }
-          rowsThisPage.push(allRows[i]);
-          totalH += h;
-        }
-
-        if(rowsThisPage.length===0 && curRow<allRows.length){
-          rowsThisPage.push(allRows[curRow]);
-          totalH += allRows[curRow].h;
-        }
-
-        const radiusOuter = 2.0;
-        doc.setDrawColor(0,0,0);
-        doc.setLineWidth(TABLE_LINE);
-        doc.roundedRect(cfg.leftX, yTopTable, finalTableW, totalH, radiusOuter, radiusOuter, "S");
-
-        let xCursor = cfg.leftX;
-        for(let c=0;c<colWidths.length-1;c++){
-          xCursor += colWidths[c];
-          doc.line(xCursor, yTopTable, xCursor, yTopTable+totalH);
-        }
-
-        let drawY = yTopTable;
-        for(let r=0;r<rowsThisPage.length;r++){
-          const row = rowsThisPage[r];
-
-          if(row.type==="header"){
+        addFooter(doc);
+        
+        /* 🔢 NUMERAZIONE PAGINE 1/n IN BASSO A DESTRA (solo se multipagina) */
+        const pageCount = doc.getNumberOfPages();
+        if (pageCount > 1){
+          for (let i = 1; i <= pageCount; i++){
+            doc.setPage(i);
             doc.setFont("helvetica","bold");
-            doc.setFontSize(FONT_HEADER);
-          }else{
-            doc.setFont("helvetica","normal");
-            doc.setFontSize(FONT_CELL);
+            doc.setFontSize(11);
+            doc.setTextColor(0,0,0);
+
+            const label = `${i}/${pageCount}`;
+            const textW = doc.getTextWidth(label);
+            const x = pageW - FRAME_INSET - textW - 2; // vicino al bordo destro
+            const y = pageH - 8;                       // stessa altezza del footer
+
+            doc.text(label, x, y);
           }
+        }
+        /* fine numerazione */
 
-          let cellX = cfg.leftX;
-          for (let c = 0; c < colWidths.length; c++) {
-            const lines = row.cells[c] || [""];
-            const blockH = doc.getTextDimensions(lines).h;
-            let textY = drawY + (row.h - blockH)/2;
+        /* 📱 Mini QR dell'app in basso a destra, discreto */
+        try{
+          // riuso il generatore QR già esistente
+          const miniQrCanvas = makeQrCanvas(APP_URL, 1); // bordo 1 modulo
+          const miniQrDataURL = miniQrCanvas.toDataURL("image/png");
 
-            lines.forEach(line=>{
-              doc.text(line, cellX + 2, textY);
-              textY += doc.getTextDimensions(line).h;
+          const miniSize = 18; // mm, piccolo/discreto
+          const miniX = pageW - FRAME_INSET - miniSize - 4; // 4 mm di margine dal bordo destro interno
+          const miniY = pageH - FRAME_INSET - FOOTER_AREA - miniSize - 4; // sopra il footer, dentro al frame
+
+          for (let i = 1; i <= pageCount; i++){
+            doc.setPage(i);
+            doc.addImage(miniQrDataURL, "PNG", miniX, miniY, miniSize, miniSize);
+          }
+        }catch(e){
+          console.warn("Mini QR app non generato:", e);
+        }
+        /* fine mini QR */
+
+        const baseName =
+          slugify(state.p || state.e || "Evento") + "_" +
+          slugify(state.b || "Baule") +
+          (mode==="rientro" ? "_RIENTRO" : "");
+
+        if(action === "download"){
+          doc.save(baseName + ".pdf");
+        }else{
+          const blobUrl = doc.output("bloburl");
+          window.open(blobUrl, "_blank");
+        }
+      });
+
+      function drawMaterialsTable(doc, cfg){
+        let yCursor = cfg.startY;
+
+        doc.setFont("helvetica","bold");
+        doc.setFontSize(16);
+        if (cfg.mode === "rientro"){
+          doc.text("DISTINTA RIENTRO", cfg.leftX, yCursor);
+        } else {
+          doc.text("DISTINTA", cfg.leftX, yCursor);
+        }
+        yCursor += 8;
+        const availableW = Math.max(60, (cfg.maxRight - cfg.leftX));
+
+        // Rientro (4 col) e Normale (2 col) con stessa larghezza totale
+        const ratiosRientro = [0.68, 0.10, 0.12, 0.10]; // Descr, Prev, Rientrati, Manca
+        const ratiosNormale = [0.82, 0.18];             // Descr, Q.tà
+
+        let headers, colWidths;
+
+        if (cfg.mode === "rientro"){
+          headers   = ["Descrizione","Q.tà","IN","OUT"];
+          colWidths = ratiosRientro.map(r => Math.round(r * availableW));
+        } else {
+          headers   = ["Descrizione","Q.tà"];
+          colWidths = ratiosNormale.map(r => Math.round(r * availableW));
+        }
+
+        // correzione arrotondamenti per sommare esattamente availableW
+        {
+          const sumW = colWidths.reduce((a,b)=>a+b,0);
+          let diff = availableW - sumW;
+          let k = 0;
+          while (diff !== 0 && k < 50){
+            const idx = k % colWidths.length;
+            if (diff > 0) colWidths[idx] += 1;
+            else if (diff < 0 && colWidths[idx] > 1) colWidths[idx] -= 1;
+            k++;
+            const ssum = colWidths.reduce((a,b)=>a+b,0);
+            diff = availableW - ssum;
+          }
+        }
+
+        const finalTableW = colWidths.reduce((a,b)=>a+b,0);
+        // linee: usiamo il motore di jsPDF (coerente con splitTextToSize)
+        const baseLineH = 8;
+
+        // header multiriga (wrap su ogni colonna)
+        const headerLines = headers.map((h, idx)=>{
+          const usableW = Math.max(6, colWidths[idx] - 4); // 2mm padding per lato
+          return doc.splitTextToSize(h, usableW);
+        });
+        const headerH = Math.max(...headerLines.map(ls => doc.getTextDimensions(ls).h)) + 6; // + padding extra
+        function buildRowObjects(){
+          const rowsOut=[];
+
+          rowsOut.push({
+            type:"header",
+            cells: headerLines,   // << array di linee per ogni cella header
+            h: headerH,
+            descLines: null
+          });
+
+          state.l.forEach(it=>{
+            const prev = it.q;
+            const rin  = it.r || 0;
+            const manc = Math.max(0, prev - rin);
+
+            const descCell = it.d || "";
+            const descLines = doc.splitTextToSize(descCell, colWidths[0] - 4);
+
+            // prepara array di celle in base alla modalità
+            let rawCells;
+            if (cfg.mode === "rientro"){
+              rawCells = [
+                descLines,                 // col 0 (array già avvolto)
+                String(prev),
+                String(rin),
+                String(manc)
+              ];
+            } else {
+              rawCells = [
+                descLines,
+                String(prev)
+              ];
+            }
+
+            // avvolgi anche le colonne NON descrizione
+            const cellsWrapped = rawCells.map((val, idx)=>{
+              if (Array.isArray(val)) return val; // descrizione già ok
+              const usableW = Math.max(6, colWidths[idx] - 4);
+              return doc.splitTextToSize(String(val||""), usableW);
             });
 
-            cellX += colWidths[c];
-          }
+            // altezza riga = max altezza tra tutte le celle + padding
+            const cellHeights = cellsWrapped.map(ls => doc.getTextDimensions(ls).h);
+            // +10 mm rispetto al blocco testo → più aria sopra/sotto
+            const rowH = Math.max(baseLineH, Math.max(...cellHeights) + 4);
 
-          drawY += row.h;
-          if(r < rowsThisPage.length-1){
-            doc.line(cfg.leftX, drawY, cfg.leftX+finalTableW, drawY);
-          }
+            const cells = cellsWrapped;
+
+            rowsOut.push({
+              type:"data",
+              cells,
+              h: rowH,
+              descLines
+            });
+          });
+
+          return rowsOut;
         }
 
-        return { nextRowIndex: curRow + rowsThisPage.length, nextY: drawY };
-      }
+        const allRows = buildRowObjects();
 
-      // multipage SOLO per formati 1UP. Per 2UP, se overflow, continua su nuova pagina ma sempre 1UP (fallback)
-      let rowIdx = 0;
-      let localY = yCursor;
+        function drawTablePage(rowIndex, startY){
+          let yTopTable = startY;
+          let curRow = rowIndex;
 
-      while(rowIdx < allRows.length){
-        const res = drawTablePage(rowIdx, localY);
-        rowIdx = res.nextRowIndex;
-        localY = res.nextY;
-
-        if(rowIdx < allRows.length){
-          cfg.addFooterFn(doc);
-
-          // fallback: per 2UP passiamo automaticamente a pagine A4 landscape 1UP
-          if (effectiveFmt==="A4_2UP_A5"){
-            doc.addPage("a4","landscape");
-            // aggiorna contesto: nuova pagina full A4 landscape
-            // ridisegno: chiamando ricorsivamente drawLabel su nuova pagina con A4_1UP e riparto da riga corrente
-            // soluzione semplice: interrompo il loop e lascio perdere (caso raro); meglio avvisare:
-            doc.setFont("helvetica","bold");
-            doc.setFontSize(14);
-            doc.setTextColor(255,0,0);
-            doc.text("Lista troppo lunga per 2×A5: rigenera in A4 (1 etichetta).", 15, 25);
-            doc.setTextColor(0,0,0);
-            break;
-          } else {
-            doc.addPage(doc.internal.pageSize.getWidth()===210 ? "a5":"a4", "landscape");
+          let rowsThisPage = [];
+          let totalH = 0;
+          for(let i=curRow;i<allRows.length;i++){
+            const h = allRows[i].h;
+            if (yTopTable + totalH + h + 20 > cfg.pageH){
+              break;
+            }
+            rowsThisPage.push(allRows[i]);
+            totalH += h;
           }
 
-          // su pagine successive 1UP ridisegniamo frame e header label (solo tabella + footer)
-          // (per semplicità, ripartiamo dall'alto e ridisegniamo titolo tabella)
-          localY = (doc.internal.pageSize.getHeight ? densCfg.marginT : densCfg.marginT);
-          // non ridisegniamo meta+QR: su multipagina ha senso mantenere solo tabella
-          doc.setFont("helvetica","bold");
-          doc.setFontSize(16);
-          doc.text(cfg.mode === "rientro" ? "DISTINTA RIENTRO" : "DISTINTA", cfg.leftX, localY);
-          localY += cfg.densityCfg.titleGap;
-        }
-      }
-    }
-  } // end drawLabel
+          if(rowsThisPage.length===0 && curRow<allRows.length){
+            rowsThisPage.push(allRows[curRow]);
+            totalH += allRows[curRow].h;
+          }
 
-  // --------- DRAW FLOW ---------
-  const pageW = doc.internal.pageSize.getWidth();
-  const pageH = doc.internal.pageSize.getHeight();
+          const radiusOuter = 2.0;
+          doc.setDrawColor(0,0,0);
+          doc.setLineWidth(TABLE_LINE);
+          doc.roundedRect(
+            cfg.leftX,
+            yTopTable,
+            finalTableW,
+            totalH,
+            radiusOuter,
+            radiusOuter,
+            "S"
+          );
 
-  // per etichetta 2-up: due riquadri A5 (210×148.5) su A4 portrait (210×297)
-  if (mode==="etichetta" && effectiveFmt==="A4_2UP_A5"){
-    const labelW = 210;
-    const labelH = 148.5;
+          let xCursor = cfg.leftX;
+          for(let c=0;c<colWidths.length-1;c++){
+            xCursor += colWidths[c];
+            doc.line(
+              xCursor,
+              yTopTable,
+              xCursor,
+              yTopTable+totalH
+            );
+          }
 
-    // prima etichetta
-    const p1 = drawLabel(doc, 0, 0, labelW, labelH, 0);
-    // seconda (copia identica) sotto
-    const p2 = p1.then(()=>drawLabel(doc, 0, labelH, labelW, labelH, 1));
+          let drawY = yTopTable;
+          for(let r=0;r<rowsThisPage.length;r++){
+            const row = rowsThisPage[r];
 
-    // linea di taglio
-    p2.then(()=>{
-      drawCutLine(doc, pageW, labelH);
-      finalizeOutput(doc, action, mode);
-    });
+            if(row.type==="header"){
+              doc.setFont("helvetica","bold");
+              doc.setFontSize(FONT_HEADER);
+            }else{
+              doc.setFont("helvetica","normal");
+              doc.setFontSize(FONT_CELL);
+            }
 
-  } else {
-    // 1-up: A4 landscape o A5 landscape
-    drawLabel(doc, 0, 0, pageW, pageH, 0).then(()=>{
-      finalizeOutput(doc, action, mode);
-    });
-  }
+            let cellX = cfg.leftX;
+            for (let c = 0; c < colWidths.length; c++) {
+              const cellW = colWidths[c];
+              const lines = Array.isArray(row.cells[c])
+                ? row.cells[c]
+                : [String(row.cells[c] || "")];
 
-  function finalizeOutput(doc, action, mode){
-    // numerazione pagine
-    const pageCount = doc.getNumberOfPages();
-    if (pageCount > 1){
-      for (let i = 1; i <= pageCount; i++){
-        doc.setPage(i);
-        doc.setFont("helvetica","bold");
-        doc.setFontSize(11);
-        doc.setTextColor(0,0,0);
+              const isSingleLine = lines.length === 1;
 
-        const label = `${i}/${pageCount}`;
-        const textW = doc.getTextWidth(label);
-        const x = doc.internal.pageSize.getWidth() - 8 - textW - 2;
-        const y = doc.internal.pageSize.getHeight() - 8;
-        doc.text(label, x, y);
-      }
-    }
+              let textY;
 
-    // mini QR app (discreto) su tutte le pagine
-    try{
-      const miniQrCanvas = makeQrCanvas(APP_URL, 1);
-      const miniQrDataURL = miniQrCanvas.toDataURL("image/png");
-      const miniSize = 18;
+              if (isSingleLine) {
+                // 🔹 Caso UNA SOLA RIGA
+                // Simuliamo il comportamento "vecchio stile":
+                // - calcoliamo l'altezza della riga di testo
+                // - la posizioniamo leggermente sotto il centro,
+                //   come faceva il tuo offset fisso (tipo drawY+6 su rowH=8)
+                const lineH = doc.getTextDimensions(lines[0]).h;
 
-      for (let i = 1; i <= pageCount; i++){
-        doc.setPage(i);
-        const w = doc.internal.pageSize.getWidth();
-        const h = doc.internal.pageSize.getHeight();
-        const miniX = w - 8 - miniSize - 4;
-        const miniY = h - 8 - 12 - miniSize - 4;
-        doc.addImage(miniQrDataURL, "PNG", miniX, miniY, miniSize, miniSize);
-      }
-    }catch(e){}
+                const centerRow = drawY + row.h / 2;
+                // baseline = centro riga + metà altezza font - piccola correzione
+                textY = centerRow + lineH / 2 - 1; // se vuoi più centrato, prova -0.5 o -0.8
+              } else {
+                // 🔹 Caso MULTIRIGA
+                // Usando il blocco completo, centrato geometricamente
+                const blockH = doc.getTextDimensions(lines).h;
+                textY = drawY + (row.h - blockH) / 2;
+              }
 
-    const baseName =
-      slugify(state.p || state.e || "Evento") + "_" +
-      slugify(state.b || "Baule") +
-      (mode==="rientro" ? "_RIENTRO" : "") +
-      (mode==="etichetta" ? ("_"+(state.fmt||"A4_1UP")) : "");
+              lines.forEach(line => {
+                doc.text(line, cellX + 2, textY);
+                textY += doc.getTextDimensions(line).h;
+              });
 
-    if(action === "download"){
-      doc.save(baseName + ".pdf");
-    }else{
-      const blobUrl = doc.output("bloburl");
-      window.open(blobUrl, "_blank");
-    }
-  }
-}
+              cellX += cellW;
+            }
 
             const rowH = row.h;
             drawY += rowH;
