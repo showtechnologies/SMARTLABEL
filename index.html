@@ -2288,16 +2288,16 @@ def unpack_to_pretty(s: str) -> str:
         doc.setFont("helvetica","bold");
         doc.setFontSize(16);
         if (cfg.mode === "rientro"){
-          doc.text("DISTINTA RIENTRO", cfg.leftX, yCursor);
+          doc.text("", cfg.leftX, yCursor);
         } else {
-          doc.text("DISTINTA", cfg.leftX, yCursor);
+          doc.text("", cfg.leftX, yCursor);
         }
-        yCursor += 8;
+        yCursor += 4;
         const availableW = Math.max(60, (cfg.maxRight - cfg.leftX));
 
         // Rientro (4 col) e Normale (2 col) con stessa larghezza totale
-        const ratiosRientro = [0.68, 0.10, 0.12, 0.10]; // Descr, Prev, Rientrati, Manca
-        const ratiosNormale = [0.82, 0.18];             // Descr, Q.tà
+        const ratiosRientro = [0.70, 0.10, 0.10, 0.10]; // Descr, Prev, Rientrati, Manca
+        const ratiosNormale = [0.90, 0.10];             // Descr, Q.tà
 
         let headers, colWidths;
 
@@ -2528,11 +2528,11 @@ def unpack_to_pretty(s: str) -> str:
             doc.setFont("helvetica","bold");
             doc.setFontSize(16);
             if (cfg.mode === "rientro"){
-              doc.text("DISTINTA RIENTRO", cfg.leftX, localY);
+              doc.text("", cfg.leftX, localY);
             } else {
-              doc.text("DISTINTA", cfg.leftX, localY);
+              doc.text("", cfg.leftX, localY);
             }
-            localY += 8;
+            localY += 2;
           }
         }
       }
