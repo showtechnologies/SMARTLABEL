@@ -1090,6 +1090,13 @@
             </label>
           </div>
 
+          <div class="row" style="margin-top:8px">
+            <label style="display:flex;align-items:center;gap:8px;font-size:13px">
+              <input type="checkbox" id="compactPdfToggle" style="width:auto;flex:0 0 auto;" checked>
+              <span>PDF COMPATTO (PIÙ RIGHE ARTICOLI PER PAGINA)</span>
+            </label>
+          </div>
+
           <div class="row" style="margin-top:10px">
             <button id="btnGenQR" class="btn">Genera QR / Aggiorna anteprima</button>
             <button id="btnDownloadPNG" class="btn ghost" disabled>Scarica PNG QR</button>
@@ -1943,10 +1950,13 @@ def unpack_to_pretty(s: str) -> str:
     // 🗑️ Rimuovi `ensureRientroStore` qui e lascia solo `normalizeState`
     
     function generateAndHandlePDF(mode, action){
+      // Profilo stampa PDF (compatto = più righe/pagina senza toccare la GUI)
+      const compactPdf = !!document.getElementById('compactPdfToggle')?.checked;
+
       // unified font sizes for tables
-      const FONT_HEADER = 12;
-      const FONT_CELL = 12;
-      const TABLE_LINE = 0.35;   // spessore unico per tutti i bordi tabella
+      const FONT_HEADER = compactPdf ? 10 : 12;
+      const FONT_CELL   = compactPdf ? 10 : 12;
+      const TABLE_LINE  = 0.35;   // spessore unico per tutti i bordi tabella
 
 
       if(!jsPDFmod || !pyodide){
@@ -2086,7 +2096,7 @@ def unpack_to_pretty(s: str) -> str:
                                    const labelW = 35;
                                    const valueW = 100;
                                    const radius = 2.0;
-                                   const metaPaddingTop = 4;   // padding top testo dentro la riga
+                                   const metaPaddingTop = compactPdf ? 3 : 4;   // padding top testo dentro la riga
                                    const metaSidePad    = 2;   // padding laterale
 
                                    const rowsMeta = [
@@ -2107,9 +2117,9 @@ def unpack_to_pretty(s: str) -> str:
                                      // altezza blocco con getTextDimensions (coerente con lineHeightFactor del doc)
                                      const labH = doc.getTextDimensions(labLines).h;
                                      const valH = doc.getTextDimensions(valLines).h;
-                                     // riga = max(label, value) + padding top/bottom (qui usiamo top + 2mm extra)
-                                     // riga = max(label, value) + padding extra più generoso
-                                     const rowH = Math.max(labH, valH) + metaPaddingTop + 2;                                     return { labLines, valLines, rowH };
+                                     // riga = max(label, value) + padding extra
+                                     const rowH = Math.max(labH, valH) + metaPaddingTop + (compactPdf ? 1 : 2);
+                                     return { labLines, valLines, rowH };
                                    });
 
                                    // 2) altezza totale tabella
@@ -2216,7 +2226,7 @@ def unpack_to_pretty(s: str) -> str:
         doc.text(colorLabel, qrX + qrSizeMm/2, colorY, { align: "center" });
 
         const maxRightBeforeQR = qrX - 10;
-        const matStartY = tableY + metaTableH + 8;
+        const matStartY = tableY + metaTableH + (compactPdf ? 6 : 8);
 
         drawMaterialsTable(doc, {
           startY: matStartY,
@@ -2226,7 +2236,8 @@ def unpack_to_pretty(s: str) -> str:
           marginT: marginT,
           pageW: pageW,
           pageH: pageH,
-          addFooterFn: addFooter
+          addFooterFn: addFooter,
+          compactPdf: compactPdf
         });
 
         addFooter(doc);
@@ -2326,14 +2337,15 @@ def unpack_to_pretty(s: str) -> str:
 
         const finalTableW = colWidths.reduce((a,b)=>a+b,0);
         // linee: usiamo il motore di jsPDF (coerente con splitTextToSize)
-        const baseLineH = 8;
+        // In modalità compatta riduciamo l'altezza base per aumentare la densità righe.
+        const baseLineH = compactPdf ? 6 : 8;
 
         // header multiriga (wrap su ogni colonna)
         const headerLines = headers.map((h, idx)=>{
           const usableW = Math.max(6, colWidths[idx] - 4); // 2mm padding per lato
           return doc.splitTextToSize(h, usableW);
         });
-        const headerH = Math.max(...headerLines.map(ls => doc.getTextDimensions(ls).h)) + 6; // + padding extra
+        const headerH = Math.max(...headerLines.map(ls => doc.getTextDimensions(ls).h)) + (compactPdf ? 4 : 6); // + padding extra
         function buildRowObjects(){
           const rowsOut=[];
 
@@ -2378,7 +2390,7 @@ def unpack_to_pretty(s: str) -> str:
             // altezza riga = max altezza tra tutte le celle + padding
             const cellHeights = cellsWrapped.map(ls => doc.getTextDimensions(ls).h);
             // +10 mm rispetto al blocco testo → più aria sopra/sotto
-            const rowH = Math.max(baseLineH, Math.max(...cellHeights) + 4);
+            const rowH = Math.max(baseLineH, Math.max(...cellHeights) + (compactPdf ? 2 : 4));
 
             const cells = cellsWrapped;
 
