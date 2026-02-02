@@ -1974,6 +1974,25 @@ def unpack_to_pretty(s: str) -> str:
         unit:"mm",
         format:"a4"
       });
+      
+      // --- PDF size optimization (ONLY in export) ---
+      // Converte un canvas in JPEG ridimensionato (QR nitido, niente smoothing)
+      function canvasToDataURLScaled(srcCanvas, targetPx, quality=0.85){
+        const out = document.createElement("canvas");
+        out.width = targetPx;
+        out.height = targetPx;
+        const g = out.getContext("2d", { alpha: false });
+
+        // QR: niente smoothing = bordi perfetti
+        g.imageSmoothingEnabled = false;
+
+        // fondo bianco (necessario per JPEG)
+        g.fillStyle = "#fff";
+        g.fillRect(0, 0, targetPx, targetPx);
+
+        g.drawImage(srcCanvas, 0, 0, targetPx, targetPx);
+        return out.toDataURL("image/jpeg", quality);
+      }
 
       // ✅ Stato del watermark: lettura checkbox (solo PDF / stampa)
       const watermarkToggleEl = document.getElementById("watermarkToggle");
@@ -2188,7 +2207,7 @@ def unpack_to_pretty(s: str) -> str:
         `pack_json_str(${JSON.stringify(canon)})`
       ).then(qp=>{
         const qrCanvas = makeQrCanvas(qp, 4);
-        const qrDataURL = qrCanvas.toDataURL("image/png");
+        const qrDataURL = canvasToDataURLScaled(qrCanvas, 480, 0.88);
 
         const rgb = colorFromIndex(state.c || 0);
         doc.setDrawColor(rgb[0], rgb[1], rgb[2]);
@@ -2202,7 +2221,7 @@ def unpack_to_pretty(s: str) -> str:
           3,3,"S"
         );
 
-        doc.addImage(qrDataURL, "PNG", qrX, qrY, qrSizeMm, qrSizeMm);
+        doc.addImage(qrDataURL, "JPEG", qrX, qrY, qrSizeMm, qrSizeMm);
 
         // POSIZIONE sopra al QR (stile come etichetta colore)
         if ((state.pos || "").trim()) {
@@ -2264,8 +2283,8 @@ def unpack_to_pretty(s: str) -> str:
         /* 📱 Mini QR dell'app in basso a destra, discreto */
         try{
           // riuso il generatore QR già esistente
-          const miniQrCanvas = makeQrCanvas(APP_URL, 1); // bordo 1 modulo
-          const miniQrDataURL = miniQrCanvas.toDataURL("image/png");
+          const miniQrCanvas = makeQrCanvas(APP_URL, 1);
+          const miniQrDataURL = canvasToDataURLScaled(miniQrCanvas, 180, 0.85);
 
           const miniSize = 18; // mm, piccolo/discreto
           const miniX = pageW - FRAME_INSET - miniSize - 4; // 4 mm di margine dal bordo destro interno
@@ -2273,7 +2292,7 @@ def unpack_to_pretty(s: str) -> str:
 
           for (let i = 1; i <= pageCount; i++){
             doc.setPage(i);
-            doc.addImage(miniQrDataURL, "PNG", miniX, miniY, miniSize, miniSize);
+            doc.addImage(miniQrDataURL, "JPEG", miniX, miniY, miniSize, miniSize);
           }
         }catch(e){
           console.warn("Mini QR app non generato:", e);
