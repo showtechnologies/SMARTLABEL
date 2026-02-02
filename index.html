@@ -1290,11 +1290,29 @@
       });
       /* 🚫 Disattiva correzione automatica e capitalizzazione delle tastiere mobili */
       window.addEventListener('DOMContentLoaded', () => {
+
+        // 🔠 Testi: niente autocorrezioni / sempre MAIUSCOLO
         document.querySelectorAll('input[type="text"], textarea').forEach(el => {
           el.autocorrect = "off";
           el.autocapitalize = "characters";
           el.spellcheck = false;
         });
+
+        // 🔢 Numeri: seleziona automaticamente il valore al focus
+        document.querySelectorAll('input[type="number"]').forEach(el => {
+
+          const selectValue = () => {
+            // timeout necessario per mobile / Safari
+            setTimeout(() => {
+              try { el.select(); } catch {}
+            }, 0);
+          };
+
+          el.addEventListener('focus', selectValue);
+          el.addEventListener('click', selectValue);
+          el.addEventListener('pointerup', selectValue);
+        });
+
       });
       /* ⌨️ Intercetta "Enter" per prevenire refresh involontari su mobile/form impliciti */
       document.addEventListener('keydown', (e) => {
