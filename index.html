@@ -992,7 +992,18 @@
             <div class="desc">Scansiona QR o PDF per controllare / caricare rientro.</div>
           </div>
         </div>
+      
+      <div class="card hidden" id="dbgCard" style="margin-top:14px">
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px">
+          <input type="checkbox" id="dbgToggle" style="width:auto;flex:0 0 auto;">
+          <span>MODALITÀ DEBUG (MOSTRA JSON TECNICI)</span>
+        </label>
+        <div class="muted" style="margin-top:8px">
+          Suggerimento: per abilitare rapidamente su un dispositivo, apri l'app con <code>?debug=1</code>.<br>
+          Per disabilitare: <code>?debug=0</code>. L'impostazione resta salvata su questo device.
+        </div>
       </div>
+</div>
     </section>
 
     <section id="tab-lista" class="tab hidden">
@@ -1112,7 +1123,7 @@
           <div id="encInfo" class="muted"></div>
         </div>
 
-        <div class="card">
+        <div class="card hidden" id="dbgCanonCard">
           <label>JSON canonico utilizzato</label>
           <textarea id="jsonCanon" rows="16" class="mono" readonly></textarea>
           <div class="muted">SHA-256: <span id="sha256" class="mono"></span></div>
@@ -1153,7 +1164,7 @@
             <button id="btnCompare" class="btn ghost" disabled>Confronta con lista corrente</button>
           </div>
         </div>
-        <div class="card">
+        <div class="card hidden" id="dbgDecodedCard">
           <label>JSON ricostruito</label>
           <textarea id="jsonDecoded" rows="16" class="mono"></textarea>
           <div id="cmpResult" class="muted"></div>
@@ -1348,6 +1359,55 @@
     const PDFJS_URL="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js";
     const PDFJS_WORKER_URL="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js";
     const APP_URL = "https://showtechnologies.github.io/SMARTLABEL/index.html";
+    // ===========================
+    // DEBUG UI (hide/show panels)
+    // ===========================
+    const DEBUG_KEY = 'qrj1_debug';
+    function computeDebug(){
+      try{
+        const qs = new URLSearchParams(location.search);
+        if(qs.has('debug')){
+          const v = (qs.get('debug') || '').toLowerCase();
+          const on = (v === '1' || v === 'true' || v === 'on' || v === 'yes');
+          localStorage.setItem(DEBUG_KEY, on ? '1' : '0');
+        }
+      }catch{}
+      try{
+        return localStorage.getItem(DEBUG_KEY) === '1';
+      }catch{
+        return false;
+      }
+    }
+    let DEBUG = computeDebug();
+
+    function applyDebugUI(){
+      const show = !!DEBUG;
+      const canonCard = document.getElementById('dbgCanonCard');
+      const decodedCard = document.getElementById('dbgDecodedCard');
+      const dbgCard = document.getElementById('dbgCard');
+      const dbgToggle = document.getElementById('dbgToggle');
+
+      if(canonCard) canonCard.classList.toggle('hidden', !show);
+      if(decodedCard) decodedCard.classList.toggle('hidden', !show);
+
+      // il toggle compare solo quando il debug è stato attivato almeno una volta
+      if(dbgCard) dbgCard.classList.toggle('hidden', !show);
+      if(dbgToggle) dbgToggle.checked = show;
+    }
+
+    document.addEventListener('DOMContentLoaded', ()=>{
+      // aggancia toggle (se presente) e applica UI
+      const dbgToggle = document.getElementById('dbgToggle');
+      if(dbgToggle){
+        dbgToggle.addEventListener('change', ()=>{
+          DEBUG = !!dbgToggle.checked;
+          try{ localStorage.setItem(DEBUG_KEY, DEBUG ? '1' : '0'); }catch{}
+          applyDebugUI();
+        });
+      }
+      applyDebugUI();
+    });
+
 
     let pyodide,
         zxingReader=null,
