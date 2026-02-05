@@ -3388,13 +3388,14 @@ def unpack_to_pretty(s: str) -> str:
 
         // Haptic feedback
         try{
-          if(!navigator.vibrate) return;
-          if(type==='tick') navigator.vibrate(12);
-          if(type==='tock') navigator.vibrate(20);
-          if(type==='reset') navigator.vibrate([20,10,20]);
-          if(type==='success') navigator.vibrate([5,5,5]);
-          if(type==='light') navigator.vibrate(5);
-          if(type==='error') navigator.vibrate([100,50,100]);
+          if(navigator.vibrate){
+            if(type==='tick') navigator.vibrate(12);
+            if(type==='tock') navigator.vibrate(20);
+            if(type==='reset') navigator.vibrate([20,10,20]);
+            if(type==='success') navigator.vibrate([5,5,5]);
+            if(type==='light') navigator.vibrate(5);
+            if(type==='error') navigator.vibrate([100,50,100]);
+          }
         }catch{}
         
         // Visual feedback
