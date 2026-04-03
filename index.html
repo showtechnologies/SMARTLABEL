@@ -4283,7 +4283,7 @@ document.addEventListener("DOMContentLoaded", function(){
       if (preCfgUrl) preCfgUrl.textContent = PRECONFIG_SUPABASE.url || "(non impostato)";
 
       try {
-        localStorage.setItem("cloudCfg", JSON.stringify({
+        localStorage.setItem("qrj1_cloud_cfg_v1", JSON.stringify({
           enabled: !!PRECONFIG_SUPABASE.enabled,
           url: PRECONFIG_SUPABASE.url || "",
           anonKey: PRECONFIG_SUPABASE.anonKey || ""
@@ -4292,6 +4292,29 @@ document.addEventListener("DOMContentLoaded", function(){
     } catch(e) {
       console.warn("Preconfig Supabase non applicata:", e);
     }
+  }
+});
+</script>
+
+
+<script>
+document.addEventListener("DOMContentLoaded", function(){
+  try {
+    if (typeof PRECONFIG_SUPABASE === "undefined") return;
+    var cfg = {
+      enabled: !!PRECONFIG_SUPABASE.enabled,
+      url: (PRECONFIG_SUPABASE.url || "").trim(),
+      anonKey: (PRECONFIG_SUPABASE.anonKey || "").trim()
+    };
+    localStorage.setItem("qrj1_cloud_cfg_v1", JSON.stringify(cfg));
+
+    var cloudStatus = document.getElementById("cloudStatusBox");
+    if (cloudStatus && cfg.enabled && cfg.url && cfg.anonKey) {
+      cloudStatus.textContent = "Cloud preconfigurato nel file HTML.";
+      cloudStatus.className = "cloud-ok";
+    }
+  } catch (e) {
+    console.warn("Errore applicazione preconfig cloud:", e);
   }
 });
 </script>
