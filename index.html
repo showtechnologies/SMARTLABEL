@@ -677,10 +677,10 @@
       #tickFlash.show{
         opacity:0.6;
       }
-      /* 🔠 Tutti i campi testuali scrivono in MAIUSCOLO */
-      input[type="text"], textarea {
-        text-transform: uppercase;
-      }
+      
+
+      /* 🔑 Eccezioni (campi tecnici) */
+      
       /* --- Mobile-first enhancements --- */
       nav.noprint{
         display:flex;
@@ -917,12 +917,52 @@
         }
       }
       
+
+      .suggest{
+        position:absolute;
+        top:100%;
+        left:0;
+        right:0;
+        z-index:1200;
+        background:#111827;
+        border:1px solid var(--b);
+        border-radius:12px;
+        margin-top:6px;
+        overflow:hidden;
+        box-shadow:0 10px 28px rgba(0,0,0,.35);
+        max-height:280px;
+        overflow-y:auto;
+      }
+      .suggest-item{
+        padding:10px 12px;
+        border-bottom:1px solid var(--b);
+        cursor:pointer;
+      }
+      .suggest-item:last-child{border-bottom:none}
+      .suggest-item.active, .suggest-item:hover{background:#1f2937}
+      .suggest-title{font-size:14px;color:#fff;font-weight:600}
+      .suggest-meta{font-size:12px;color:var(--muted);margin-top:2px}
+      .cloud-ok{color:var(--ok)}
+      .cloud-warn{color:var(--warn)}
+      .cloud-err{color:var(--err)}
+      #adminTbl input[type="text"]{min-width:240px}
+      #adminTbl .btn{white-space:nowrap}
+
       /* 🆕 Stile per il bottone Rientro con icona */
       nav button[data-tab="tab-rientro"]::before {
         content: "✓ ";
       }
 
-  </style>
+      .uppercase{
+        text-transform: uppercase !important;
+      }
+
+      .no-uppercase,
+      .no-uppercase *{
+        text-transform: none !important;
+      }
+
+</style>
 </head>
 
           <div id="counterOverlay" aria-modal="true" role="dialog">
@@ -969,6 +1009,7 @@
           <button data-tab="tab-qr">QR & Stampa</button>
           <button data-tab="tab-decode">Leggi lista</button>
           <button data-tab="tab-rientro">Spunta</button>
+          <button data-tab="tab-cloud">Cloud/Admin</button>
         </div>
         <span id="status" class="muted"></span>
       </nav>
@@ -1021,9 +1062,10 @@
             </div>
           </div>
           <div class="row" style="margin-top:10px">
-            <div style="flex:3">
+            <div style="flex:3;position:relative">
               <label>Descrizione</label>
-              <input id="desc" placeholder="Es. Faro LED PAR 64">
+              <input id="desc" class="uppercase" placeholder="Es. Faro LED PAR 64" autocomplete="off" spellcheck="false">
+              <div id="descSuggest" class="suggest hidden" aria-live="polite"></div>
             </div>
             <div style="flex:1">
               <label>Quantità</label>
@@ -1212,6 +1254,88 @@
     </section>
   </div>
 
+
+    <section id="tab-cloud" class="tab hidden">
+      <h2>Cloud descrizioni & Admin</h2>
+      <div class="grid cols-2">
+        
+        <div class="card">
+          <label>Stato cloud</label>
+          <div id="cloudStatusBox" class="muted">Cloud preconfigurato nel file HTML.</div>
+
+          <div class="muted" style="margin-top:10px">
+            Questa versione è pensata per GitHub Pages: l'app usa direttamente la configurazione Supabase incorporata nel file.
+          </div>
+
+          <div class="card" style="margin-top:12px;background:#0f172a;border-color:#334155">
+            <div class="muted">Configurazione incorporata</div>
+            <div style="margin-top:8px;font-size:14px">
+              <div><strong>Cloud attivo:</strong> Sì</div>
+              <div style="margin-top:6px"><strong>Supabase URL:</strong> <span id="preCfgUrl" class="mono"></span></div>
+              <div style="margin-top:6px"><strong>Chiave pubblica:</strong> <span class="muted">nascosta per sicurezza visiva, ma già inclusa nel file</span></div>
+            </div>
+          </div>
+
+          <div class="row actions-wrap" style="margin-top:12px">
+            <button id="testCloudCfg" class="btn ghost">Test connessione</button>
+            <button id="syncCatalogBtn" class="btn ghost">Sincronizza catalogo</button>
+          </div>
+
+          <div class="muted" style="margin-top:8px">
+            Per cambiare progetto Supabase, modifica le costanti <code>PRECONFIG_SUPABASE.url</code> e <code>PRECONFIG_SUPABASE.anonKey</code> all'inizio del file HTML.
+          </div>
+        </div>
+
+
+        <div class="card">
+          <label>Admin Supabase</label>
+          <div class="row">
+            <div style="flex:1;min-width:160px">
+              <label>Email admin</label>
+              <input id="adminEmail" type="email" placeholder="admin@azienda.it" style="text-transform:none">
+            </div>
+          </div>
+          <div class="row" style="margin-top:10px">
+            <div style="flex:1;min-width:160px">
+              <label>Password</label>
+              <input id="adminPassword" type="password" placeholder="••••••••" style="text-transform:none">
+            </div>
+          </div>
+          <div class="row actions-wrap" style="margin-top:10px">
+            <button id="adminLoginBtn" class="btn">Accedi</button>
+            <button id="adminLogoutBtn" class="btn ghost">Esci</button>
+          </div>
+          <div id="adminAuthStatus" class="muted" style="margin-top:8px">Nessun admin autenticato.</div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:14px">
+        <div class="row">
+          <div style="flex:2;min-width:220px">
+            <label>Cerca descrizioni</label>
+            <input id="adminSearch" placeholder="Cerca descrizioni sul catalogo cloud" autocomplete="off">
+          </div>
+          <button id="adminRefreshBtn" class="btn ghost">Aggiorna elenco</button>
+        </div>
+
+        <div class="table-scroll" style="margin-top:12px">
+          <table id="adminTbl">
+            <thead>
+              <tr>
+                <th>Descrizione</th>
+                <th>Uso</th>
+                <th>Attiva</th>
+                <th>Azione</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td colspan="4" class="muted">Accedi come admin per modificare il catalogo.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
   <div id="loginOverlay">
     <div id="loginCard">
       <h2>Chi sta usando l'app?</h2>
@@ -1238,7 +1362,21 @@
     </div>
   </div>
 
+  
   <script>
+    /* === CONFIGURAZIONE SUPABASE PER GITHUB PAGES ===
+       Sostituisci questi due valori PRIMA di pubblicare il file.
+       IMPORTANTE: usa SOLO la publishable key / anon key pubblica.
+       NON inserire mai service_role o secret key.
+    */
+    const PRECONFIG_SUPABASE = {
+      enabled: true,
+      url: "https://eagcykvbvkcrvozotxvh.supabase.co",
+      anonKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVhZ2N5a3ZidmtjcnZvem90eHZoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUyMzYzMzksImV4cCI6MjA5MDgxMjMzOX0.Vd9pJ1kDbAm6agzjdPSvZUJDrLF0CnA0E0TATXmULHo"
+    };
+  </script>
+
+<script>
     const CACHE_VERSION='qrj1-mobile-v5-enhanced';
     const PRECACHE=[
       'https://cdn.jsdelivr.net/pyodide/v0.25.1/full/pyodide.js',
@@ -1295,7 +1433,7 @@
         const el = e.target;
         if ((el.tagName === 'INPUT' && el.type === 'text') || el.tagName === 'TEXTAREA') {
           const pos = el.selectionStart; // per non perdere il cursore
-          el.value = el.value.toUpperCase();
+          el.value = el.value;
           el.setSelectionRange(pos, pos);
         }
       });
@@ -1350,6 +1488,7 @@
       });
   </script>
 
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
     const PYODIDE_URL="https://cdn.jsdelivr.net/pyodide/v0.25.1/full/pyodide.js";
     const ZXING_URL="https://cdn.jsdelivr.net/npm/@zxing/library@0.21.2/umd/index.min.js";
@@ -1427,6 +1566,469 @@
     // stato globale
     const KEY_STORE='qrj1_simple_list_v5';
     const KEY_OP='qrj1_operator';
+    const KEY_DESC_CACHE='qrj1_desc_catalog_v1';
+    const KEY_CLOUD_CFG='qrj1_cloud_cfg_v1';
+    let supabaseClient = null;
+    let currentDescSuggestions = [];
+    let selectedSuggestionIndex = -1;
+    let descDebounceTimer = null;
+    let adminRowsCache = [];
+
+    function normalizeDescription(s){
+      return (s || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        
+        .replace(/\s+/g, ' ')
+        .trim();
+    }
+
+    function displayDescription(s){
+      return normalizeDescription(s);
+    }
+
+    function loadCloudConfig(){
+      try{
+        const raw = localStorage.getItem(KEY_CLOUD_CFG);
+        if(!raw) return { enabled:false, url:'', anonKey:'' };
+        const cfg = JSON.parse(raw);
+        return {
+          enabled: !!cfg.enabled,
+          url: (cfg.url || '').trim(),
+          anonKey: (cfg.anonKey || '').trim()
+        };
+      }catch{
+        return { enabled:false, url:'', anonKey:'' };
+      }
+    }
+
+    function saveCloudConfig(cfg){
+      localStorage.setItem(KEY_CLOUD_CFG, JSON.stringify({
+        enabled: !!cfg.enabled,
+        url: (cfg.url || '').trim(),
+        anonKey: (cfg.anonKey || '').trim()
+      }));
+    }
+
+    function isCloudConfigured(){
+      const cfg = loadCloudConfig();
+      return !!(cfg.enabled && cfg.url && cfg.anonKey);
+    }
+
+    function getLocalDescCatalog(){
+      try{
+        const rows = JSON.parse(localStorage.getItem(KEY_DESC_CACHE) || '[]');
+        return Array.isArray(rows) ? rows : [];
+      }catch{
+        return [];
+      }
+    }
+
+    function setLocalDescCatalog(rows){
+      const safeRows = (Array.isArray(rows) ? rows : []).slice(0, 3000);
+      localStorage.setItem(KEY_DESC_CACHE, JSON.stringify(safeRows));
+    }
+
+    function upsertLocalDescription(displayText, extra={}){
+      const displayTextFinal = displayDescription(displayText);
+      const normalized = normalizeDescription(displayTextFinal);
+      if(!normalized) return;
+      const rows = getLocalDescCatalog();
+      const idx = rows.findIndex(x => x.normalized_text === normalized);
+      if(idx >= 0){
+        rows[idx] = {
+          ...rows[idx],
+          display_text: displayTextFinal,
+          search_text: normalized,
+          usage_count: (rows[idx].usage_count || 0) + 1,
+          last_used_at: new Date().toISOString(),
+          is_active: true,
+          ...extra
+        };
+      }else{
+        rows.unshift({
+          id: extra.id || ('local-' + normalized),
+          normalized_text: normalized,
+          display_text: displayTextFinal,
+          search_text: normalized,
+          usage_count: extra.usage_count || 1,
+          last_used_at: new Date().toISOString(),
+          is_active: true,
+          source: extra.source || 'locale'
+        });
+      }
+      rows.sort((a,b)=> (b.usage_count||0) - (a.usage_count||0) || String(a.display_text||'').localeCompare(String(b.display_text||'')));
+      setLocalDescCatalog(rows);
+    }
+
+    function mergeCatalogRows(rows){
+      const map = new Map();
+      (rows || []).forEach(row => {
+        if(!row || !row.normalized_text) return;
+        const prev = map.get(row.normalized_text);
+        if(!prev){
+          map.set(row.normalized_text, row);
+          return;
+        }
+        const prevScore = prev.usage_count || 0;
+        const nextScore = row.usage_count || 0;
+        if(nextScore > prevScore || row.source === 'cloud'){
+          map.set(row.normalized_text, row);
+        }
+      });
+      return [...map.values()];
+    }
+
+    function getLocalSuggestions(term){
+      const q = normalizeDescription(term);
+      if(q.length < 2) return [];
+      return getLocalDescCatalog()
+        .filter(x => x && x.is_active !== false && ((x.search_text || x.normalized_text || '').includes(q) || (x.display_text || '').includes(q)))
+        .sort((a,b)=> (b.usage_count||0) - (a.usage_count||0) || String(a.display_text||'').localeCompare(String(b.display_text||'')))
+        .slice(0, 8)
+        .map(x => ({...x, source: x.source || 'locale'}));
+    }
+
+    async function ensureSupabase(){
+      const cfg = loadCloudConfig();
+      if(!(cfg.enabled && cfg.url && cfg.anonKey)) return null;
+      if(!navigator.onLine) return null;
+      if(!window.supabase || !window.supabase.createClient) return null;
+      if(supabaseClient) return supabaseClient;
+      try{
+        supabaseClient = window.supabase.createClient(cfg.url, cfg.anonKey);
+        return supabaseClient;
+      }catch(err){
+        console.warn('Supabase init error', err);
+        return null;
+      }
+    }
+
+    function updateCloudStatus(message, cls='muted'){
+      const el = document.getElementById('cloudStatusBox');
+      if(!el) return;
+      el.className = cls;
+      el.innerHTML = message;
+    }
+
+    async function testCloudConnection(){
+      const client = await ensureSupabase();
+      if(!client){
+        updateCloudStatus('Cloud non disponibile o non configurato.', 'cloud-warn');
+        return false;
+      }
+      try{
+        const { error } = await client.from('article_descriptions').select('id', { head:true, count:'exact' }).limit(1);
+        if(error) throw error;
+        updateCloudStatus('Connessione Supabase OK.', 'cloud-ok');
+        return true;
+      }catch(err){
+        updateCloudStatus('Errore connessione: ' + escapeHtml(err.message || String(err)), 'cloud-err');
+        return false;
+      }
+    }
+
+    async function fetchRemoteDescriptions(term){
+      const client = await ensureSupabase();
+      const q = normalizeDescription(term);
+      if(!client || q.length < 2) return [];
+      try{
+        const { data, error } = await client
+          .from('article_descriptions')
+          .select('id, display_text, normalized_text, search_text, usage_count, is_active, updated_at')
+          .eq('is_active', true)
+          .ilike('search_text', `%${q}%`)
+          .order('usage_count', { ascending:false })
+          .order('display_text', { ascending:true })
+          .limit(8);
+        if(error) throw error;
+        return (data || []).map(x => ({...x, source:'cloud'}));
+      }catch(err){
+        console.warn('fetchRemoteDescriptions error', err);
+        return [];
+      }
+    }
+
+    async function saveDescriptionRemote(displayText){
+      const client = await ensureSupabase();
+      if(!client) return;
+      const display_text = displayDescription(displayText);
+      const normalized_text = normalizeDescription(displayText);
+      if(!normalized_text) return;
+      try{
+        const { data: existing, error: readErr } = await client
+          .from('article_descriptions')
+          .select('id, usage_count')
+          .eq('normalized_text', normalized_text)
+          .maybeSingle();
+        if(readErr) throw readErr;
+
+        if(existing && existing.id){
+          const { error: updateErr } = await client
+            .from('article_descriptions')
+            .update({
+              display_text,
+              search_text: normalized_text,
+              usage_count: (existing.usage_count || 0) + 1,
+              last_used_at: new Date().toISOString(),
+              is_active: true,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', existing.id);
+          if(updateErr) throw updateErr;
+        }else{
+          const { error: insertErr } = await client
+            .from('article_descriptions')
+            .insert({
+              display_text,
+              normalized_text,
+              search_text: normalized_text,
+              usage_count: 1,
+              last_used_at: new Date().toISOString(),
+              is_active: true
+            });
+          if(insertErr) throw insertErr;
+        }
+      }catch(err){
+        console.warn('saveDescriptionRemote error', err);
+      }
+    }
+
+    async function syncCatalogFromCloud(showAlerts=false){
+      const client = await ensureSupabase();
+      if(!client){
+        if(showAlerts) alert('Cloud non disponibile o non configurato.');
+        return;
+      }
+      try{
+        const { data, error } = await client
+          .from('article_descriptions')
+          .select('id, display_text, normalized_text, search_text, usage_count, is_active, updated_at')
+          .eq('is_active', true)
+          .order('usage_count', { ascending:false })
+          .limit(1000);
+        if(error) throw error;
+        const merged = mergeCatalogRows([
+          ...getLocalDescCatalog(),
+          ...(data || []).map(x => ({...x, source:'cloud'}))
+        ]);
+        setLocalDescCatalog(merged);
+        updateCloudStatus(`Catalogo sincronizzato. ${merged.length} descrizioni in cache locale.`, 'cloud-ok');
+        if(showAlerts) alert('Catalogo sincronizzato.');
+      }catch(err){
+        updateCloudStatus('Sync fallita: ' + escapeHtml(err.message || String(err)), 'cloud-err');
+        if(showAlerts) alert('Sync fallita: ' + (err.message || err));
+      }
+    }
+
+    function renderDescriptionSuggestions(rows){
+      const box = document.getElementById('descSuggest');
+      if(!box) return;
+      currentDescSuggestions = rows || [];
+      selectedSuggestionIndex = -1;
+      if(!rows || !rows.length){
+        box.innerHTML = '';
+        box.classList.add('hidden');
+        return;
+      }
+      box.innerHTML = rows.map((row, idx) => `
+        <div class="suggest-item" data-idx="${idx}">
+          <div class="suggest-title">${escapeHtml(row.display_text || row.normalized_text || '')}</div>
+          <div class="suggest-meta">${row.source === 'cloud' ? 'cloud' : 'locale'} · uso ${row.usage_count || 0}</div>
+        </div>`).join('');
+      box.classList.remove('hidden');
+      [...box.querySelectorAll('.suggest-item')].forEach(el => {
+        el.addEventListener('mousedown', (ev) => {
+          ev.preventDefault();
+          const idx = parseInt(el.dataset.idx || '-1', 10);
+          applyDescriptionSuggestion(idx);
+        });
+      });
+    }
+
+    function setActiveSuggestion(index){
+      const items = [...document.querySelectorAll('#descSuggest .suggest-item')];
+      items.forEach((el, idx) => el.classList.toggle('active', idx === index));
+      selectedSuggestionIndex = index;
+    }
+
+    function applyDescriptionSuggestion(index){
+      const row = currentDescSuggestions[index];
+      if(!row) return;
+      const descInput = document.getElementById('desc');
+      descInput.value = row.display_text || row.normalized_text || '';
+      renderDescriptionSuggestions([]);
+      document.getElementById('qty').focus();
+    }
+
+    async function updateDescAutocomplete(){
+      const descInput = document.getElementById('desc');
+      if(!descInput) return;
+      const term = descInput.value.trim();
+      if(term.length < 2){
+        renderDescriptionSuggestions([]);
+        return;
+      }
+      const localRows = getLocalSuggestions(term);
+      renderDescriptionSuggestions(localRows);
+      const remoteRows = await fetchRemoteDescriptions(term);
+      const merged = mergeCatalogRows([...localRows, ...remoteRows]).slice(0,8);
+      renderDescriptionSuggestions(merged);
+    }
+
+    function setupDescAutocomplete(){
+      const descInput = document.getElementById('desc');
+      if(!descInput) return;
+      descInput.addEventListener('input', ()=>{
+        clearTimeout(descDebounceTimer);
+        descDebounceTimer = setTimeout(updateDescAutocomplete, 220);
+      });
+      descInput.addEventListener('keydown', (ev)=>{
+        if(!currentDescSuggestions.length) return;
+        if(ev.key === 'ArrowDown'){
+          ev.preventDefault();
+          const next = Math.min(currentDescSuggestions.length - 1, selectedSuggestionIndex + 1);
+          setActiveSuggestion(next);
+        }else if(ev.key === 'ArrowUp'){
+          ev.preventDefault();
+          const next = Math.max(0, selectedSuggestionIndex - 1);
+          setActiveSuggestion(next);
+        }else if(ev.key === 'Enter' && selectedSuggestionIndex >= 0){
+          ev.preventDefault();
+          applyDescriptionSuggestion(selectedSuggestionIndex);
+        }else if(ev.key === 'Escape'){
+          renderDescriptionSuggestions([]);
+        }
+      });
+      descInput.addEventListener('blur', ()=>{
+        setTimeout(()=>renderDescriptionSuggestions([]), 150);
+      });
+    }
+
+    async function adminSignIn(){
+      const client = await ensureSupabase();
+      if(!client){
+        alert('Configura prima Supabase.');
+        return;
+      }
+      const email = (document.getElementById('adminEmail').value || '').trim();
+      const password = document.getElementById('adminPassword').value || '';
+      if(!email || !password){
+        alert('Inserisci email e password admin.');
+        return;
+      }
+      const { error } = await client.auth.signInWithPassword({ email, password });
+      if(error){
+        document.getElementById('adminAuthStatus').innerHTML = '<span class="cloud-err">Login fallito: ' + escapeHtml(error.message) + '</span>';
+        return;
+      }
+      document.getElementById('adminAuthStatus').innerHTML = '<span class="cloud-ok">Admin autenticato.</span>';
+      await loadAdminRows();
+    }
+
+    async function adminSignOut(){
+      const client = await ensureSupabase();
+      if(!client) return;
+      await client.auth.signOut();
+      document.getElementById('adminAuthStatus').innerHTML = 'Nessun admin autenticato.';
+      renderAdminTable([]);
+    }
+
+    async function loadAdminRows(){
+      const client = await ensureSupabase();
+      if(!client){
+        renderAdminTable([]);
+        return;
+      }
+      const search = normalizeDescription(document.getElementById('adminSearch').value || '');
+      let query = client
+        .from('article_descriptions')
+        .select('id, display_text, normalized_text, usage_count, is_active, updated_at')
+        .order('usage_count', { ascending:false })
+        .order('display_text', { ascending:true })
+        .limit(100);
+      if(search){
+        query = query.ilike('search_text', `%${search}%`);
+      }
+      const { data, error } = await query;
+      if(error){
+        document.getElementById('adminAuthStatus').innerHTML = '<span class="cloud-err">Errore elenco admin: ' + escapeHtml(error.message) + '</span>';
+        renderAdminTable([]);
+        return;
+      }
+      adminRowsCache = data || [];
+      renderAdminTable(adminRowsCache);
+    }
+
+    function renderAdminTable(rows){
+      const tb = document.querySelector('#adminTbl tbody');
+      if(!tb) return;
+      if(!rows || !rows.length){
+        tb.innerHTML = '<tr><td colspan="4" class="muted">Nessuna descrizione disponibile.</td></tr>';
+        return;
+      }
+      tb.innerHTML = rows.map((row, idx)=>`
+        <tr>
+          <td data-label="Descrizione">
+            <input type="text" value="${escapeHtml(row.display_text || '')}" data-admin-text="${idx}">
+          </td>
+          <td data-label="Uso">${row.usage_count || 0}</td>
+          <td data-label="Attiva">${row.is_active ? 'Sì' : 'No'}</td>
+          <td data-label="Azione">
+            <button class="btn sm" data-admin-save="${idx}">Salva</button>
+            <button class="btn sm ghost" data-admin-toggle="${idx}">${row.is_active ? 'Disattiva' : 'Attiva'}</button>
+          </td>
+        </tr>`).join('');
+
+      tb.querySelectorAll('[data-admin-save]').forEach(btn => btn.addEventListener('click', async ()=>{
+        const idx = parseInt(btn.dataset.adminSave || '-1', 10);
+        const row = adminRowsCache[idx];
+        const input = tb.querySelector(`input[data-admin-text="${idx}"]`);
+        if(!row || !input) return;
+        const newText = displayDescription(input.value || '');
+        if(!newText){ alert('Descrizione vuota non valida.'); return; }
+        await adminUpdateRow(row.id, {
+          display_text: newText,
+          normalized_text: normalizeDescription(newText),
+          search_text: normalizeDescription(newText),
+          updated_at: new Date().toISOString()
+        });
+      }));
+
+      tb.querySelectorAll('[data-admin-toggle]').forEach(btn => btn.addEventListener('click', async ()=>{
+        const idx = parseInt(btn.dataset.adminToggle || '-1', 10);
+        const row = adminRowsCache[idx];
+        if(!row) return;
+        await adminUpdateRow(row.id, { is_active: !row.is_active, updated_at: new Date().toISOString() });
+      }));
+    }
+
+    async function adminUpdateRow(id, patch){
+      const client = await ensureSupabase();
+      if(!client) return;
+      const { error } = await client.from('article_descriptions').update(patch).eq('id', id);
+      if(error){
+        alert('Errore salvataggio admin: ' + error.message);
+        return;
+      }
+      await loadAdminRows();
+      await syncCatalogFromCloud(false);
+    }
+
+    async function refreshAdminAuthStatus(){
+      const client = await ensureSupabase();
+      if(!client){
+        document.getElementById('adminAuthStatus').textContent = 'Nessun admin autenticato.';
+        return;
+      }
+      const { data } = await client.auth.getUser();
+      if(data && data.user){
+        document.getElementById('adminAuthStatus').innerHTML = '<span class="cloud-ok">Admin autenticato: ' + escapeHtml(data.user.email || 'utente') + '</span>';
+      }else{
+        document.getElementById('adminAuthStatus').textContent = 'Nessun admin autenticato.';
+      }
+    }
+
     let state = loadLocal() || {
       v:1,
       t:today(),
@@ -1547,12 +2149,63 @@
           applyMeta();
           renderTables();
           unlockButtons();
+          setupDescAutocomplete();
+          initCloudPanel();
 
       } catch (e) {
           console.error("Errore critico durante il boot:", e);
           setStatus(`<span class="err">Errore critico all'avvio: ${e.message||'vedi console'}</span>`);
       }
     })();
+
+    function initCloudPanel(){
+      const cfg = loadCloudConfig();
+      const urlEl = document.getElementById('sbUrl');
+      const anonEl = document.getElementById('sbAnonKey');
+      const enabledEl = document.getElementById('cloudEnabled');
+      if(urlEl) urlEl.value = cfg.url || '';
+      if(anonEl) anonEl.value = cfg.anonKey || '';
+      if(enabledEl) enabledEl.checked = !!cfg.enabled;
+      updateCloudStatus(cfg.enabled ? 'Cloud pronto da testare.' : 'Cloud disattivato.', cfg.enabled ? 'cloud-warn' : 'muted');
+
+      document.getElementById('saveCloudCfg')?.addEventListener('click', async ()=>{
+        const nextCfg = {
+          url: (urlEl?.value || '').trim(),
+          anonKey: (anonEl?.value || '').trim(),
+          enabled: !!enabledEl?.checked
+        };
+        saveCloudConfig(nextCfg);
+        supabaseClient = null;
+        updateCloudStatus('Configurazione salvata in locale.', 'cloud-ok');
+        if(nextCfg.enabled && navigator.onLine){
+          await testCloudConnection();
+          await syncCatalogFromCloud(false);
+        }
+      });
+      document.getElementById('testCloudCfg')?.addEventListener('click', ()=>testCloudConnection());
+      document.getElementById('syncCatalogBtn')?.addEventListener('click', ()=>syncCatalogFromCloud(true));
+      document.getElementById('adminLoginBtn')?.addEventListener('click', ()=>adminSignIn());
+      document.getElementById('adminLogoutBtn')?.addEventListener('click', ()=>adminSignOut());
+      document.getElementById('adminRefreshBtn')?.addEventListener('click', ()=>loadAdminRows());
+      document.getElementById('adminSearch')?.addEventListener('input', ()=>{
+        clearTimeout(window.__adminSearchTimer);
+        window.__adminSearchTimer = setTimeout(()=>loadAdminRows(), 250);
+      });
+      window.addEventListener('online', async ()=>{
+        if(isCloudConfigured()){
+          await testCloudConnection();
+          await syncCatalogFromCloud(false);
+        }
+      });
+      window.addEventListener('offline', ()=>{
+        updateCloudStatus('Offline: uso solo cache locale descrizioni.', 'cloud-warn');
+      });
+      refreshAdminAuthStatus();
+      if(isCloudConfigured() && navigator.onLine){
+        testCloudConnection();
+        syncCatalogFromCloud(false);
+      }
+    }
 
     function unlockButtons(){
       document.getElementById('btnGenQR').disabled=false;
@@ -1822,20 +2475,24 @@ def unpack_to_pretty(s: str) -> str:
     }
 
     // LISTA HANDLERS
-    document.getElementById('addItem').onclick=()=>{
+    document.getElementById('addItem').onclick=async()=>{
       const d=document.getElementById('desc').value.trim();
       const q=parseInt(document.getElementById('qty').value||"0",10);
       if(!d || q<=0){
         alert("Inserisci descrizione e quantità > 0");
         return;
       }
-      // 🆕 Normalizza solo per sicurezza, ma lo stato dovrebbe essere già pulito
+      const displayText = displayDescription(d);
       state = normalizeState(state);
-      state.l.push({d,q,r:0});
+      state.l.push({d:displayText,q,r:0});
+      upsertLocalDescription(displayText);
+      saveDescriptionRemote(displayText);
+      saveLocal(state);
       document.getElementById('desc').value="";
       document.getElementById('qty').value="1";
+      renderDescriptionSuggestions([]);
       renderTables();
-      haptic('tick'); // 🆕 Feedback aptico/visivo all'aggiunta
+      haptic('tick');
     };
 
     document.getElementById('saveLocal').onclick=()=>{
@@ -1899,13 +2556,14 @@ def unpack_to_pretty(s: str) -> str:
         b.onclick=()=>{
           const i=parseInt(b.dataset.del,10);
           state.l.splice(i,1);
+          saveLocal(state);
           renderTables();
-          haptic('tock'); // 🆕 Feedback aptico/visivo all'eliminazione
+          haptic('tock');
         };
       });
 
-      // tabella rientro
       renderRientroTable();
+      saveLocal(state);
     }
 
     // QR & PDF buttons
@@ -3550,5 +4208,93 @@ def unpack_to_pretty(s: str) -> str:
     /* === End counter overlay logic === */
   </script>
   <div id="tickFlash"></div>
+
+
+
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  const techIds = ["sbUrl", "sbAnonKey", "adminEmail", "adminPassword"];
+  techIds.forEach(function (id) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.classList.add("no-uppercase");
+    el.style.setProperty("text-transform", "none", "important");
+    el.setAttribute("autocapitalize", "off");
+    el.setAttribute("autocorrect", "off");
+    el.setAttribute("spellcheck", "false");
+    el.setAttribute("inputmode", "text");
+  });
+
+  const desc = document.getElementById("desc");
+  if (desc) {
+    desc.classList.add("uppercase");
+    desc.style.setProperty("text-transform", "uppercase", "important");
+    desc.setAttribute("autocapitalize", "characters");
+    desc.setAttribute("autocorrect", "off");
+    desc.setAttribute("spellcheck", "false");
+  }
+});
+</script>
+
+
+<script>
+document.addEventListener("DOMContentLoaded", function(){
+  const desc = document.getElementById("desc");
+  if(desc){
+    desc.addEventListener("input", function(){
+      this.value = this.value.toUpperCase();
+    });
+  }
+});
+</script>
+
+
+  <div style="display:none !important" aria-hidden="true">
+    <input id="sbUrl" type="url" class="no-uppercase">
+    <textarea id="sbAnonKey" class="no-uppercase"></textarea>
+    <input id="cloudEnabled" type="checkbox" checked>
+    <button id="saveCloudCfg" type="button"></button>
+  </div>
+
+
+<script>
+document.addEventListener("DOMContentLoaded", function(){
+  if (typeof PRECONFIG_SUPABASE !== "undefined") {
+    try {
+      var urlEl = document.getElementById("sbUrl");
+      var keyEl = document.getElementById("sbAnonKey");
+      var enabledEl = document.getElementById("cloudEnabled");
+      var preCfgUrl = document.getElementById("preCfgUrl");
+
+      if (urlEl) {
+        urlEl.value = PRECONFIG_SUPABASE.url || "";
+        urlEl.setAttribute("autocapitalize","off");
+        urlEl.setAttribute("autocorrect","off");
+        urlEl.setAttribute("spellcheck","false");
+      }
+      if (keyEl) {
+        keyEl.value = PRECONFIG_SUPABASE.anonKey || "";
+        keyEl.setAttribute("autocapitalize","off");
+        keyEl.setAttribute("autocorrect","off");
+        keyEl.setAttribute("spellcheck","false");
+      }
+      if (enabledEl) enabledEl.checked = !!PRECONFIG_SUPABASE.enabled;
+      if (preCfgUrl) preCfgUrl.textContent = PRECONFIG_SUPABASE.url || "(non impostato)";
+
+      try {
+        localStorage.setItem("cloudCfg", JSON.stringify({
+          enabled: !!PRECONFIG_SUPABASE.enabled,
+          url: PRECONFIG_SUPABASE.url || "",
+          anonKey: PRECONFIG_SUPABASE.anonKey || ""
+        }));
+      } catch(e) {}
+    } catch(e) {
+      console.warn("Preconfig Supabase non applicata:", e);
+    }
+  }
+});
+</script>
+
 </body>
 </html>
