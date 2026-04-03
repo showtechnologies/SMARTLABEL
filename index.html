@@ -1261,7 +1261,7 @@
         
         <div class="card">
           <label>Stato cloud</label>
-          <div id="cloudStatusBox" class="muted">Cloud preconfigurato nel file HTML.</div>
+          <div id="cloudStatusBox" class="muted">Cloud preconfigurato nel file HTML. Il catalogo descrizioni viene sincronizzato automaticamente all'apertura quando sei online.</div>
 
           <div class="muted" style="margin-top:10px">
             Questa versione è pensata per GitHub Pages: l'app usa direttamente la configurazione Supabase incorporata nel file.
@@ -4310,12 +4310,39 @@ document.addEventListener("DOMContentLoaded", function(){
 
     var cloudStatus = document.getElementById("cloudStatusBox");
     if (cloudStatus && cfg.enabled && cfg.url && cfg.anonKey) {
-      cloudStatus.textContent = "Cloud preconfigurato nel file HTML.";
+      cloudStatus.textContent = "Cloud preconfigurato nel file HTML. Il catalogo descrizioni viene sincronizzato automaticamente all'apertura quando sei online.";
       cloudStatus.className = "cloud-ok";
     }
   } catch (e) {
     console.warn("Errore applicazione preconfig cloud:", e);
   }
+});
+</script>
+
+
+<script>
+document.addEventListener("DOMContentLoaded", function(){
+  const runAutoCatalogSync = async () => {
+    try{
+      if(typeof loadCloudCfg !== "function") return;
+      if(typeof syncCatalogFromCloud !== "function") return;
+
+      const cfg = loadCloudCfg();
+      if(!(cfg && cfg.enabled && cfg.url && cfg.anonKey)) return;
+      if(!navigator.onLine) return;
+
+      await syncCatalogFromCloud(false);
+    }catch(err){
+      console.warn("Auto sync catalog failed:", err);
+    }
+  };
+
+  // let the main app finish wiring itself first
+  setTimeout(runAutoCatalogSync, 600);
+
+  window.addEventListener("online", () => {
+    setTimeout(runAutoCatalogSync, 300);
+  });
 });
 </script>
 
