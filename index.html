@@ -1078,10 +1078,11 @@
           <div class="row actions-wrap">
             <button id="saveLocal" class="btn ghost">Salva in locale</button>
             <button id="loadLocal" class="btn ghost">Carica da locale</button>
+            <button id="importListToCloudBtn" class="btn ghost">Invia descrizioni al DB</button>
             <button id="clearList" class="btn ghost warnBtn">Svuota lista</button>
             <button id="exportJson" class="btn ghost">Esporta JSON</button>
           </div>
-          <div class="muted" style="margin-top:6px">Il salvataggio locale usa <code>localStorage</code>.</div>
+          <div class="muted" style="margin-top:6px">Il salvataggio locale usa <code>localStorage</code>. Il nuovo pulsante invia al catalogo cloud le descrizioni già presenti nella lista corrente.</div>
         </div>
       </div>
 
@@ -1312,8 +1313,16 @@
       <div class="card" style="margin-top:14px">
         <div class="row">
           <div style="flex:2;min-width:220px">
+            <label>Nuova descrizione</label>
+            <input id="adminNewDesc" placeholder="Es. Cavo XLR 10m" autocomplete="off">
+          </div>
+          <button id="adminAddBtn" class="btn">Aggiungi articolo</button>
+        </div>
+
+        <div class="row" style="margin-top:12px">
+          <div style="flex:2;min-width:220px">
             <label>Cerca descrizioni</label>
-            <input id="adminSearch" placeholder="Cerca descrizioni sul catalogo cloud" autocomplete="off">
+            <input id="adminSearch" placeholder="Cerca descrizioni sul catalogo cloud (fino a 300 righe)" autocomplete="off">
           </div>
           <button id="adminRefreshBtn" class="btn ghost">Aggiorna elenco</button>
         </div>
@@ -1681,12 +1690,26 @@
 
     function getLocalSuggestions(term){
       const q = normalizeDescription(term);
-      if(q.length < 2) return [];
-      return getLocalDescCatalog()
-        .filter(x => x && x.is_active !== false && ((x.search_text || x.normalized_text || '').includes(q) || (x.display_text || '').includes(q)))
-        .sort((a,b)=> (b.usage_count||0) - (a.usage_count||0) || String(a.display_text||'').localeCompare(String(b.display_text||'')))
-        .slice(0, 8)
-        .map(x => ({...x, source: x.source || 'locale'}));
+      if(q.length < 1) return [];
+      const starts = [];
+      const contains = [];
+      getLocalDescCatalog().forEach(x => {
+        if(!x || x.is_active === false) return;
+        const hay = String(x.search_text || x.normalized_text || x.display_text || '');
+        const disp = String(x.display_text || '');
+        const startsMatch = hay.startsWith(q) || disp.startsWith(q);
+        const containsMatch = hay.includes(q) || disp.includes(q);
+        if(!startsMatch && !containsMatch) return;
+        const row = {...x, source: x.source || 'locale'};
+        if(startsMatch) starts.push(row);
+        else contains.push(row);
+      });
+
+      const sorter = (a,b) =>
+        (b.usage_count||0) - (a.usage_count||0) ||
+        String(a.display_text||'').localeCompare(String(b.display_text||''));
+
+      return [...starts.sort(sorter), ...contains.sort(sorter)].slice(0, 20);
     }
 
     async function ensureSupabase(){
@@ -1731,7 +1754,7 @@
     async function fetchRemoteDescriptions(term){
       const client = await ensureSupabase();
       const q = normalizeDescription(term);
-      if(!client || q.length < 2) return [];
+      if(!client || q.length < 1) return [];
       try{
         const { data, error } = await client
           .from('article_descriptions')
@@ -1739,10 +1762,25 @@
           .eq('is_active', true)
           .ilike('search_text', `%${q}%`)
           .order('usage_count', { ascending:false })
-          .order('display_text', { ascending:true })
-          .limit(8);
+          .limit(40);
         if(error) throw error;
-        return (data || []).map(x => ({...x, source:'cloud'}));
+
+        const rows = (data || []).map(x => ({...x, source:'cloud'}));
+        const starts = [];
+        const contains = [];
+        rows.forEach(row => {
+          const hay = String(row.search_text || row.normalized_text || row.display_text || '');
+          const disp = String(row.display_text || '');
+          const startsMatch = hay.startsWith(q) || disp.startsWith(q);
+          if(startsMatch) starts.push(row);
+          else contains.push(row);
+        });
+
+        const sorter = (a,b) =>
+          (b.usage_count||0) - (a.usage_count||0) ||
+          String(a.display_text||'').localeCompare(String(b.display_text||''));
+
+        return [...starts.sort(sorter), ...contains.sort(sorter)].slice(0, 20);
       }catch(err){
         console.warn('fetchRemoteDescriptions error', err);
         return [];
@@ -1865,14 +1903,14 @@
       const descInput = document.getElementById('desc');
       if(!descInput) return;
       const term = descInput.value.trim();
-      if(term.length < 2){
+      if(term.length < 1){
         renderDescriptionSuggestions([]);
         return;
       }
       const localRows = getLocalSuggestions(term);
       renderDescriptionSuggestions(localRows);
       const remoteRows = await fetchRemoteDescriptions(term);
-      const merged = mergeCatalogRows([...localRows, ...remoteRows]).slice(0,8);
+      const merged = mergeCatalogRows([...localRows, ...remoteRows]).slice(0,20);
       renderDescriptionSuggestions(merged);
     }
 
@@ -1881,7 +1919,7 @@
       if(!descInput) return;
       descInput.addEventListener('input', ()=>{
         clearTimeout(descDebounceTimer);
-        descDebounceTimer = setTimeout(updateDescAutocomplete, 220);
+        descDebounceTimer = setTimeout(updateDescAutocomplete, 120);
       });
       descInput.addEventListener('keydown', (ev)=>{
         if(!currentDescSuggestions.length) return;
@@ -1946,7 +1984,7 @@
         .select('id, display_text, normalized_text, usage_count, is_active, updated_at')
         .order('usage_count', { ascending:false })
         .order('display_text', { ascending:true })
-        .limit(100);
+        .limit(300);
       if(search){
         query = query.ilike('search_text', `%${search}%`);
       }
@@ -2001,6 +2039,65 @@
         if(!row) return;
         await adminUpdateRow(row.id, { is_active: !row.is_active, updated_at: new Date().toISOString() });
       }));
+    }
+
+    async function adminInsertRow(){
+      const client = await ensureSupabase();
+      if(!client){
+        alert('Cloud non disponibile o non configurato.');
+        return;
+      }
+      const input = document.getElementById('adminNewDesc');
+      const raw = (input?.value || '').trim();
+      const newText = displayDescription(raw);
+      if(!newText){
+        alert('Inserisci una descrizione valida.');
+        return;
+      }
+
+      const normalized = normalizeDescription(newText);
+      try{
+        const { data: existing, error: readErr } = await client
+          .from('article_descriptions')
+          .select('id, usage_count')
+          .eq('normalized_text', normalized)
+          .maybeSingle();
+        if(readErr) throw readErr;
+
+        if(existing && existing.id){
+          const { error: updateErr } = await client
+            .from('article_descriptions')
+            .update({
+              display_text: newText,
+              search_text: normalized,
+              is_active: true,
+              usage_count: (existing.usage_count || 0) + 1,
+              last_used_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', existing.id);
+          if(updateErr) throw updateErr;
+        }else{
+          const { error: insertErr } = await client
+            .from('article_descriptions')
+            .insert({
+              display_text: newText,
+              normalized_text: normalized,
+              search_text: normalized,
+              usage_count: 1,
+              last_used_at: new Date().toISOString(),
+              is_active: true
+            });
+          if(insertErr) throw insertErr;
+        }
+
+        if(input) input.value = '';
+        await loadAdminRows();
+        await syncCatalogFromCloud(false);
+        updateCloudStatus('Articolo aggiunto al catalogo cloud.', 'cloud-ok');
+      }catch(err){
+        alert('Errore inserimento admin: ' + (err.message || err));
+      }
     }
 
     async function adminUpdateRow(id, patch){
@@ -2187,6 +2284,8 @@
       document.getElementById('adminLoginBtn')?.addEventListener('click', ()=>adminSignIn());
       document.getElementById('adminLogoutBtn')?.addEventListener('click', ()=>adminSignOut());
       document.getElementById('adminRefreshBtn')?.addEventListener('click', ()=>loadAdminRows());
+      document.getElementById('adminAddBtn')?.addEventListener('click', ()=>adminInsertRow());
+      document.getElementById('adminNewDesc')?.addEventListener('keydown', (ev)=>{ if(ev.key === 'Enter'){ ev.preventDefault(); adminInsertRow(); } });
       document.getElementById('adminSearch')?.addEventListener('input', ()=>{
         clearTimeout(window.__adminSearchTimer);
         window.__adminSearchTimer = setTimeout(()=>loadAdminRows(), 250);
@@ -2475,6 +2574,90 @@ def unpack_to_pretty(s: str) -> str:
     }
 
     // LISTA HANDLERS
+    async function importCurrentListDescriptionsToCloud(){
+      const client = await ensureSupabase();
+      if(!client){
+        alert('Cloud non disponibile o non configurato.');
+        return;
+      }
+
+      state = normalizeState(state);
+      const rows = Array.isArray(state.l) ? state.l : [];
+      const uniqueMap = new Map();
+
+      rows.forEach((it)=>{
+        const raw = String((it && it.d) || '').trim();
+        const display_text = displayDescription(raw);
+        const normalized_text = normalizeDescription(display_text);
+        if(!display_text || !normalized_text) return;
+
+        if(!uniqueMap.has(normalized_text)){
+          uniqueMap.set(normalized_text, {
+            display_text,
+            normalized_text,
+            search_text: normalized_text,
+            usage_count: 1,
+            last_used_at: new Date().toISOString(),
+            is_active: true
+          });
+        } else {
+          const prev = uniqueMap.get(normalized_text);
+          prev.usage_count = (prev.usage_count || 0) + 1;
+          uniqueMap.set(normalized_text, prev);
+        }
+      });
+
+      const payload = [...uniqueMap.values()];
+      if(!payload.length){
+        alert('La lista corrente non contiene descrizioni valide da inviare.');
+        return;
+      }
+
+      try{
+        let inserted = 0;
+        let updated = 0;
+
+        for(const row of payload){
+          const { data: existing, error: readErr } = await client
+            .from('article_descriptions')
+            .select('id, usage_count')
+            .eq('normalized_text', row.normalized_text)
+            .maybeSingle();
+          if(readErr) throw readErr;
+
+          if(existing && existing.id){
+            const { error: updateErr } = await client
+              .from('article_descriptions')
+              .update({
+                display_text: row.display_text,
+                search_text: row.search_text,
+                is_active: true,
+                usage_count: (existing.usage_count || 0) + (row.usage_count || 1),
+                last_used_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', existing.id);
+            if(updateErr) throw updateErr;
+            updated += 1;
+          }else{
+            const { error: insertErr } = await client
+              .from('article_descriptions')
+              .insert(row);
+            if(insertErr) throw insertErr;
+            inserted += 1;
+          }
+
+          upsertLocalDescription(row.display_text);
+        }
+
+        await syncCatalogFromCloud(false);
+        updateCloudStatus(`Import completato: ${inserted} nuove, ${updated} aggiornate.`, 'cloud-ok');
+        alert(`Catalogo aggiornato dal contenuto della lista corrente.\nNuove: ${inserted}\nAggiornate: ${updated}`);
+      }catch(err){
+        alert('Errore import lista verso DB: ' + (err.message || err));
+      }
+    }
+
     document.getElementById('addItem').onclick=async()=>{
       const d=document.getElementById('desc').value.trim();
       const q=parseInt(document.getElementById('qty').value||"0",10);
@@ -2528,6 +2711,8 @@ def unpack_to_pretty(s: str) -> str:
         haptic('reset'); // 🆕 Feedback aptico/visivo all'azzeramento
       }
     };
+
+    document.getElementById('importListToCloudBtn').onclick=()=>importCurrentListDescriptionsToCloud();
 
     document.getElementById('exportJson').onclick=()=>{
       syncMeta();
