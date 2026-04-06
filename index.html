@@ -993,6 +993,104 @@
         flex-wrap:wrap;
       }
 
+
+
+  #itemsTbl td{
+    padding-top: 2px !important;
+    padding-bottom: 2px !important;
+  }
+
+  #itemsTbl tr{
+    height: auto;
+  }
+
+}
+
+
+/* 🔥 MIGLIORAMENTO SOLO STAMPA (ENHANCED) */
+@media print {
+
+  #itemsTbl td:nth-child(2){
+    font-size: 15px;
+    font-weight: 800;
+    letter-spacing: 0.3px;
+    line-height: 1.05;
+    vertical-align: middle;
+    padding-top: 2px;
+    padding-bottom: 2px;
+  }
+
+  #itemsTbl td{
+    padding-top: 2px !important;
+    padding-bottom: 2px !important;
+  }
+
+  #itemsTbl tr{
+    height: auto;
+  }
+
+}
+
+
+/* 🔧 LISTA ARTICOLI: su finestra ridotta l'inserimento resta sopra,
+   l'elenco subito sotto, e i pulsanti di servizio scendono in fondo */
+@media (max-width: 900px){
+  #tab-lista.hidden{
+    display:none !important;
+  }
+
+  #tab-lista:not(.hidden){
+    display:grid;
+    grid-template-columns:1fr;
+    grid-template-areas:
+      "title"
+      "input"
+      "table"
+      "actions";
+    gap:14px;
+  }
+
+  #tab-lista:not(.hidden) > h2{
+    grid-area:title;
+    margin-bottom:0;
+  }
+
+  #tab-lista:not(.hidden) > .grid.cols-2{
+    display:contents;
+  }
+
+  #tab-lista:not(.hidden) > .grid.cols-2 > .card:first-child{
+    grid-area:input;
+  }
+
+  #tab-lista:not(.hidden) > .grid.cols-2 > .card:last-child{
+    grid-area:actions;
+  }
+
+  #tab-lista:not(.hidden) > .card:last-child{
+    grid-area:table;
+    margin-top:0;
+  }
+
+  #tab-lista:not(.hidden) .row.actions-wrap{
+    justify-content:flex-start;
+  }
+
+  #tab-lista:not(.hidden) .row.actions-wrap .btn{
+    flex:1 1 calc(50% - 10px);
+  }
+}
+
+@media (max-width: 600px){
+  #tab-lista.hidden{
+    display:none !important;
+  }
+
+  #tab-lista:not(.hidden) .row.actions-wrap .btn{
+    flex:1 1 100%;
+  }
+}
+
 </style>
 </head>
 
