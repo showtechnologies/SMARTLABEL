@@ -962,6 +962,37 @@
         text-transform: none !important;
       }
 
+
+      .archive-results{
+        margin-top:12px;
+        border-top:1px solid var(--b);
+        padding-top:12px;
+      }
+      .archive-item{
+        border:1px solid var(--b);
+        border-radius:12px;
+        padding:12px;
+        background:#0f172a;
+        margin-bottom:10px;
+      }
+      .archive-item .title{
+        font-size:15px;
+        font-weight:700;
+        color:#fff;
+      }
+      .archive-item .meta{
+        font-size:12px;
+        color:var(--muted);
+        margin-top:4px;
+        line-height:1.4;
+      }
+      .archive-item .actions{
+        margin-top:10px;
+        display:flex;
+        gap:8px;
+        flex-wrap:wrap;
+      }
+
 </style>
 </head>
 
@@ -1078,11 +1109,15 @@
           <div class="row actions-wrap">
             <button id="saveLocal" class="btn ghost">Salva in locale</button>
             <button id="loadLocal" class="btn ghost">Carica da locale</button>
+            <button id="saveLabelCloudBtn" class="btn">Salva label nel cloud</button>
+            <button id="updateLabelCloudBtn" class="btn ghost">Aggiorna label cloud</button>
+            <button id="saveAsNewLabelCloudBtn" class="btn ghost">Salva come nuova</button>
             <button id="importListToCloudBtn" class="btn ghost">Invia descrizioni al DB</button>
             <button id="clearList" class="btn ghost warnBtn">Svuota lista</button>
             <button id="exportJson" class="btn ghost">Esporta JSON</button>
           </div>
-          <div class="muted" style="margin-top:6px">Il salvataggio locale usa <code>localStorage</code>. Il nuovo pulsante invia al catalogo cloud le descrizioni già presenti nella lista corrente.</div>
+          <div class="muted" style="margin-top:6px">Il salvataggio locale usa <code>localStorage</code>. Puoi salvare la label completa nel cloud con ID baule automatico, aggiornarla mantenendo lo stesso ID, salvarla come nuova oppure inviare al catalogo cloud solo le descrizioni già presenti nella lista corrente.</div>
+          <div id="labelCloudMode" class="muted" style="margin-top:8px">Modalità cloud label: nuova label.</div>
         </div>
       </div>
 
@@ -1206,6 +1241,33 @@
             <button id="btnSetCurrent" class="btn" disabled>Usa come lista corrente</button>
             <button id="btnCompare" class="btn ghost" disabled>Confronta con lista corrente</button>
           </div>
+        </div>
+
+        <div class="card">
+          <h3 style="margin:0 0 10px;font-size:16px">Archivio cloud</h3>
+          <div class="row">
+            <div style="flex:1;min-width:140px">
+              <label>ID baule</label>
+              <input id="archiveBoxCode" class="no-uppercase" type="search" placeholder="Es. B-000123" autocapitalize="off" autocorrect="off" spellcheck="false">
+            </div>
+            <div style="flex:2;min-width:180px">
+              <label>Evento</label>
+              <input id="archiveEventName" type="search" placeholder="Cerca per evento">
+            </div>
+          </div>
+          <div class="row" style="margin-top:10px">
+            <div style="flex:1;min-width:140px">
+              <label>Data da (evento/salvataggio)</label>
+              <input id="archiveDateFrom" type="date">
+            </div>
+            <div style="flex:1;min-width:140px">
+              <label>Data a (evento/salvataggio)</label>
+              <input id="archiveDateTo" type="date">
+            </div>
+            <button id="archiveSearchBtn" class="btn ghost">Cerca nel cloud</button>
+          </div>
+          <div id="archiveStatus" class="muted" style="margin-top:10px"></div>
+          <div id="archiveResults" class="archive-results"></div>
         </div>
         <div class="card hidden" id="dbgDecodedCard">
           <label>JSON ricostruito</label>
@@ -2141,6 +2203,8 @@
     state = normalizeState(state);
     let operatorName = loadOperatorName() || "";
     let lastPayloadText=""; // Variabile riposizionata
+    let currentCloudLabelId = null;
+    let currentCloudLabelBoxCode = "";
 
     // LOGIN
     document.addEventListener('DOMContentLoaded', ()=>{
@@ -2173,6 +2237,7 @@
       }else{
         showLoginOverlay(true);
       }
+      updateLabelCloudMode();
     });
 
     function showLoginOverlay(show){
@@ -2574,6 +2639,154 @@ def unpack_to_pretty(s: str) -> str:
     }
 
     // LISTA HANDLERS
+    function clearCurrentCloudLabelContext(){
+      currentCloudLabelId = null;
+      currentCloudLabelBoxCode = "";
+      updateLabelCloudMode();
+    }
+
+    function setCurrentCloudLabelContext(row){
+      currentCloudLabelId = row && row.id ? row.id : null;
+      currentCloudLabelBoxCode = row && row.box_code ? row.box_code : "";
+      updateLabelCloudMode();
+    }
+
+    function updateLabelCloudMode(){
+      const modeEl = document.getElementById('labelCloudMode');
+      const updateBtn = document.getElementById('updateLabelCloudBtn');
+      if(currentCloudLabelId){
+        if(modeEl){
+          modeEl.innerHTML = 'Modalità cloud label: modifica della label <strong>' + escapeHtml(currentCloudLabelBoxCode || '(senza ID)') + '</strong>.';
+        }
+        if(updateBtn) updateBtn.disabled = false;
+      }else{
+        if(modeEl){
+          modeEl.textContent = 'Modalità cloud label: nuova label.';
+        }
+        if(updateBtn) updateBtn.disabled = true;
+      }
+    }
+
+    async function buildCurrentLabelPayload(){
+      syncMeta();
+      state = normalizeState(state);
+      const canon = canonicalJSON(state,true);
+      const payload = JSON.parse(canon);
+      const payloadHash = await sha256hex(canon);
+      return { canon, payload, payloadHash };
+    }
+
+    async function saveLabelToCloud(asNew=false){
+      const client = await ensureSupabase();
+      if(!client){
+        alert('Cloud non disponibile o non configurato.');
+        return;
+      }
+
+      const { canon, payload, payloadHash } = await buildCurrentLabelPayload();
+      if(!payload.e){
+        alert('Compila almeno il campo Evento prima di salvare la label nel cloud.');
+        return;
+      }
+
+      try{
+        const { data, error } = await client.rpc('save_label', {
+          p_event_name: payload.e || '',
+          p_production_name: payload.p || '',
+          p_position_name: payload.pos || '',
+          p_note: payload.note || '',
+          p_label_color: (typeof payload.c === 'number' ? payload.c : 6),
+          p_event_date: (payload.t || null),
+          p_payload_json: payload,
+          p_payload_hash: payloadHash
+        });
+        if(error) throw error;
+
+        const row = Array.isArray(data) ? data[0] : data;
+        if(!row || !row.box_code){
+          throw new Error('Risposta cloud non valida: box_code mancante.');
+        }
+
+        state.b = row.box_code;
+        applyMeta();
+        saveLocal(state);
+        setCurrentCloudLabelContext(row);
+
+        const canonBox = document.getElementById('jsonCanon');
+        const shaEl = document.getElementById('sha256');
+        if(canonBox) canonBox.value = canon;
+        if(shaEl) shaEl.textContent = payloadHash;
+
+        updateCloudStatus(
+          (asNew ? 'Nuova label cloud salvata. ' : 'Label cloud salvata. ') +
+          'ID baule assegnato: <strong>' + escapeHtml(row.box_code) + '</strong>',
+          'cloud-ok'
+        );
+        alert((asNew ? 'Nuova label cloud salvata.' : 'Label cloud salvata.') + '\nID baule: ' + row.box_code);
+      }catch(err){
+        updateCloudStatus('Errore salvataggio label: ' + escapeHtml(err.message || String(err)), 'cloud-err');
+        alert('Errore salvataggio label nel cloud: ' + (err.message || err));
+      }
+    }
+
+    async function updateExistingLabelInCloud(){
+      const client = await ensureSupabase();
+      if(!client){
+        alert('Cloud non disponibile o non configurato.');
+        return;
+      }
+      if(!currentCloudLabelId){
+        alert('Questa lista non arriva dal cloud. Usa "Salva label nel cloud" oppure "Salva come nuova".');
+        return;
+      }
+
+      const { canon, payload, payloadHash } = await buildCurrentLabelPayload();
+      if(!payload.e){
+        alert('Compila almeno il campo Evento prima di aggiornare la label.');
+        return;
+      }
+
+      try{
+        const patch = {
+          event_name: payload.e || '',
+          production_name: payload.p || '',
+          position_name: payload.pos || '',
+          note: payload.note || '',
+          label_color: (typeof payload.c === 'number' ? payload.c : 6),
+          event_date: (payload.t || null),
+          payload_json: payload,
+          payload_hash: payloadHash
+        };
+
+        const { data, error } = await client
+          .from('labels')
+          .update(patch)
+          .eq('id', currentCloudLabelId)
+          .select('id, box_code')
+          .single();
+
+        if(error) throw error;
+
+        if(data && data.box_code){
+          state.b = data.box_code;
+          applyMeta();
+          saveLocal(state);
+          setCurrentCloudLabelContext(data);
+        }
+
+        const canonBox = document.getElementById('jsonCanon');
+        const shaEl = document.getElementById('sha256');
+        if(canonBox) canonBox.value = canon;
+        if(shaEl) shaEl.textContent = payloadHash;
+
+        updateCloudStatus('Label cloud aggiornata: <strong>' + escapeHtml(currentCloudLabelBoxCode || state.b || '') + '</strong>', 'cloud-ok');
+        alert('Label cloud aggiornata con successo.');
+      }catch(err){
+        updateCloudStatus('Errore aggiornamento label: ' + escapeHtml(err.message || String(err)), 'cloud-err');
+        alert('Errore aggiornamento label cloud: ' + (err.message || err));
+      }
+    }
+
     async function importCurrentListDescriptionsToCloud(){
       const client = await ensureSupabase();
       if(!client){
@@ -2692,6 +2905,7 @@ def unpack_to_pretty(s: str) -> str:
       if(s){
         // 🆕 Normalizza lo stato caricato
         state = normalizeState(s);
+        clearCurrentCloudLabelContext();
         applyMeta();
         renderTables();
         updateProgress();
@@ -2705,6 +2919,7 @@ def unpack_to_pretty(s: str) -> str:
     document.getElementById('clearList').onclick=()=>{
       if(confirm("Svuotare la lista?")){
         state.l=[];
+        clearCurrentCloudLabelContext();
         // 🆕 Normalizza lo stato dopo l'azzeramento
         state = normalizeState(state);
         renderTables();
@@ -2712,6 +2927,14 @@ def unpack_to_pretty(s: str) -> str:
       }
     };
 
+    document.getElementById('saveLabelCloudBtn').onclick=()=>saveLabelToCloud(false);
+    document.getElementById('updateLabelCloudBtn').onclick=()=>updateExistingLabelInCloud();
+    document.getElementById('saveAsNewLabelCloudBtn').onclick=()=>{
+      clearCurrentCloudLabelContext();
+      state.b = "";
+      applyMeta();
+      saveLabelToCloud(true);
+    };
     document.getElementById('importListToCloudBtn').onclick=()=>importCurrentListDescriptionsToCloud();
 
     document.getElementById('exportJson').onclick=()=>{
@@ -3497,6 +3720,137 @@ def unpack_to_pretty(s: str) -> str:
           btnSetCurrent=document.getElementById('btnSetCurrent'),
           btnCompare=document.getElementById('btnCompare'),
           cmpResult=document.getElementById('cmpResult');
+    const archiveBoxCode=document.getElementById('archiveBoxCode'),
+          archiveEventName=document.getElementById('archiveEventName'),
+          archiveDateFrom=document.getElementById('archiveDateFrom'),
+          archiveDateTo=document.getElementById('archiveDateTo'),
+          archiveSearchBtn=document.getElementById('archiveSearchBtn'),
+          archiveStatus=document.getElementById('archiveStatus'),
+          archiveResults=document.getElementById('archiveResults');
+
+    function setArchiveStatus(message, cls='muted'){
+      if(!archiveStatus) return;
+      archiveStatus.className = cls;
+      archiveStatus.innerHTML = message;
+    }
+
+    function formatArchiveDate(v){
+      if(!v) return '';
+      try{
+        return String(v).slice(0,10);
+      }catch{
+        return '';
+      }
+    }
+
+    function applyCloudPayloadToCurrentState(payload, row=null, goToLista=true){
+      const obj = normalizeState(payload || {});
+      state = obj;
+      applyMeta();
+      renderTables();
+      updateProgress();
+      saveLocal(state);
+
+      if(row){
+        setCurrentCloudLabelContext(row);
+        if(row.box_code){
+          state.b = row.box_code;
+          applyMeta();
+          saveLocal(state);
+        }
+        setArchiveStatus('Label cloud caricata: <strong>' + escapeHtml(row.box_code || '') + '</strong>', 'cloud-ok');
+        updateCloudStatus('Label cloud aperta: <strong>' + escapeHtml(row.box_code || '') + '</strong>', 'cloud-ok');
+      }else{
+        clearCurrentCloudLabelContext();
+      }
+
+      jsonDecoded.value = JSON.stringify(obj, null, 2);
+      rawOut.textContent = row ? ('ARCHIVIO CLOUD: ' + (row.box_code || '') + ' — ' + (row.event_name || '')) : 'LISTA CARICATA';
+      btnSetCurrent.disabled = false;
+      btnCompare.disabled = false;
+
+      if(goToLista){
+        goTab('tab-lista', true);
+      }
+    }
+
+    function renderArchiveResults(rows){
+      if(!archiveResults) return;
+      if(!rows || !rows.length){
+        archiveResults.innerHTML = '<div class="muted">Nessun risultato.</div>';
+        return;
+      }
+      archiveResults.innerHTML = rows.map((row, idx) => `
+        <div class="archive-item">
+          <div class="title">${escapeHtml(row.box_code || '(senza ID)')} — ${escapeHtml(row.event_name || '(senza evento)')}</div>
+          <div class="meta">
+            Data label: ${escapeHtml(formatArchiveDate(row.event_date) || formatArchiveDate(row.created_at) || '-')}<br>
+            Produzione: ${escapeHtml(row.production_name || '-')}<br>
+            Posizione: ${escapeHtml(row.position_name || '-')}<br>
+            Ultimo aggiornamento: ${escapeHtml(formatArchiveDate(row.updated_at) || formatArchiveDate(row.created_at) || '-')}
+          </div>
+          <div class="actions">
+            <button class="btn sm" data-archive-open="${idx}">Apri</button>
+          </div>
+        </div>
+      `).join('');
+
+      archiveResults.querySelectorAll('[data-archive-open]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const row = rows[parseInt(btn.dataset.archiveOpen, 10)];
+          let payload = row.payload_json;
+          if(typeof payload === 'string'){
+            try{ payload = JSON.parse(payload); }catch(e){ payload = null; }
+          }
+          if(!payload){
+            alert('Payload cloud non valido.');
+            return;
+          }
+          applyCloudPayloadToCurrentState(payload, row, true);
+        });
+      });
+    }
+
+    async function searchCloudArchive(){
+      const client = await ensureSupabase();
+      if(!client){
+        setArchiveStatus('Cloud non disponibile o non configurato.', 'cloud-warn');
+        return;
+      }
+
+      try{
+        let query = client
+          .from('labels')
+          .select('id, box_code, event_name, production_name, position_name, event_date, created_at, updated_at, payload_json')
+          .order('created_at', { ascending:false })
+          .limit(200);
+
+        const box = (archiveBoxCode?.value || '').trim();
+        const eventName = (archiveEventName?.value || '').trim();
+        const dtFrom = archiveDateFrom?.value || '';
+        const dtTo = archiveDateTo?.value || '';
+
+        if(box) query = query.ilike('box_code', `%${box}%`);
+        if(eventName) query = query.ilike('event_name', `%${eventName}%`);
+
+        const { data, error } = await query;
+        if(error) throw error;
+
+        const rows = (data || []).filter(row => {
+          const effectiveDate = String(row.event_date || row.created_at || '').slice(0,10);
+          if(!effectiveDate) return !(dtFrom || dtTo);
+          if(dtFrom && effectiveDate < dtFrom) return false;
+          if(dtTo && effectiveDate > dtTo) return false;
+          return true;
+        });
+
+        renderArchiveResults(rows);
+        setArchiveStatus('Trovate ' + rows.length + ' label.', 'cloud-ok');
+      }catch(err){
+        renderArchiveResults([]);
+        setArchiveStatus('Errore ricerca archivio: ' + escapeHtml(err.message || String(err)), 'cloud-err');
+      }
+    }
 
     document.getElementById('fileInput').addEventListener('change', async ev=>{
       const f=ev.target.files?.[0];
@@ -3698,6 +4052,7 @@ def unpack_to_pretty(s: str) -> str:
 
         // 🆕 Normalizza l'oggetto da JSON ricostruito
         state = normalizeState(obj);
+        clearCurrentCloudLabelContext();
         
         applyMeta();
         renderTables();
@@ -3709,6 +4064,12 @@ def unpack_to_pretty(s: str) -> str:
         alert("JSON non valido.");
       }
     };
+
+    archiveSearchBtn?.addEventListener('click', searchCloudArchive);
+    archiveBoxCode?.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ e.preventDefault(); searchCloudArchive(); } });
+    archiveEventName?.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ e.preventDefault(); searchCloudArchive(); } });
+    archiveDateFrom?.addEventListener('change', ()=>searchCloudArchive());
+    archiveDateTo?.addEventListener('change', ()=>searchCloudArchive());
 
     btnCompare.onclick=async()=>{
       try{
