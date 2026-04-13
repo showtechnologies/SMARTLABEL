@@ -1015,28 +1015,34 @@ textarea:not(.no-uppercase){
 
 
 /* 🔥 MIGLIORAMENTO SOLO STAMPA (ENHANCED) */
-@media print {
+      @media print {
 
-  #itemsTbl td:nth-child(2){
-    font-size: 15px;
-    font-weight: 800;
-    letter-spacing: 0.3px;
-    line-height: 1.05;
-    vertical-align: middle;
-    padding-top: 2px;
-    padding-bottom: 2px;
-  }
+        #itemsTbl td:nth-child(2){
+          font-size: 15px;
+          font-weight: 900;
+          letter-spacing: 0.15px;
+          line-height: 1;
+          vertical-align: middle;
+          padding-top: 2px;
+          padding-bottom: 2px;
+          color: #000;
+          text-transform: uppercase;
+          font-family: Arial, Helvetica, sans-serif;
+          text-rendering: geometricPrecision;
+          -webkit-font-smoothing: none;
+        }
 
-  #itemsTbl td{
-    padding-top: 2px !important;
-    padding-bottom: 2px !important;
-  }
+        #itemsTbl td{
+          padding-top: 2px !important;
+          padding-bottom: 2px !important;
+          color:#000;
+        }
 
-  #itemsTbl tr{
-    height: auto;
-  }
+        #itemsTbl tr{
+          height: auto;
+        }
 
-}
+      }
 
 
 /* 🔧 LISTA ARTICOLI: su finestra ridotta l'inserimento resta sopra,
@@ -3445,10 +3451,10 @@ def unpack_to_pretty(s: str) -> str:
 
       const qrSizeMm = 80;
       const qrX = pageW - qrSizeMm - 20;
-      // Offset per abbassare il QR rispetto al margine superiore pagina
-      const QR_TOP_OFFSET = 12;               // ↑ aumenta per scendere
-      const qrY = marginT + QR_TOP_OFFSET;
-      const GAP_AROUND_QR = 12;     // distanza identica sopra/sotto il QR
+      // Offset base del QR rispetto al margine superiore pagina
+      const QR_TOP_OFFSET = 12;
+      const baseQrY = marginT + QR_TOP_OFFSET;
+      const GAP_AROUND_QR = 12;     // distanza identica sopra/sotto il blocco QR
 
       const canon = canonicalJSON(state,true);
 
@@ -3461,7 +3467,38 @@ def unpack_to_pretty(s: str) -> str:
         const rgb = colorFromIndex(state.c || 0);
         doc.setDrawColor(rgb[0], rgb[1], rgb[2]);
         doc.setLineWidth(3);
-        const pad=4;
+        const pad = 4;
+
+        // Precalcolo label posizione: se va su più righe, il QR scende
+        // così il testo cresce verso l'alto e non invade mai il QR.
+        let qrY = baseQrY;
+        let posLines = null;
+        let posBlockH = 0;
+        let hasPos = false;
+
+        if ((state.pos || "").trim()) {
+          hasPos = true;
+          const posText = state.pos.trim().toUpperCase();
+
+          let posFontSize = 20;
+          if (posText.length > 22) posFontSize = 18;
+          if (posText.length > 34) posFontSize = 16;
+          if (posText.length > 46) posFontSize = 14;
+
+          doc.setFont("helvetica", "bold");
+          doc.setFontSize(posFontSize);
+
+          const maxPosWidth = qrSizeMm - 6;
+          posLines = doc.splitTextToSize(posText, maxPosWidth);
+          posBlockH = doc.getTextDimensions(posLines).h;
+
+          const topSafe = marginT + 4;
+          const desiredPosTop = (baseQrY - pad / 2) - GAP_AROUND_QR - posBlockH;
+          if (desiredPosTop < topSafe) {
+            qrY += (topSafe - desiredPosTop);
+          }
+        }
+
         doc.roundedRect(
           qrX - pad/2,
           qrY - pad/2,
@@ -3472,26 +3509,27 @@ def unpack_to_pretty(s: str) -> str:
 
         doc.addImage(qrDataURL, "JPEG", qrX, qrY, qrSizeMm, qrSizeMm);
 
-        // POSIZIONE sopra al QR (stile come etichetta colore)
-        if ((state.pos || "").trim()) {
-          doc.setFont("helvetica","bold");
-          doc.setFontSize(20);
-          const posText = state.pos.trim();
-          // equidistante: stessa distanza dal bordo superiore del QR
-          const desiredPosY = qrY - GAP_AROUND_QR;
-          const topSafe = marginT + 6;              // per non attaccarsi al bordo pagina
-          const posY = Math.max(topSafe, desiredPosY);
-          doc.text(posText, qrX + qrSizeMm/2, posY, { align: "center" });
+        // POSIZIONE sopra al QR: stessa distanza del colore sotto,
+        // misurata dal bordo colorato esterno del blocco QR.
+        if (hasPos) {
+          const posY = (qrY - pad / 2) - GAP_AROUND_QR - posBlockH;
+          doc.setFont("helvetica", "bold");
+          doc.text(posLines, qrX + qrSizeMm/2, posY, {
+            align: "center",
+            baseline: "top"
+          });
         }
-            // COLOR LABEL BELOW QR
+
+        // COLOR LABEL BELOW QR
         const colorLabel = colorNameFromIndex(state.c || 0);
         doc.setFont("helvetica","bold");
         doc.setFontSize(20);
         doc.setTextColor(0,0,0);
-        // center under QR
-        const COLOR_BELOW_QR = 14; // ↑ aumenta per scendere
-        const colorY = qrY + qrSizeMm + GAP_AROUND_QR;   // stessa distanza del testo sopra
-        doc.text(colorLabel, qrX + qrSizeMm/2, colorY, { align: "center" });
+        const colorY = qrY + qrSizeMm + (pad / 2) + GAP_AROUND_QR;
+        doc.text(colorLabel, qrX + qrSizeMm/2, colorY, {
+          align: "center",
+          baseline: "top"
+        });
 
         const maxRightBeforeQR = qrX - 10;
         const matStartY = tableY + metaTableH + (compactPdf ? 6 : 8);
@@ -3724,15 +3762,20 @@ def unpack_to_pretty(s: str) -> str:
             const row = rowsThisPage[r];
 
             if(row.type==="header"){
-              doc.setFont("helvetica","bold");
               doc.setFontSize(FONT_HEADER);
             }else{
-              doc.setFont("helvetica","normal");
               doc.setFontSize(FONT_CELL);
             }
 
             let cellX = cfg.leftX;
             for (let c = 0; c < colWidths.length; c++) {
+
+              if (row.type === "header") {
+                doc.setFont("helvetica", "bold");
+              } else {
+                // Descrizione più leggibile, numeri normali
+                doc.setFont("helvetica", c === 0 ? "bold" : "normal");
+              }
               const cellW = colWidths[c];
               const lines = Array.isArray(row.cells[c])
                 ? row.cells[c]
