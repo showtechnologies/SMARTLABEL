@@ -1253,7 +1253,7 @@ textarea:not(.no-uppercase){
               <input id="prodName" placeholder="es. Festival XYZ">
             </div>
             <div style="flex:1;min-width:140px">
-              <label>Posizione</label>
+              <label>Nome Baule / Posizione</label>
               <input id="posName" placeholder="es. Palco lato DX">
             </div>
           </div>
@@ -3891,7 +3891,7 @@ def unpack_to_pretty(s: str) -> str:
           <div class="meta">
             Data label: ${escapeHtml(formatArchiveDate(row.event_date) || formatArchiveDate(row.created_at) || '-')}<br>
             Produzione: ${escapeHtml(row.production_name || '-')}<br>
-            Posizione: ${escapeHtml(row.position_name || '-')}<br>
+            Nome Baule / Posizione : ${escapeHtml(row.position_name || '-')}<br>
             Ultimo aggiornamento: ${escapeHtml(formatArchiveDate(row.updated_at) || formatArchiveDate(row.created_at) || '-')}
           </div>
           <div class="actions">
