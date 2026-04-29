@@ -1367,6 +1367,12 @@ textarea:not(.no-uppercase){
             </div>
           </div>
           <div class="row" style="margin-top:10px">
+            <div style="flex:2;min-width:220px">
+              <label>Articolo / descrizione</label>
+              <input id="archiveItemDesc" type="search" placeholder="Es. FARO LED, CAVO XLR">
+            </div>
+          </div>
+          <div class="row" style="margin-top:10px">
             <div style="flex:1;min-width:140px">
               <label>Data da (evento/salvataggio)</label>
               <input id="archiveDateFrom" type="date">
@@ -1613,10 +1619,11 @@ textarea:not(.no-uppercase){
       /* 🔠 Conversione automatica in MAIUSCOLO per tutti gli input di testo */
       document.addEventListener('input', (e) => {
         const el = e.target;
-        if ((el.tagName === 'INPUT' && el.type === 'text') || el.tagName === 'TEXTAREA') {
+        if ((el.tagName === 'INPUT' && ['text','search'].includes(el.type)) || el.tagName === 'TEXTAREA') {
+          if(el.classList.contains('no-uppercase')) return;
           const pos = el.selectionStart; // per non perdere il cursore
-          el.value = el.value;
-          el.setSelectionRange(pos, pos);
+          el.value = String(el.value || '').toUpperCase();
+          try{ el.setSelectionRange(pos, pos); }catch{}
         }
       });
       /* 🚫 Disattiva correzione automatica e capitalizzazione delle tastiere mobili */
@@ -1760,9 +1767,9 @@ textarea:not(.no-uppercase){
       return (s || '')
         .normalize('NFD')
         .replace(/[\u0300-\u036f]/g, '')
-        
         .replace(/\s+/g, ' ')
-        .trim();
+        .trim()
+        .toUpperCase();
     }
 
     function displayDescription(s){
@@ -2787,6 +2794,73 @@ def unpack_to_pretty(s: str) -> str:
       return { canon, payload, payloadHash };
     }
 
+    async function saveCurrentListDescriptionsToCloudSilent(){
+      const client = await ensureSupabase();
+      if(!client) return { inserted:0, updated:0, skipped:true };
+
+      state = normalizeState(state);
+      const rows = Array.isArray(state.l) ? state.l : [];
+      const uniqueMap = new Map();
+
+      rows.forEach((it)=>{
+        const raw = String((it && it.d) || '').trim();
+        const display_text = displayDescription(raw);
+        const normalized_text = normalizeDescription(display_text);
+        if(!display_text || !normalized_text) return;
+
+        if(!uniqueMap.has(normalized_text)){
+          uniqueMap.set(normalized_text, {
+            display_text,
+            normalized_text,
+            search_text: normalized_text,
+            usage_count: 1,
+            last_used_at: new Date().toISOString(),
+            is_active: true
+          });
+        } else {
+          const prev = uniqueMap.get(normalized_text);
+          prev.usage_count = (prev.usage_count || 0) + 1;
+        }
+      });
+
+      let inserted = 0;
+      let updated = 0;
+      for(const row of uniqueMap.values()){
+        const { data: existing, error: readErr } = await client
+          .from('article_descriptions')
+          .select('id, usage_count')
+          .eq('normalized_text', row.normalized_text)
+          .maybeSingle();
+        if(readErr) throw readErr;
+
+        if(existing && existing.id){
+          const { error: updateErr } = await client
+            .from('article_descriptions')
+            .update({
+              display_text: row.display_text,
+              search_text: row.search_text,
+              is_active: true,
+              usage_count: (existing.usage_count || 0) + (row.usage_count || 1),
+              last_used_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', existing.id);
+          if(updateErr) throw updateErr;
+          updated += 1;
+        }else{
+          const { error: insertErr } = await client
+            .from('article_descriptions')
+            .insert(row);
+          if(insertErr) throw insertErr;
+          inserted += 1;
+        }
+        upsertLocalDescription(row.display_text);
+      }
+
+      if(uniqueMap.size) await syncCatalogFromCloud(false);
+      return { inserted, updated, skipped:false };
+    }
+
     async function saveLabelToCloud(asNew=false){
       const client = await ensureSupabase();
       if(!client){
@@ -2828,12 +2902,22 @@ def unpack_to_pretty(s: str) -> str:
         if(canonBox) canonBox.value = canon;
         if(shaEl) shaEl.textContent = payloadHash;
 
+        let descMsg = '';
+        try{
+          const descSync = await saveCurrentListDescriptionsToCloudSilent();
+          if(!descSync.skipped){
+            descMsg = ` • Descrizioni catalogo: ${descSync.inserted} nuove, ${descSync.updated} aggiornate`;
+          }
+        }catch(descErr){
+          descMsg = ' • ATTENZIONE: label salvata, ma descrizioni non sincronizzate: ' + (descErr.message || descErr);
+        }
+
         updateCloudStatus(
           (asNew ? 'Nuova label cloud salvata. ' : 'Label cloud salvata. ') +
-          'ID baule assegnato: <strong>' + escapeHtml(row.box_code) + '</strong>',
-          'cloud-ok'
+          'ID baule assegnato: <strong>' + escapeHtml(row.box_code) + '</strong>' + escapeHtml(descMsg),
+          descMsg.includes('ATTENZIONE') ? 'cloud-warn' : 'cloud-ok'
         );
-        alert((asNew ? 'Nuova label cloud salvata.' : 'Label cloud salvata.') + '\nID baule: ' + row.box_code);
+        alert((asNew ? 'Nuova label cloud salvata.' : 'Label cloud salvata.') + '\nID baule: ' + row.box_code + (descMsg ? '\n' + descMsg.replace(/^ • /,'') : ''));
       }catch(err){
         updateCloudStatus('Errore salvataggio label: ' + escapeHtml(err.message || String(err)), 'cloud-err');
         alert('Errore salvataggio label nel cloud: ' + (err.message || err));
@@ -2890,8 +2974,18 @@ def unpack_to_pretty(s: str) -> str:
         if(canonBox) canonBox.value = canon;
         if(shaEl) shaEl.textContent = payloadHash;
 
-        updateCloudStatus('Label cloud aggiornata: <strong>' + escapeHtml(currentCloudLabelBoxCode || state.b || '') + '</strong>', 'cloud-ok');
-        alert('Label cloud aggiornata con successo.');
+        let descMsg = '';
+        try{
+          const descSync = await saveCurrentListDescriptionsToCloudSilent();
+          if(!descSync.skipped){
+            descMsg = ` • Descrizioni catalogo: ${descSync.inserted} nuove, ${descSync.updated} aggiornate`;
+          }
+        }catch(descErr){
+          descMsg = ' • ATTENZIONE: label aggiornata, ma descrizioni non sincronizzate: ' + (descErr.message || descErr);
+        }
+
+        updateCloudStatus('Label cloud aggiornata: <strong>' + escapeHtml(currentCloudLabelBoxCode || state.b || '') + '</strong>' + escapeHtml(descMsg), descMsg.includes('ATTENZIONE') ? 'cloud-warn' : 'cloud-ok');
+        alert('Label cloud aggiornata con successo.' + (descMsg ? '\n' + descMsg.replace(/^ • /,'') : ''));
       }catch(err){
         updateCloudStatus('Errore aggiornamento label: ' + escapeHtml(err.message || String(err)), 'cloud-err');
         alert('Errore aggiornamento label cloud: ' + (err.message || err));
@@ -2899,84 +2993,25 @@ def unpack_to_pretty(s: str) -> str:
     }
 
     async function importCurrentListDescriptionsToCloud(){
-      const client = await ensureSupabase();
-      if(!client){
-        alert('Cloud non disponibile o non configurato.');
-        return;
-      }
-
-      state = normalizeState(state);
-      const rows = Array.isArray(state.l) ? state.l : [];
-      const uniqueMap = new Map();
-
-      rows.forEach((it)=>{
-        const raw = String((it && it.d) || '').trim();
-        const display_text = displayDescription(raw);
-        const normalized_text = normalizeDescription(display_text);
-        if(!display_text || !normalized_text) return;
-
-        if(!uniqueMap.has(normalized_text)){
-          uniqueMap.set(normalized_text, {
-            display_text,
-            normalized_text,
-            search_text: normalized_text,
-            usage_count: 1,
-            last_used_at: new Date().toISOString(),
-            is_active: true
-          });
-        } else {
-          const prev = uniqueMap.get(normalized_text);
-          prev.usage_count = (prev.usage_count || 0) + 1;
-          uniqueMap.set(normalized_text, prev);
-        }
-      });
-
-      const payload = [...uniqueMap.values()];
-      if(!payload.length){
-        alert('La lista corrente non contiene descrizioni valide da inviare.');
-        return;
-      }
-
       try{
-        let inserted = 0;
-        let updated = 0;
-
-        for(const row of payload){
-          const { data: existing, error: readErr } = await client
-            .from('article_descriptions')
-            .select('id, usage_count')
-            .eq('normalized_text', row.normalized_text)
-            .maybeSingle();
-          if(readErr) throw readErr;
-
-          if(existing && existing.id){
-            const { error: updateErr } = await client
-              .from('article_descriptions')
-              .update({
-                display_text: row.display_text,
-                search_text: row.search_text,
-                is_active: true,
-                usage_count: (existing.usage_count || 0) + (row.usage_count || 1),
-                last_used_at: new Date().toISOString(),
-                updated_at: new Date().toISOString()
-              })
-              .eq('id', existing.id);
-            if(updateErr) throw updateErr;
-            updated += 1;
-          }else{
-            const { error: insertErr } = await client
-              .from('article_descriptions')
-              .insert(row);
-            if(insertErr) throw insertErr;
-            inserted += 1;
-          }
-
-          upsertLocalDescription(row.display_text);
+        const client = await ensureSupabase();
+        if(!client){
+          alert('Cloud non disponibile o non configurato.');
+          return;
         }
-
-        await syncCatalogFromCloud(false);
-        updateCloudStatus(`Import completato: ${inserted} nuove, ${updated} aggiornate.`, 'cloud-ok');
-        alert(`Catalogo aggiornato dal contenuto della lista corrente.\nNuove: ${inserted}\nAggiornate: ${updated}`);
+        const result = await saveCurrentListDescriptionsToCloudSilent();
+        if(result.skipped){
+          alert('Cloud non disponibile o non configurato.');
+          return;
+        }
+        if(result.inserted === 0 && result.updated === 0){
+          alert('La lista corrente non contiene descrizioni valide da inviare.');
+          return;
+        }
+        updateCloudStatus(`Import completato: ${result.inserted} nuove, ${result.updated} aggiornate.`, 'cloud-ok');
+        alert(`Catalogo aggiornato dal contenuto della lista corrente.
+Nuove: ${result.inserted}
+Aggiornate: ${result.updated}`);
       }catch(err){
         alert('Errore import lista verso DB: ' + (err.message || err));
       }
@@ -3204,6 +3239,28 @@ def unpack_to_pretty(s: str) -> str:
     // === PDF (omesso: identico alla tua versione, tranne fix minori dove servono) ===
     // 🗑️ Rimuovi `ensureRientroStore` qui e lascia solo `normalizeState`
     
+    function compactFilenamePart(value, maxLen=42){
+      const cleaned = slugify(value || '').replace(/_+/g, '_').replace(/^_+|_+$/g, '');
+      if(!cleaned) return '';
+      return cleaned.slice(0, maxLen).replace(/_+$/g, '');
+    }
+
+    function buildPdfFileName(mode){
+      state = normalizeState(state);
+      syncMeta();
+      const parts = [
+        compactFilenamePart(state.b || currentCloudLabelBoxCode || 'BAULE', 28),
+        compactFilenamePart(state.e || 'EVENTO', 42),
+        compactFilenamePart(state.p || '', 34),
+        compactFilenamePart(state.pos || '', 34),
+        compactFilenamePart(state.note || '', 30),
+        compactFilenamePart(state.t || '', 12)
+      ].filter(Boolean);
+      if(mode === 'rientro') parts.push('RIENTRO');
+      const uniqueParts = parts.filter((p, idx) => parts.indexOf(p) === idx);
+      return (uniqueParts.join('_') || 'label_baule').slice(0, 180);
+    }
+
     function generateAndHandlePDF(mode, action){
       // Profilo stampa PDF (compatto = più righe/pagina senza toccare la GUI)
       const compactPdf = !!document.getElementById('compactPdfToggle')?.checked;
@@ -3586,10 +3643,7 @@ def unpack_to_pretty(s: str) -> str:
         }
         /* fine mini QR */
 
-        const baseName =
-          slugify(state.p || state.e || "Evento") + "_" +
-          slugify(state.b || "Baule") +
-          (mode==="rientro" ? "_RIENTRO" : "");
+        const baseName = buildPdfFileName(mode);
 
         if(action === "download"){
           doc.save(baseName + ".pdf");
@@ -3872,6 +3926,7 @@ def unpack_to_pretty(s: str) -> str:
           archiveEventName=document.getElementById('archiveEventName'),
           archiveDateFrom=document.getElementById('archiveDateFrom'),
           archiveDateTo=document.getElementById('archiveDateTo'),
+          archiveItemDesc=document.getElementById('archiveItemDesc'),
           archiveSearchBtn=document.getElementById('archiveSearchBtn'),
           archiveStatus=document.getElementById('archiveStatus'),
           archiveResults=document.getElementById('archiveResults');
@@ -3889,6 +3944,36 @@ def unpack_to_pretty(s: str) -> str:
       }catch{
         return '';
       }
+    }
+
+    function getArchivePayload(row){
+      let payload = row ? row.payload_json : null;
+      if(typeof payload === 'string'){
+        try{ payload = JSON.parse(payload); }catch(e){ payload = null; }
+      }
+      return payload || {};
+    }
+
+    function splitArchiveTerms(value){
+      return String(value || '')
+        .split(/[;,\n]+/)
+        .map(x => normalizeDescription(x))
+        .filter(Boolean);
+    }
+
+    function findArchiveItemMatches(row, terms){
+      if(!terms || !terms.length) return [];
+      const payload = getArchivePayload(row);
+      const items = Array.isArray(payload.l) ? payload.l : [];
+      const matches = [];
+      items.forEach((it)=>{
+        const desc = String((it && it.d) || '');
+        const hay = normalizeDescription(desc);
+        if(!hay) return;
+        const ok = terms.some(term => hay.includes(term));
+        if(ok) matches.push({ d: desc, q: Number(it.q || 0) });
+      });
+      return matches;
     }
 
     function applyCloudPayloadToCurrentState(payload, row=null, goToLista=true){
@@ -3936,6 +4021,7 @@ def unpack_to_pretty(s: str) -> str:
             Produzione: ${escapeHtml(row.production_name || '-')}<br>
             Nome Baule / Posizione : ${escapeHtml(row.position_name || '-')}<br>
             Ultimo aggiornamento: ${escapeHtml(formatArchiveDate(row.updated_at) || formatArchiveDate(row.created_at) || '-')}
+            ${row._itemMatches && row._itemMatches.length ? '<br><strong>Articoli trovati:</strong> ' + row._itemMatches.map(m => escapeHtml(m.d) + (m.q ? ' ×' + escapeHtml(String(m.q)) : '')).join('; ') : ''}
           </div>
           <div class="actions">
             <button class="btn sm" data-archive-open="${idx}">Apri</button>
@@ -3946,10 +4032,7 @@ def unpack_to_pretty(s: str) -> str:
       archiveResults.querySelectorAll('[data-archive-open]').forEach(btn => {
         btn.addEventListener('click', () => {
           const row = rows[parseInt(btn.dataset.archiveOpen, 10)];
-          let payload = row.payload_json;
-          if(typeof payload === 'string'){
-            try{ payload = JSON.parse(payload); }catch(e){ payload = null; }
-          }
+          let payload = getArchivePayload(row);
           if(!payload){
             alert('Payload cloud non valido.');
             return;
@@ -3971,12 +4054,13 @@ def unpack_to_pretty(s: str) -> str:
           .from('labels')
           .select('id, box_code, event_name, production_name, position_name, event_date, created_at, updated_at, payload_json')
           .order('created_at', { ascending:false })
-          .limit(200);
+          .limit(500);
 
         const box = (archiveBoxCode?.value || '').trim();
         const eventName = (archiveEventName?.value || '').trim();
         const dtFrom = archiveDateFrom?.value || '';
         const dtTo = archiveDateTo?.value || '';
+        const itemTerms = splitArchiveTerms(archiveItemDesc?.value || '');
 
         if(box) query = query.ilike('box_code', `%${box}%`);
         if(eventName) query = query.ilike('event_name', `%${eventName}%`);
@@ -3986,14 +4070,20 @@ def unpack_to_pretty(s: str) -> str:
 
         const rows = (data || []).filter(row => {
           const effectiveDate = String(row.event_date || row.created_at || '').slice(0,10);
-          if(!effectiveDate) return !(dtFrom || dtTo);
-          if(dtFrom && effectiveDate < dtFrom) return false;
-          if(dtTo && effectiveDate > dtTo) return false;
+          if(!effectiveDate && (dtFrom || dtTo)) return false;
+          if(effectiveDate && dtFrom && effectiveDate < dtFrom) return false;
+          if(effectiveDate && dtTo && effectiveDate > dtTo) return false;
+          if(itemTerms.length){
+            const matches = findArchiveItemMatches(row, itemTerms);
+            if(!matches.length) return false;
+            row._itemMatches = matches;
+          }
           return true;
         });
 
         renderArchiveResults(rows);
-        setArchiveStatus('Trovate ' + rows.length + ' label.', 'cloud-ok');
+        const suffix = itemTerms.length ? ' con articolo/descrizione corrispondente.' : ' label.';
+        setArchiveStatus('Trovate ' + rows.length + suffix, 'cloud-ok');
       }catch(err){
         renderArchiveResults([]);
         setArchiveStatus('Errore ricerca archivio: ' + escapeHtml(err.message || String(err)), 'cloud-err');
