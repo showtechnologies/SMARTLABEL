@@ -1472,7 +1472,7 @@ textarea:not(.no-uppercase){
           <label>Sessione utente</label>
           <div id="adminAuthStatus" class="muted">Verifica sessione…</div>
           <div class="row actions-wrap" style="margin-top:12px">
-            <button id="adminRefreshBtn" class="btn ghost">Aggiorna elenco</button>
+              <button id="adminSessionRefreshBtn" class="btn ghost">Aggiorna sessione</button>
             <button id="adminLogoutBtn" class="btn ghost">Logout</button>
           </div>
           <div class="muted" style="margin-top:8px">Solo gli utenti con ruolo <code>admin</code> possono modificare il catalogo e creare nuovi utenti.</div>
@@ -2702,6 +2702,7 @@ textarea:not(.no-uppercase){
       document.getElementById('adminLoginBtn')?.addEventListener('click', ()=>adminSignIn());
       document.getElementById('adminLogoutBtn')?.addEventListener('click', ()=>appLogout());
       document.getElementById('adminRefreshBtn')?.addEventListener('click', ()=>loadAdminRows());
+      document.getElementById('adminSessionRefreshBtn')?.addEventListener('click', ()=>refreshAdminAuthStatus());
       document.getElementById('adminAddBtn')?.addEventListener('click', ()=>adminInsertRow());
       document.getElementById('createUserBtn')?.addEventListener('click', ()=>adminCreateUser());
       document.getElementById('adminNewDesc')?.addEventListener('keydown', (ev)=>{ if(ev.key === 'Enter'){ ev.preventDefault(); adminInsertRow(); } });
