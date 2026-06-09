@@ -1154,6 +1154,7 @@ textarea:not(.no-uppercase){
           <button data-tab="tab-cloud">Cloud/Admin</button>
         </div>
         <span id="status" class="muted"></span>
+        <button id="appLogoutBtn" class="btn sm ghost hidden" type="button">Logout</button>
       </nav>
     </div>
   </header>
@@ -1468,28 +1469,44 @@ textarea:not(.no-uppercase){
 
 
         <div class="card">
-          <label>Admin Supabase</label>
-          <div class="row">
-            <div style="flex:1;min-width:160px">
-              <label>Email admin</label>
-              <input id="adminEmail" type="email" placeholder="admin@azienda.it" style="text-transform:none">
-            </div>
+          <label>Sessione utente</label>
+          <div id="adminAuthStatus" class="muted">Verifica sessione…</div>
+          <div class="row actions-wrap" style="margin-top:12px">
+            <button id="adminRefreshBtn" class="btn ghost">Aggiorna elenco</button>
+            <button id="adminLogoutBtn" class="btn ghost">Logout</button>
           </div>
-          <div class="row" style="margin-top:10px">
-            <div style="flex:1;min-width:160px">
-              <label>Password</label>
-              <input id="adminPassword" type="password" placeholder="••••••••" style="text-transform:none">
-            </div>
-          </div>
-          <div class="row actions-wrap" style="margin-top:10px">
-            <button id="adminLoginBtn" class="btn">Accedi</button>
-            <button id="adminLogoutBtn" class="btn ghost">Esci</button>
-          </div>
-          <div id="adminAuthStatus" class="muted" style="margin-top:8px">Nessun admin autenticato.</div>
+          <div class="muted" style="margin-top:8px">Solo gli utenti con ruolo <code>admin</code> possono modificare il catalogo e creare nuovi utenti.</div>
         </div>
       </div>
 
-      <div class="card" style="margin-top:14px">
+      <div class="card admin-only" style="margin-top:14px">
+        <h3 style="margin:0 0 10px;font-size:16px">Gestione utenti</h3>
+        <div class="row">
+          <div style="flex:1;min-width:190px">
+            <label>Email nuovo utente</label>
+            <input id="newUserEmail" class="no-uppercase" type="email" placeholder="tecnico@azienda.it" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false">
+          </div>
+          <div style="flex:1;min-width:160px">
+            <label>Password temporanea</label>
+            <input id="newUserPassword" class="no-uppercase" type="password" placeholder="min. 6 caratteri" autocomplete="new-password" autocapitalize="off" autocorrect="off" spellcheck="false">
+          </div>
+          <div style="flex:1;min-width:150px">
+            <label>Nome operatore</label>
+            <input id="newUserName" placeholder="Es. Luca R." autocomplete="off">
+          </div>
+          <div style="flex:1;min-width:140px">
+            <label>Ruolo</label>
+            <select id="newUserRole">
+              <option value="operator">Operatore</option>
+              <option value="admin">Admin</option>
+            </select>
+          </div>
+          <button id="createUserBtn" class="btn">Crea utente</button>
+        </div>
+        <div id="createUserStatus" class="muted" style="margin-top:10px">Richiede la Edge Function Supabase <code>create-user</code>.</div>
+      </div>
+
+      <div class="card admin-only" style="margin-top:14px">
         <div class="row">
           <div style="flex:2;min-width:220px">
             <label>Nuova descrizione</label>
@@ -1526,11 +1543,19 @@ textarea:not(.no-uppercase){
 
   <div id="loginOverlay">
     <div id="loginCard">
-      <h2>Chi sta usando l'app?</h2>
-      <p>Metti il tuo nome. Verrà stampato sull'etichetta e sul PDF.<br>Rimane salvato in questo dispositivo.</p>
-      <div class="row" style="gap:10px">
-        <input id="loginNameInput" placeholder="Es. Luca R." autocomplete="name">
+      <h2>Accesso SMARTLABEL</h2>
+      <p>Accedi con email e password. Il nome operatore viene salvato sulla label e nei PDF.</p>
+      <div class="grid" style="gap:10px">
+        <div>
+          <label>Email</label>
+          <input id="loginEmailInput" class="no-uppercase" type="email" placeholder="nome@azienda.it" autocomplete="username" autocapitalize="off" autocorrect="off" spellcheck="false">
+        </div>
+        <div>
+          <label>Password</label>
+          <input id="loginPasswordInput" class="no-uppercase" type="password" placeholder="••••••••" autocomplete="current-password" autocapitalize="off" autocorrect="off" spellcheck="false">
+        </div>
         <button id="loginBtn" class="btn">Entra</button>
+        <div id="loginStatus" class="muted"></div>
       </div>
     </div>
   </div>
@@ -1560,12 +1585,14 @@ textarea:not(.no-uppercase){
     const PRECONFIG_SUPABASE = {
       enabled: true,
       url: "https://eagcykvbvkcrvozotxvh.supabase.co",
-      anonKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVhZ2N5a3ZidmtjcnZvem90eHZoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUyMzYzMzksImV4cCI6MjA5MDgxMjMzOX0.Vd9pJ1kDbAm6agzjdPSvZUJDrLF0CnA0E0TATXmULHo"
+      anonKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVhZ2N5a3ZidmtjcnZvem90eHZoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUyMzYzMzksImV4cCI6MjA5MDgxMjMzOX0.Vd9pJ1kDbAm6agzjdPSvZUJDrLF0CnA0E0TATXmULHo",
+      // Primo/i admin riconosciuti anche se la tabella profiles non è ancora pronta.
+      adminEmails: ["sacha@showtechnologies.it"]
     };
   </script>
 
 <script>
-    const CACHE_VERSION='qrj1-mobile-v5-enhanced';
+    const CACHE_VERSION='qrj1-mobile-v5-authfix-20260609';
     const PRECACHE=[
       'https://cdn.jsdelivr.net/pyodide/v0.25.1/full/pyodide.js',
       'https://cdn.jsdelivr.net/pyodide/v0.25.1/full/pyodide.asm.wasm',
@@ -1777,17 +1804,18 @@ textarea:not(.no-uppercase){
     }
 
     function loadCloudConfig(){
+      const fallback = getPreconfigCloudConfig();
       try{
         const raw = localStorage.getItem(KEY_CLOUD_CFG);
-        if(!raw) return { enabled:false, url:'', anonKey:'' };
+        if(!raw) return fallback;
         const cfg = JSON.parse(raw);
         return {
-          enabled: !!cfg.enabled,
-          url: (cfg.url || '').trim(),
-          anonKey: (cfg.anonKey || '').trim()
+          enabled: typeof cfg.enabled === 'boolean' ? !!cfg.enabled : !!fallback.enabled,
+          url: (cfg.url || fallback.url || '').trim(),
+          anonKey: (cfg.anonKey || fallback.anonKey || '').trim()
         };
       }catch{
-        return { enabled:false, url:'', anonKey:'' };
+        return fallback;
       }
     }
 
@@ -2153,6 +2181,7 @@ textarea:not(.no-uppercase){
     }
 
     async function loadAdminRows(){
+      if(!isCurrentAdmin()){ renderAdminTable([]); return; }
       const client = await ensureSupabase();
       if(!client){
         renderAdminTable([]);
@@ -2222,6 +2251,7 @@ textarea:not(.no-uppercase){
     }
 
     async function adminInsertRow(){
+      if(!isCurrentAdmin()){ alert('Solo admin.'); return; }
       const client = await ensureSupabase();
       if(!client){
         alert('Cloud non disponibile o non configurato.');
@@ -2281,6 +2311,7 @@ textarea:not(.no-uppercase){
     }
 
     async function adminUpdateRow(id, patch){
+      if(!isCurrentAdmin()){ alert('Solo admin.'); return; }
       const client = await ensureSupabase();
       if(!client) return;
       const { error } = await client.from('article_descriptions').update(patch).eq('id', id);
@@ -2293,16 +2324,99 @@ textarea:not(.no-uppercase){
     }
 
     async function refreshAdminAuthStatus(){
+      const box = document.getElementById('adminAuthStatus');
+      if(!box) return;
       const client = await ensureSupabase();
       if(!client){
-        document.getElementById('adminAuthStatus').textContent = 'Nessun admin autenticato.';
+        box.textContent = 'Supabase non disponibile.';
         return;
       }
       const { data } = await client.auth.getUser();
       if(data && data.user){
-        document.getElementById('adminAuthStatus').innerHTML = '<span class="cloud-ok">Admin autenticato: ' + escapeHtml(data.user.email || 'utente') + '</span>';
+        const role = isCurrentAdmin() ? 'admin' : (currentProfile?.role || 'operatore');
+        box.innerHTML = '<span class="cloud-ok">Utente: ' + escapeHtml(data.user.email || 'utente') + ' · ruolo ' + escapeHtml(role) + '</span>';
       }else{
-        document.getElementById('adminAuthStatus').textContent = 'Nessun admin autenticato.';
+        box.textContent = 'Nessun utente autenticato.';
+      }
+    }
+
+    async function adminCreateUser(){
+      const status = document.getElementById('createUserStatus');
+      if(!isCurrentAdmin()){
+        if(status) status.innerHTML = '<span class="cloud-err">Solo admin.</span>';
+        return;
+      }
+      const client = await ensureSupabase();
+      if(!client){
+        if(status) status.innerHTML = '<span class="cloud-err">Supabase non disponibile.</span>';
+        return;
+      }
+      const email = (document.getElementById('newUserEmail')?.value || '').trim().toLowerCase();
+      const password = document.getElementById('newUserPassword')?.value || '';
+      const display_name = (document.getElementById('newUserName')?.value || '').trim();
+      const role = document.getElementById('newUserRole')?.value || 'operator';
+      if(!email || !password || !display_name){
+        if(status) status.innerHTML = '<span class="cloud-err">Compila email, password e nome.</span>';
+        return;
+      }
+      if(password.length < 6){
+        if(status) status.innerHTML = '<span class="cloud-err">Password troppo corta: minimo 6 caratteri.</span>';
+        return;
+      }
+
+      if(status) status.textContent = 'Creazione utente…';
+
+      try{
+        // Forza il refresh della sessione prima di chiamare la Edge Function.
+        const { data: sessionData, error: sessionErr } = await client.auth.getSession();
+        if(sessionErr) throw sessionErr;
+
+        let accessToken = sessionData?.session?.access_token || '';
+        const refreshToken = sessionData?.session?.refresh_token || '';
+
+        if(refreshToken){
+          const { data: refreshed, error: refreshErr } = await client.auth.refreshSession({ refresh_token: refreshToken });
+          if(!refreshErr && refreshed?.session?.access_token){
+            accessToken = refreshed.session.access_token;
+          }
+        }
+
+        if(!accessToken){
+          throw new Error('Sessione login non trovata. Fai logout e rientra.');
+        }
+
+        /*
+          Nota tecnica:
+          - Authorization usa la anon key per superare il gateway della Edge Function.
+          - Il vero token utente viene passato in X-Smartlabel-Access-Token.
+          - La funzione server valida quel token con admin.auth.getUser().
+          Questo evita che browser/gateway/libreria sovrascrivano l'Authorization header.
+        */
+        const res = await fetch(`${PRECONFIG_SUPABASE.url}/functions/v1/create-user`, {
+          method: 'POST',
+          cache: 'no-store',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': PRECONFIG_SUPABASE.anonKey,
+            'Authorization': `Bearer ${PRECONFIG_SUPABASE.anonKey}`,
+            'X-Smartlabel-Access-Token': accessToken
+          },
+          body: JSON.stringify({ email, password, display_name, role })
+        });
+
+        const data = await res.json().catch(() => ({}));
+
+        if(!res.ok){
+          throw new Error(data.error || 'Errore Edge Function');
+        }
+
+        if(status) status.innerHTML = '<span class="cloud-ok">Utente creato: ' + escapeHtml(email) + '</span>';
+        ['newUserEmail','newUserPassword','newUserName'].forEach(id=>{
+          const el=document.getElementById(id);
+          if(el) el.value='';
+        });
+      }catch(err){
+        if(status) status.innerHTML = '<span class="cloud-err">Creazione fallita: ' + escapeHtml(err.message || String(err)) + '</span><br><span class="muted">Verifica che la Edge Function <code>create-user</code> sia aggiornata e che l’utente corrente sia admin.</span>';
       }
     }
 
@@ -2324,44 +2438,150 @@ textarea:not(.no-uppercase){
     let currentCloudLabelId = null;
     let currentCloudLabelBoxCode = "";
 
-    // LOGIN
-    document.addEventListener('DOMContentLoaded', ()=>{
-      const loginBtn = document.getElementById('loginBtn');
-      const loginNameInput = document.getElementById('loginNameInput');
+    // LOGIN SUPABASE AUTH
+    let currentUser = null;
+    let currentProfile = null;
 
-      loginBtn.addEventListener('click', ()=>{
-        const name = loginNameInput.value.trim();
-        if(!name){
-          alert("Inserisci un nome.");
-          return;
+    function getPreconfigCloudConfig(){
+      try{
+        if(typeof PRECONFIG_SUPABASE !== 'undefined'){
+          return {
+            enabled: !!PRECONFIG_SUPABASE.enabled,
+            url: (PRECONFIG_SUPABASE.url || '').trim(),
+            anonKey: (PRECONFIG_SUPABASE.anonKey || '').trim()
+          };
         }
-        operatorName = name;
+      }catch{}
+      return { enabled:false, url:'', anonKey:'' };
+    }
+
+    function getAdminEmails(){
+      try{
+        if(typeof PRECONFIG_SUPABASE !== 'undefined' && Array.isArray(PRECONFIG_SUPABASE.adminEmails)){
+          return PRECONFIG_SUPABASE.adminEmails.map(x => String(x || '').toLowerCase().trim()).filter(Boolean);
+        }
+      }catch{}
+      return [];
+    }
+
+    function isCurrentAdmin(){
+      const role = String(currentProfile?.role || currentUser?.app_metadata?.role || '').toLowerCase();
+      const email = String(currentUser?.email || '').toLowerCase();
+      return role === 'admin' || getAdminEmails().includes(email);
+    }
+
+    async function loadCurrentProfile(user){
+      if(!user) return null;
+      const email = String(user.email || '').toLowerCase();
+      let profile = {
+        id: user.id,
+        email,
+        display_name: user.user_metadata?.display_name || user.user_metadata?.name || email,
+        role: getAdminEmails().includes(email) ? 'admin' : 'operator'
+      };
+      try{
+        const client = await ensureSupabase();
+        if(client){
+          const { data, error } = await client
+            .from('profiles')
+            .select('id, email, display_name, role, is_active')
+            .eq('id', user.id)
+            .maybeSingle();
+          if(!error && data){
+            if(data.is_active === false) throw new Error('Utente disattivato.');
+            profile = { ...profile, ...data, role: data.role || profile.role };
+          }
+        }
+      }catch(err){
+        console.warn('Profilo non disponibile:', err);
+      }
+      return profile;
+    }
+
+    async function applyAuthSession(session){
+      currentUser = session?.user || null;
+      currentProfile = currentUser ? await loadCurrentProfile(currentUser) : null;
+      if(currentUser){
+        operatorName = currentProfile?.display_name || currentUser.email || '';
         saveOperatorName(operatorName);
         updateOperatorLabel();
         showLoginOverlay(false);
-      });
-      
-      // ⬇️ ENTER per inviare
-      loginNameInput.addEventListener('keydown', (e)=>{
-        if(e.key === 'Enter'){
-          e.preventDefault();
-          loginBtn.click();
-        }
-      });
-
-      if(operatorName){
-        updateOperatorLabel();
-        showLoginOverlay(false);
+        await refreshAdminAuthStatus();
+        updateAdminUI();
       }else{
+        operatorName = '';
+        updateOperatorLabel();
+        updateAdminUI();
         showLoginOverlay(true);
       }
+    }
+
+    async function appLogin(){
+      const client = await ensureSupabase();
+      const status = document.getElementById('loginStatus');
+      const email = (document.getElementById('loginEmailInput')?.value || '').trim();
+      const password = document.getElementById('loginPasswordInput')?.value || '';
+      if(!client){
+        if(status) status.innerHTML = '<span class="err">Supabase non configurato.</span>';
+        return;
+      }
+      if(!email || !password){
+        if(status) status.innerHTML = '<span class="err">Inserisci email e password.</span>';
+        return;
+      }
+      if(status) status.textContent = 'Accesso in corso…';
+      const { data, error } = await client.auth.signInWithPassword({ email, password });
+      if(error){
+        if(status) status.innerHTML = '<span class="err">Login fallito: ' + escapeHtml(error.message) + '</span>';
+        return;
+      }
+      if(status) status.textContent = '';
+      await applyAuthSession(data.session);
+    }
+
+    async function appLogout(){
+      const client = await ensureSupabase();
+      if(client) await client.auth.signOut();
+      try{ localStorage.removeItem(KEY_OP); }catch{}
+      await applyAuthSession(null);
+    }
+
+    async function initAppAuth(){
+      const loginBtn = document.getElementById('loginBtn');
+      const emailInput = document.getElementById('loginEmailInput');
+      const passwordInput = document.getElementById('loginPasswordInput');
+      loginBtn?.addEventListener('click', appLogin);
+      [emailInput, passwordInput].forEach(el => el?.addEventListener('keydown', (e)=>{
+        if(e.key === 'Enter'){
+          e.preventDefault();
+          appLogin();
+        }
+      }));
+      document.getElementById('appLogoutBtn')?.addEventListener('click', appLogout);
+      document.getElementById('adminLogoutBtn')?.addEventListener('click', appLogout);
+
+      const client = await ensureSupabase();
+      if(!client){
+        showLoginOverlay(true);
+        updateAdminUI();
+        return;
+      }
+      client.auth.onAuthStateChange((_event, session)=>{
+        applyAuthSession(session);
+      });
+      const { data } = await client.auth.getSession();
+      await applyAuthSession(data?.session || null);
       updateLabelCloudMode();
+    }
+
+    document.addEventListener('DOMContentLoaded', ()=>{
+      initAppAuth();
     });
 
     function showLoginOverlay(show){
       const ov=document.getElementById('loginOverlay');
+      if(!ov) return;
       ov.style.display = show ? 'flex':'none';
-      // blocca lo scroll quando il login è visibile
       document.documentElement.style.overflow = show ? 'hidden' : '';
       document.body.style.overflow = show ? 'hidden' : '';
     }
@@ -2382,12 +2602,27 @@ textarea:not(.no-uppercase){
 
     function updateOperatorLabel(){
       const tag=document.getElementById('opNameTag');
+      if(!tag) return;
       if(operatorName){
-        tag.textContent = operatorName;
+        const roleTag = currentProfile?.role ? ' · ' + currentProfile.role : '';
+        tag.textContent = operatorName + roleTag;
         tag.classList.remove('hidden');
       }else{
         tag.textContent = "";
         tag.classList.add('hidden');
+      }
+      document.getElementById('appLogoutBtn')?.classList.toggle('hidden', !operatorName);
+    }
+
+    function updateAdminUI(){
+      const admin = isCurrentAdmin();
+      document.querySelectorAll('.admin-only').forEach(el => el.classList.toggle('hidden', !admin));
+      document.querySelectorAll('button[data-tab="tab-cloud"]').forEach(el => {
+        el.disabled = !admin;
+        el.title = admin ? '' : 'Riservato agli admin';
+      });
+      if(!admin && document.getElementById('tab-cloud') && !document.getElementById('tab-cloud').classList.contains('hidden')){
+        goTab('tab-home', false);
       }
     }
 
@@ -2465,9 +2700,10 @@ textarea:not(.no-uppercase){
       document.getElementById('testCloudCfg')?.addEventListener('click', ()=>testCloudConnection());
       document.getElementById('syncCatalogBtn')?.addEventListener('click', ()=>syncCatalogFromCloud(true));
       document.getElementById('adminLoginBtn')?.addEventListener('click', ()=>adminSignIn());
-      document.getElementById('adminLogoutBtn')?.addEventListener('click', ()=>adminSignOut());
+      document.getElementById('adminLogoutBtn')?.addEventListener('click', ()=>appLogout());
       document.getElementById('adminRefreshBtn')?.addEventListener('click', ()=>loadAdminRows());
       document.getElementById('adminAddBtn')?.addEventListener('click', ()=>adminInsertRow());
+      document.getElementById('createUserBtn')?.addEventListener('click', ()=>adminCreateUser());
       document.getElementById('adminNewDesc')?.addEventListener('keydown', (ev)=>{ if(ev.key === 'Enter'){ ev.preventDefault(); adminInsertRow(); } });
       document.getElementById('adminSearch')?.addEventListener('input', ()=>{
         clearTimeout(window.__adminSearchTimer);
@@ -2483,6 +2719,7 @@ textarea:not(.no-uppercase){
         updateCloudStatus('Offline: uso solo cache locale descrizioni.', 'cloud-warn');
       });
       refreshAdminAuthStatus();
+      updateAdminUI();
       if(isCloudConfigured() && navigator.onLine){
         testCloudConnection();
         syncCatalogFromCloud(false);
@@ -2715,11 +2952,16 @@ def unpack_to_pretty(s: str) -> str:
     });
 
     function goTab(id,fromUser=false){
+      if(id === 'tab-cloud' && !isCurrentAdmin()){
+        alert('Area riservata agli admin.');
+        id = 'tab-home';
+      }
       document.querySelectorAll('nav button').forEach(x=>x.classList.remove('active'));
       const nb=[...document.querySelectorAll('nav button[data-tab]')].find(b=>b.dataset.tab===id);
       if(nb) nb.classList.add('active');
       document.querySelectorAll('.tab').forEach(t=>t.classList.add('hidden'));
-      document.getElementById(id).classList.remove('hidden');
+      const target = document.getElementById(id);
+      if(target) target.classList.remove('hidden');
       if(fromUser) {
           window.scrollTo({top:0,behavior:'smooth'});
           haptic('light'); // 🆕 Feedback aptico/visivo al cambio tab
@@ -4998,7 +5240,7 @@ Aggiornate: ${result.updated}`);
 
 <script>
 document.addEventListener("DOMContentLoaded", function () {
-  const techIds = ["sbUrl", "sbAnonKey", "adminEmail", "adminPassword"];
+  const techIds = ["sbUrl", "sbAnonKey", "loginEmailInput", "loginPasswordInput", "newUserEmail", "newUserPassword"];
   techIds.forEach(function (id) {
     const el = document.getElementById(id);
     if (!el) return;
