@@ -1104,6 +1104,24 @@ textarea:not(.no-uppercase){
   }
 }
 
+
+
+/* === GUEST RIENTRO EVENTO === */
+.guest-box-grid{display:grid;grid-template-columns:1fr;gap:10px;margin-top:12px}
+@media(min-width:760px){.guest-box-grid{grid-template-columns:1fr 1fr}}
+.guest-box-card{border:1px solid var(--b);border-radius:14px;background:#0f172a;padding:12px;cursor:pointer}
+.guest-box-card .title{font-weight:800;color:#fff;font-size:16px}
+.guest-box-card .meta{font-size:12px;color:var(--muted);margin-top:4px;line-height:1.35}
+.guest-progress-row{display:flex;align-items:center;gap:10px;margin-top:8px}
+.guest-progress-row .progress{flex:1;height:10px}
+.guest-percent{font-weight:800;font-size:14px;min-width:44px;text-align:right}
+.guest-item-card{border:1px solid var(--b);border-radius:14px;background:#111827;padding:12px;margin-bottom:10px}
+.guest-item-title{font-weight:800;color:#fff;font-size:15px;line-height:1.25}
+.guest-count-row{display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:center;margin-top:10px}
+.guest-count-input{max-width:88px;text-align:center;font-size:20px;font-weight:800}
+.guest-last{font-size:11px;color:var(--muted);margin-top:6px}
+.guest-save-sticky{position:sticky;bottom:8px;z-index:5;background:rgba(17,24,39,.95);border:1px solid var(--b);border-radius:16px;padding:10px;margin-top:12px;backdrop-filter:blur(8px)}
+
 </style>
 </head>
 
@@ -1151,6 +1169,8 @@ textarea:not(.no-uppercase){
           <button data-tab="tab-qr">QR & Stampa</button>
           <button data-tab="tab-decode">Leggi lista</button>
           <button data-tab="tab-rientro">Spunta</button>
+          <button data-tab="tab-guest-search">Trova materiale</button>
+          <button data-tab="tab-guest-rientro">Rientro evento</button>
           <button data-tab="tab-cloud">Cloud/Admin</button>
         </div>
         <span id="status" class="muted"></span>
@@ -1225,6 +1245,7 @@ textarea:not(.no-uppercase){
             <button id="updateLabelCloudBtn" class="btn ghost">Aggiorna label cloud</button>
             <button id="saveAsNewLabelCloudBtn" class="btn ghost">Salva come nuova</button>
             <button id="importListToCloudBtn" class="btn ghost">Invia descrizioni al DB</button>
+            <button id="eventPinBtn" class="btn ghost">Genera/Rigenera PIN evento</button>
             <button id="clearList" class="btn ghost warnBtn">Svuota lista</button>
             <button id="exportJson" class="btn ghost">Esporta JSON</button>
           </div>
@@ -1436,6 +1457,79 @@ textarea:not(.no-uppercase){
   </div>
 
 
+
+    <section id="tab-guest-search" class="tab hidden">
+      <h2>Trova materiale evento</h2>
+      <div class="card">
+        <div id="guestEventBox" class="muted">Accedi come guest con PIN evento, oppure come operatore/admin.</div>
+        <div class="row" style="margin-top:12px">
+          <div style="flex:2;min-width:220px">
+            <label>Cerca articolo</label>
+            <input id="guestSearchInput" placeholder="Es. CAVO MICROFONICO 3 METRI" autocomplete="off">
+          </div>
+          <button id="guestSearchBtn" class="btn">Cerca</button>
+        </div>
+        <div id="guestSearchStatus" class="muted" style="margin-top:10px"></div>
+        <div id="guestSelectedItems" style="margin-top:10px"></div>
+      </div>
+
+      <div class="card" style="margin-top:14px">
+        <div class="row actions-wrap">
+          <button id="guestStartScanBtn" class="btn">Scansione continua</button>
+          <button id="guestClearCacheBtn" class="btn ghost">Svuota cache QR</button>
+        </div>
+        <div id="guestMissionStatus" class="muted" style="margin-top:10px">Seleziona almeno un articolo da cercare.</div>
+      </div>
+
+      <div class="card" style="margin-top:14px">
+        <h3 style="margin:0 0 10px;font-size:16px">Risultati</h3>
+        <div id="guestResults"></div>
+      </div>
+
+      <div class="card" style="margin-top:14px">
+        <h3 style="margin:0 0 10px;font-size:16px">Bauli scansionati offline</h3>
+        <div id="guestScannedBoxes" class="muted">Nessun QR scansionato in questa sessione.</div>
+      </div>
+    </section>
+
+
+    <section id="tab-guest-rientro" class="tab hidden">
+      <h2>Rientro evento</h2>
+      <div class="card">
+        <div id="guestRientroEventBox" class="muted">Accedi come guest con PIN evento.</div>
+        <div id="operatorEventPicker" class="hidden" style="margin-top:12px">
+          <label>Evento attivo per Admin/Operatore</label>
+          <div class="row">
+            <div style="flex:2;min-width:220px">
+              <select id="operatorEventSelect"></select>
+            </div>
+            <button id="operatorReloadEventsBtn" class="btn ghost" type="button">Aggiorna eventi</button>
+          </div>
+          <div id="operatorEventStatus" class="muted" style="margin-top:8px"></div>
+        </div>
+        <div class="row actions-wrap" style="margin-top:12px">
+          <button id="guestRefreshBoxesBtn" class="btn">Aggiorna bauli evento</button>
+          <button id="guestBackToBoxesBtn" class="btn ghost hidden">Torna ai bauli</button>
+        </div>
+        <div id="guestRientroStatus" class="muted" style="margin-top:10px"></div>
+      </div>
+
+      <div id="guestBoxesPanel" class="card" style="margin-top:14px">
+        <h3 style="margin:0 0 10px;font-size:16px">Bauli dell'evento</h3>
+        <div id="guestBoxesList" class="guest-box-grid"></div>
+      </div>
+
+      <div id="guestBoxDetailPanel" class="card hidden" style="margin-top:14px">
+        <h3 id="guestBoxDetailTitle" style="margin:0 0 10px;font-size:18px">Baule</h3>
+        <div id="guestBoxDetailMeta" class="muted"></div>
+        <div id="guestBoxItems" style="margin-top:12px"></div>
+        <div class="guest-save-sticky">
+          <button id="guestSaveBoxBtn" class="btn" style="width:100%">Salva rientro online</button>
+          <div id="guestSaveBoxStatus" class="muted" style="margin-top:8px;text-align:center"></div>
+        </div>
+      </div>
+    </section>
+
     <section id="tab-cloud" class="tab hidden">
       <h2>Cloud descrizioni & Admin</h2>
       <div class="grid cols-2">
@@ -1472,7 +1566,7 @@ textarea:not(.no-uppercase){
           <label>Sessione utente</label>
           <div id="adminAuthStatus" class="muted">Verifica sessione…</div>
           <div class="row actions-wrap" style="margin-top:12px">
-              <button id="adminSessionRefreshBtn" class="btn ghost">Aggiorna sessione</button>
+            <button id="adminRefreshBtn" class="btn ghost">Aggiorna elenco</button>
             <button id="adminLogoutBtn" class="btn ghost">Logout</button>
           </div>
           <div class="muted" style="margin-top:8px">Solo gli utenti con ruolo <code>admin</code> possono modificare il catalogo e creare nuovi utenti.</div>
@@ -1556,6 +1650,19 @@ textarea:not(.no-uppercase){
         </div>
         <button id="loginBtn" class="btn">Entra</button>
         <div id="loginStatus" class="muted"></div>
+        <div style="height:1px;background:#374151;margin:12px 0"></div>
+        <h3 style="margin:0 0 8px;font-size:15px">Accesso Guest Evento</h3>
+        <div>
+          <label>Nome tecnico</label>
+          <input id="guestNameInput" class="no-uppercase" type="text" placeholder="Nome tecnico" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false">
+        </div>
+        <div>
+          <label>PIN evento</label>
+          <input id="guestPinInput" class="no-uppercase" type="tel" inputmode="numeric" pattern="[0-9]*" maxlength="6" placeholder="Es. 4821" autocomplete="one-time-code">
+        </div>
+        <button id="guestLoginBtn" class="btn ghost" type="button">Entra come Guest</button>
+        <div id="guestLoginStatus" class="muted"></div>
+
       </div>
     </div>
   </div>
@@ -1761,6 +1868,7 @@ textarea:not(.no-uppercase){
         });
       }
       applyDebugUI();
+      setTimeout(updateGuestUI, 200);
     });
 
 
@@ -1789,6 +1897,282 @@ textarea:not(.no-uppercase){
     let selectedSuggestionIndex = -1;
     let descDebounceTimer = null;
     let adminRowsCache = [];
+    const KEY_GUEST_SESSION='smartlabel_guest_session_v1';
+    const KEY_GUEST_CACHE='smartlabel_guest_event_cache_v1';
+    let guestSession = loadGuestSession();
+    let guestSearchResults = [];
+    let guestSelectedKeys = new Set();
+    let guestScanMode = false;
+    let guestScannedBoxes = loadGuestCache();
+
+
+    function normalizeEventKey(s){
+      return normalizeDescription(s).toLowerCase();
+    }
+
+    function loadGuestSession(){
+      try{ return JSON.parse(localStorage.getItem(KEY_GUEST_SESSION) || 'null'); }catch{return null;}
+    }
+    function saveGuestSession(s){
+      guestSession=s;
+      try{ if(s) localStorage.setItem(KEY_GUEST_SESSION, JSON.stringify(s)); else localStorage.removeItem(KEY_GUEST_SESSION); }catch{}
+      updateGuestUI();
+    }
+    function loadGuestCache(){
+      try{ return JSON.parse(localStorage.getItem(KEY_GUEST_CACHE) || '{}') || {}; }catch{return {};}
+    }
+    function saveGuestCache(){
+      try{ localStorage.setItem(KEY_GUEST_CACHE, JSON.stringify(guestScannedBoxes || {})); }catch{}
+    }
+
+    async function callEventAccess(action, body={}, requireAuth=false){
+      const headers = {'Content-Type':'application/json','apikey':PRECONFIG_SUPABASE.anonKey};
+      if(requireAuth){
+        const client = await ensureSupabase();
+        const { data: sessionData } = await client.auth.getSession();
+        const accessToken = sessionData?.session?.access_token;
+        if(!accessToken) throw new Error('Sessione login non trovata.');
+        headers.Authorization = `Bearer ${accessToken}`;
+      }
+      const res = await fetch(`${PRECONFIG_SUPABASE.url}/functions/v1/event-access`, {
+        method:'POST',
+        headers,
+        body: JSON.stringify({action, ...body})
+      });
+      const data = await res.json().catch(()=>({}));
+      if(!res.ok) throw new Error(data.error || 'Errore Edge Function event-access');
+      return data;
+    }
+
+    async function guestLogin(){
+      const name=(document.getElementById('guestNameInput')?.value||'').trim();
+      const pin=(document.getElementById('guestPinInput')?.value||'').trim();
+      const status=document.getElementById('guestLoginStatus');
+      if(!name || !pin){ if(status) status.innerHTML='<span class="err">Inserisci nome e PIN evento.</span>'; return; }
+      if(status) status.textContent='Accesso evento…';
+      try{
+        const data = await callEventAccess('guest-login', {pin, guest_name:name}, false);
+        saveGuestSession({ token:data.token, event:data.event, guest_name:name, loaded_at:new Date().toISOString() });
+        if(Array.isArray(data.items)){
+          const key=data.event?.event_key || 'event';
+          guestScannedBoxes[key] = guestScannedBoxes[key] || { boxes:{}, cloud_items:data.items, updated_at:new Date().toISOString() };
+          guestScannedBoxes[key].cloud_items=data.items;
+          saveGuestCache();
+        }
+        if(status) status.innerHTML='<span class="ok">Accesso guest attivo.</span>';
+        showLoginOverlay(false);
+        goTab('tab-guest-search', true);
+      }catch(err){
+        if(status) status.innerHTML='<span class="err">Accesso guest fallito: '+escapeHtml(err.message||String(err))+'</span>';
+      }
+    }
+
+    async function generateEventPin(){
+      syncMeta();
+      const eventName = (state.e || eventNameEl?.value || '').trim();
+      if(!eventName){ alert('Compila il campo Evento prima di generare il PIN.'); return; }
+      try{
+        const data = await callEventAccess('generate-pin', {event_name:eventName}, true);
+        alert('PIN evento per "' + eventName + '": ' + data.pin + '\n\nCondividilo solo con il personale autorizzato.');
+        updateCloudStatus('PIN guest evento generato/aggiornato per <strong>'+escapeHtml(eventName)+'</strong>.', 'cloud-ok');
+      }catch(err){ alert('Errore generazione PIN evento: '+(err.message||err)); }
+    }
+
+    async function syncLabelItemsForGuest(labelId, boxCode, payload){
+      if(!labelId || !payload || !payload.e) return;
+      try{
+        await callEventAccess('sync-label-items', { label_id:labelId, box_code:boxCode || payload.b || '', payload }, true);
+      }catch(err){ console.warn('Sync indice guest fallita:', err); }
+    }
+
+    function getGuestEventKey(){ return guestSession?.event?.event_key || normalizeEventKey(guestSession?.event?.event_name || ''); }
+    function getGuestCachedItems(){
+      const key=getGuestEventKey();
+      const cache=guestScannedBoxes[key] || {};
+      return Array.isArray(cache.cloud_items) ? cache.cloud_items : [];
+    }
+
+    function localGuestSearch(q){
+      const norm=normalizeDescription(q);
+      if(!norm) return [];
+      const items=getGuestCachedItems();
+      return items.filter(x => String(x.item_search_text || x.item_text || '').includes(norm));
+    }
+
+    async function guestSearch(){
+      const q=(document.getElementById('guestSearchInput')?.value||'').trim();
+      const status=document.getElementById('guestSearchStatus');
+      if(!q){ if(status) status.textContent='Scrivi cosa cercare.'; return; }
+      if(status) status.textContent='Ricerca…';
+      try{
+        let results=[];
+
+        // Admin/Operatore: non hanno guestSession.token, quindi NON devono usare la cache guest.
+        // Usiamo l'evento selezionato in "Rientro evento" e gli endpoint operator già esistenti.
+        if(typeof isOperatorOrAdminMode === 'function' && isOperatorOrAdminMode() && navigator.onLine){
+          if(typeof loadOperatorEvents === 'function') await loadOperatorEvents(false);
+
+          const sel=document.getElementById('operatorEventSelect');
+          const eventKey=sel?.value || (typeof stateOp !== 'undefined' ? stateOp.selectedEventKey : '') || '';
+          if(!eventKey){
+            throw new Error('Seleziona prima un evento in Rientro evento.');
+          }
+          if(typeof stateOp !== 'undefined') stateOp.selectedEventKey=eventKey;
+
+          const norm=normalizeDescription(q);
+          const boxesData=await callEventAccess('operator-boxes', { event_key:eventKey }, true);
+          const boxes=boxesData.boxes || [];
+          if(status) status.textContent='Cerco in '+boxes.length+' bauli evento…';
+
+          const found=[];
+          for(const box of boxes){
+            if(!box || !box.label_id) continue;
+            const detail=await callEventAccess('operator-box-detail', { event_key:eventKey, label_id:box.label_id }, true);
+            const items=detail.items || [];
+            for(const it of items){
+              const hay=String(it.item_search_text || it.item_text || '');
+              if(hay.includes(norm)){
+                found.push({
+                  ...it,
+                  label_id: it.label_id || box.label_id,
+                  box_code: it.box_code || box.box_code,
+                  position_name: it.position_name || box.position_name,
+                  production_name: it.production_name || box.production_name,
+                  note: it.note || box.note
+                });
+              }
+            }
+          }
+          results=found;
+        }
+        else if(guestSession?.token && navigator.onLine){
+          const data=await callEventAccess('guest-search', {token:guestSession.token, query:q}, false);
+          results=data.results||[];
+          if(Array.isArray(data.event_items)){
+            const key=getGuestEventKey();
+            guestScannedBoxes[key]=guestScannedBoxes[key] || {boxes:{}};
+            guestScannedBoxes[key].cloud_items=data.event_items;
+            saveGuestCache();
+          }
+        }else{
+          results=localGuestSearch(q);
+        }
+        guestSearchResults=results;
+        guestSelectedKeys=new Set(results.map(r=>guestItemKey(r)));
+        renderGuestResults();
+        if(status) status.innerHTML='<span class="ok">'+results.length+' risultati trovati.</span>';
+      }catch(err){
+        const fallback=localGuestSearch(q);
+        guestSearchResults=fallback;
+        guestSelectedKeys=new Set(fallback.map(r=>guestItemKey(r)));
+        renderGuestResults();
+        if(status) status.innerHTML='<span class="warn">Ricerca cloud non disponibile, uso cache locale: '+fallback.length+' risultati. '+escapeHtml(err.message||String(err))+'</span>';
+      }
+    }
+
+    function guestItemKey(r){ return [r.label_id||'', r.box_code||'', normalizeDescription(r.item_text||'')].join('|'); }
+    function renderGuestResults(){
+      const box=document.getElementById('guestResults');
+      const sel=document.getElementById('guestSelectedItems');
+      if(sel){ sel.innerHTML = guestSelectedKeys.size ? '<div class="ok">Articoli selezionati: '+guestSelectedKeys.size+'</div>' : '<div class="muted">Nessun articolo selezionato.</div>'; }
+      if(!box) return;
+      if(!guestSearchResults.length){ box.innerHTML='<div class="muted">Nessun risultato.</div>'; updateGuestMissionStatus(); return; }
+      const grouped=new Map();
+      guestSearchResults.forEach(r=>{
+        const k=(r.box_code||'')+'|'+(r.position_name||'');
+        if(!grouped.has(k)) grouped.set(k,{box_code:r.box_code, position_name:r.position_name, rows:[]});
+        grouped.get(k).rows.push(r);
+      });
+      box.innerHTML=[...grouped.values()].map(g=>{
+        const rows=g.rows.map(r=>'<div style="font-size:14px;margin-top:4px"><label style="display:flex;align-items:center;gap:8px;color:#fff"><input type="checkbox" data-guest-key="'+escapeHtml(guestItemKey(r))+'" '+(guestSelectedKeys.has(guestItemKey(r))?'checked':'')+' style="width:auto"> <span>'+escapeHtml(r.item_text||'')+' × '+escapeHtml(String(r.qty||0))+'</span></label></div>').join('');
+        return '<div class="archive-item"><div class="title">'+escapeHtml(g.box_code||'(senza ID)')+' — '+escapeHtml(g.position_name||'-')+'</div>'+rows+'</div>';
+      }).join('');
+      box.querySelectorAll('[data-guest-key]').forEach(chk=>chk.addEventListener('change',()=>{
+        if(chk.checked) guestSelectedKeys.add(chk.dataset.guestKey); else guestSelectedKeys.delete(chk.dataset.guestKey);
+        updateGuestMissionStatus();
+      }));
+      updateGuestMissionStatus();
+    }
+
+    function updateGuestMissionStatus(lastMessage=''){
+      const el=document.getElementById('guestMissionStatus');
+      if(!el) return;
+      const boxes=new Set([...guestSelectedKeys].map(k=>k.split('|')[1]).filter(Boolean));
+      const found=countGuestFoundTargetBoxes();
+      el.innerHTML = (lastMessage ? '<div style="font-size:20px;font-weight:800;margin-bottom:6px">'+lastMessage+'</div>' : '') +
+        'Bauli target: <strong>'+boxes.size+'</strong> • Trovati: <strong>'+found+'/'+boxes.size+'</strong>';
+    }
+
+    function countGuestFoundTargetBoxes(){
+      const key=getGuestEventKey();
+      const cache=guestScannedBoxes[key]?.boxes || {};
+      const targetBoxes=new Set([...guestSelectedKeys].map(k=>k.split('|')[1]).filter(Boolean));
+      let n=0; targetBoxes.forEach(b=>{ if(cache[b]) n++; }); return n;
+    }
+
+    function renderGuestScannedBoxes(){
+      const el=document.getElementById('guestScannedBoxes'); if(!el) return;
+      const key=getGuestEventKey();
+      const boxes=guestScannedBoxes[key]?.boxes || {};
+      const vals=Object.values(boxes);
+      if(!vals.length){ el.textContent='Nessun QR scansionato in questa sessione.'; return; }
+      el.innerHTML=vals.map(b=>'<div class="archive-item"><div class="title">'+escapeHtml(b.box_code||'')+' — '+escapeHtml(b.position_name||'-')+'</div><div class="meta">'+escapeHtml((b.items||[]).length+' articoli')+'</div></div>').join('');
+    }
+
+    function updateGuestUI(){
+      const box=document.getElementById('guestEventBox');
+      if(box){
+        if(guestSession?.event) box.innerHTML='<span class="ok">Evento guest: <strong>'+escapeHtml(guestSession.event.event_name||'')+'</strong> · '+escapeHtml(guestSession.guest_name||'Guest')+'</span>';
+        else box.textContent='Accedi come guest con PIN evento, oppure come operatore/admin.';
+      }
+      document.querySelectorAll('button[data-tab="tab-guest-search"]').forEach(el=>{ el.disabled=false; });
+      renderGuestScannedBoxes();
+      updateGuestMissionStatus();
+    }
+
+    function startGuestContinuousScan(){
+      guestScanMode=true;
+      startCameraOverlay();
+    }
+
+    async function handleGuestScannedText(text){
+      if(!text) return;
+      try{
+        const pretty=await pyodide.runPythonAsync(`unpack_to_pretty(${JSON.stringify(text)})`);
+        const obj=normalizeState(JSON.parse(pretty));
+        const currentEventKey=getGuestEventKey();
+        const qrEventKey=normalizeEventKey(obj.e||'');
+        if(currentEventKey && qrEventKey && currentEventKey!==qrEventKey){
+          haptic('error'); updateGuestMissionStatus('⚠️ QR DI ALTRO EVENTO'); return;
+        }
+        const key=currentEventKey || qrEventKey || 'offline';
+        guestScannedBoxes[key]=guestScannedBoxes[key] || {boxes:{}};
+        const boxCode=obj.b || '(senza ID)';
+        const already=!!guestScannedBoxes[key].boxes[boxCode];
+        guestScannedBoxes[key].boxes[boxCode]={box_code:boxCode, position_name:obj.pos||'', event_name:obj.e||'', items:obj.l||[], scanned_at:new Date().toISOString()};
+        saveGuestCache(); renderGuestScannedBoxes();
+        const selected=[...guestSelectedKeys];
+        const foundItems=[];
+        for(const it of (obj.l||[])){
+          const n=normalizeDescription(it.d||'');
+          for(const sk of selected){
+            const parts=sk.split('|');
+            const targetBox=parts[1];
+            const targetItem=parts.slice(2).join('|');
+            if((!targetBox || targetBox===boxCode) && n===targetItem) foundItems.push(it);
+          }
+        }
+        if(foundItems.length){
+          haptic('success'); updateGuestMissionStatus('✅ TROVATO IN '+boxCode);
+        }else if(already){
+          haptic('light'); updateGuestMissionStatus('GIÀ SCANSIONATO '+boxCode);
+        }else{
+          haptic('tock'); updateGuestMissionStatus('NON È QUI — '+boxCode);
+        }
+      }catch(err){
+        haptic('error'); updateGuestMissionStatus('QR NON VALIDO');
+      }
+    }
 
     function normalizeDescription(s){
       return (s || '')
@@ -2512,7 +2896,7 @@ textarea:not(.no-uppercase){
         operatorName = '';
         updateOperatorLabel();
         updateAdminUI();
-        showLoginOverlay(true);
+        showLoginOverlay(!guestSession);
       }
     }
 
@@ -2559,10 +2943,15 @@ textarea:not(.no-uppercase){
       }));
       document.getElementById('appLogoutBtn')?.addEventListener('click', appLogout);
       document.getElementById('adminLogoutBtn')?.addEventListener('click', appLogout);
+      document.getElementById('guestLoginBtn')?.addEventListener('click', guestLogin);
+      document.getElementById('guestSearchBtn')?.addEventListener('click', guestSearch);
+      document.getElementById('guestSearchInput')?.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ e.preventDefault(); guestSearch(); }});
+      document.getElementById('guestStartScanBtn')?.addEventListener('click', startGuestContinuousScan);
+      document.getElementById('guestClearCacheBtn')?.addEventListener('click', ()=>{ const key=getGuestEventKey(); if(key && guestScannedBoxes[key]){ guestScannedBoxes[key].boxes={}; saveGuestCache(); renderGuestScannedBoxes(); updateGuestMissionStatus(); }});
 
       const client = await ensureSupabase();
       if(!client){
-        showLoginOverlay(true);
+        showLoginOverlay(!guestSession);
         updateAdminUI();
         return;
       }
@@ -2702,9 +3091,9 @@ textarea:not(.no-uppercase){
       document.getElementById('adminLoginBtn')?.addEventListener('click', ()=>adminSignIn());
       document.getElementById('adminLogoutBtn')?.addEventListener('click', ()=>appLogout());
       document.getElementById('adminRefreshBtn')?.addEventListener('click', ()=>loadAdminRows());
-      document.getElementById('adminSessionRefreshBtn')?.addEventListener('click', ()=>refreshAdminAuthStatus());
       document.getElementById('adminAddBtn')?.addEventListener('click', ()=>adminInsertRow());
       document.getElementById('createUserBtn')?.addEventListener('click', ()=>adminCreateUser());
+      document.getElementById('eventPinBtn')?.addEventListener('click', ()=>generateEventPin());
       document.getElementById('adminNewDesc')?.addEventListener('keydown', (ev)=>{ if(ev.key === 'Enter'){ ev.preventDefault(); adminInsertRow(); } });
       document.getElementById('adminSearch')?.addEventListener('input', ()=>{
         clearTimeout(window.__adminSearchTimer);
@@ -3139,6 +3528,7 @@ def unpack_to_pretty(s: str) -> str:
         applyMeta();
         saveLocal(state);
         setCurrentCloudLabelContext(row);
+        await syncLabelItemsForGuest(row.id, row.box_code, payload);
 
         const canonBox = document.getElementById('jsonCanon');
         const shaEl = document.getElementById('sha256');
@@ -3211,6 +3601,7 @@ def unpack_to_pretty(s: str) -> str:
           saveLocal(state);
           setCurrentCloudLabelContext(data);
         }
+        await syncLabelItemsForGuest(currentCloudLabelId, currentCloudLabelBoxCode || state.b || data?.box_code || "", payload);
 
         const canonBox = document.getElementById('jsonCanon');
         const shaEl = document.getElementById('sha256');
@@ -4260,7 +4651,8 @@ Aggiornate: ${result.updated}`);
         <div class="archive-item">
           <div class="title">${escapeHtml(row.box_code || '(senza ID)')} — ${escapeHtml(row.event_name || '(senza evento)')}</div>
           <div class="meta">
-            Data label: ${escapeHtml(formatArchiveDate(row.event_date) || formatArchiveDate(row.created_at) || '-')}<br>
+            Creata il: ${escapeHtml(formatArchiveDate(row.created_at) || '-')}<br>
+            Aggiornata il: ${escapeHtml(formatArchiveDate(row.updated_at) || '-')}<br>
             Produzione: ${escapeHtml(row.production_name || '-')}<br>
             Nome Baule / Posizione : ${escapeHtml(row.position_name || '-')}<br>
             Ultimo aggiornamento: ${escapeHtml(formatArchiveDate(row.updated_at) || formatArchiveDate(row.created_at) || '-')}
@@ -4312,7 +4704,7 @@ Aggiornate: ${result.updated}`);
         if(error) throw error;
 
         const rows = (data || []).filter(row => {
-          const effectiveDate = String(row.event_date || row.created_at || '').slice(0,10);
+            const effectiveDate = String(row.created_at || '').slice(0,10);
           if(!effectiveDate && (dtFrom || dtTo)) return false;
           if(effectiveDate && dtFrom && effectiveDate < dtFrom) return false;
           if(effectiveDate && dtTo && effectiveDate > dtTo) return false;
@@ -4446,6 +4838,7 @@ Aggiornate: ${result.updated}`);
     }
 
     function stopCameraOverlay(msg){
+      guestScanMode=false;
       camScanning=false;
       if(camStream){
         camStream.getTracks().forEach(t=>t.stop());
@@ -4481,6 +4874,13 @@ Aggiornate: ${result.updated}`);
         robustDecodeFromCanvas(camCanvas).then(async text=>{
           if (text && camScanning){
             camScanning=false;
+            if(guestScanMode){
+              await handleGuestScannedText(text);
+              camStatusEl.textContent="QR letto. Continua a scansionare…";
+              camScanning=true;
+              setTimeout(()=>requestAnimationFrame(tickLiveScan), 450);
+              return;
+            }
             await handleDecodedText(text);
             camStatusEl.textContent="QR rilevato.";
             stopCameraOverlay("QR letto.");
@@ -5371,6 +5771,706 @@ document.addEventListener("DOMContentLoaded", function(){
     setTimeout(runAutoCatalogSync, 300);
   });
 });
+</script>
+
+
+<script>
+/* === PATCH GUEST OPERATIVO: ricerca + rientro online, no QR/PDF/stampa === */
+(function(){
+  const guestRientro = { boxes: [], activeBox: null, activeItems: [] };
+
+  function safeHtml(v){
+    try{ return escapeHtml(String(v ?? '')); }catch{ return String(v ?? '').replace(/[&<>\"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+  }
+
+  window.isGuestMode = function(){
+    return !!guestSession && !currentUser;
+  };
+
+  function setGuestRientroStatus(msg, cls='muted'){
+    const el=document.getElementById('guestRientroStatus');
+    if(!el) return;
+    el.className=cls;
+    el.innerHTML=msg;
+  }
+
+  function guestProgressPct(box){
+    const total=Number(box.qty_expected || box.qty_total || box.total_qty || 0);
+    const checked=Number(box.qty_checked || box.checked_qty || 0);
+    return total>0 ? Math.round(100*Math.min(checked,total)/total) : 0;
+  }
+
+  function updateGuestRientroHeader(){
+    const el=document.getElementById('guestRientroEventBox');
+    if(!el) return;
+    if(guestSession?.event){
+      el.innerHTML='<span class="ok">Evento: <strong>'+safeHtml(guestSession.event.event_name||'')+'</strong> · '+safeHtml(guestSession.guest_name||'Guest')+'</span>';
+    }else{
+      el.textContent='Accedi come guest con PIN evento.';
+    }
+  }
+
+  async function guestRefreshBoxes(){
+    updateGuestRientroHeader();
+    if(!guestSession?.token){
+      setGuestRientroStatus('Accedi come Guest per vedere i bauli evento.', 'cloud-warn');
+      return;
+    }
+    setGuestRientroStatus('Carico bauli evento…');
+    try{
+      const data = await callEventAccess('guest-boxes', { token: guestSession.token }, false);
+      guestRientro.boxes = data.boxes || [];
+      renderGuestBoxes();
+      setGuestRientroStatus('Bauli caricati: <strong>'+guestRientro.boxes.length+'</strong>.', 'cloud-ok');
+    }catch(err){
+      setGuestRientroStatus('Errore caricamento bauli: '+safeHtml(err.message||err), 'cloud-err');
+      renderGuestBoxes();
+    }
+  }
+
+  function renderGuestBoxes(){
+    const list=document.getElementById('guestBoxesList');
+    if(!list) return;
+    if(!guestRientro.boxes.length){
+      list.innerHTML='<div class="muted">Nessun baule disponibile per questo evento.</div>';
+      return;
+    }
+    list.innerHTML = guestRientro.boxes.map((b,idx)=>{
+      const pct=guestProgressPct(b);
+      const total=Number(b.qty_expected || b.qty_total || b.total_qty || 0);
+      const checked=Number(b.qty_checked || b.checked_qty || 0);
+      return '<div class="guest-box-card" data-guest-box-idx="'+idx+'">'+
+        '<div class="title">📦 '+safeHtml(b.box_code||'(senza ID)')+'</div>'+
+        '<div class="meta">'+safeHtml(b.position_name||'-')+'<br>'+safeHtml(b.production_name||'')+'</div>'+
+        '<div class="guest-progress-row"><div class="progress"><span style="width:'+pct+'%"></span></div><div class="guest-percent">'+pct+'%</div></div>'+
+        '<div class="meta">Verificati '+checked+' / '+total+' pezzi</div>'+
+      '</div>';
+    }).join('');
+    list.querySelectorAll('[data-guest-box-idx]').forEach(card=>{
+      card.addEventListener('click', ()=>guestOpenBox(guestRientro.boxes[parseInt(card.dataset.guestBoxIdx,10)]));
+    });
+  }
+
+  async function guestOpenBox(box){
+    if(!box || !box.label_id) return;
+    guestRientro.activeBox=box;
+    document.getElementById('guestBoxesPanel')?.classList.add('hidden');
+    document.getElementById('guestBoxDetailPanel')?.classList.remove('hidden');
+    document.getElementById('guestBackToBoxesBtn')?.classList.remove('hidden');
+    document.getElementById('guestBoxDetailTitle').textContent='📦 '+(box.box_code||'Baule');
+    document.getElementById('guestBoxDetailMeta').innerHTML=safeHtml(box.position_name||'-')+' · '+safeHtml(box.production_name||'')+'<br>Caricamento articoli…';
+    document.getElementById('guestBoxItems').innerHTML='';
+    try{
+      const data = await callEventAccess('guest-box-detail', { token: guestSession.token, label_id: box.label_id }, false);
+      guestRientro.activeItems=data.items || [];
+      renderGuestBoxDetail(data.box || box);
+    }catch(err){
+      document.getElementById('guestBoxDetailMeta').innerHTML='<span class="err">Errore apertura baule: '+safeHtml(err.message||err)+'</span>';
+    }
+  }
+
+  function renderGuestBoxDetail(box){
+    const total=(guestRientro.activeItems||[]).reduce((a,it)=>a+Number(it.qty||0),0);
+    const checked=(guestRientro.activeItems||[]).reduce((a,it)=>a+Number(it.qty_checked||0),0);
+    const pct=total>0 ? Math.round(100*Math.min(checked,total)/total) : 0;
+    const meta=document.getElementById('guestBoxDetailMeta');
+    if(meta){
+      meta.innerHTML=safeHtml(box.position_name||'-')+' · '+safeHtml(box.production_name||'')+
+        '<div class="guest-progress-row"><div class="progress"><span style="width:'+pct+'%"></span></div><div class="guest-percent">'+pct+'%</div></div>'+
+        '<div class="muted">Verificati '+checked+' / '+total+' pezzi</div>';
+    }
+    const cont=document.getElementById('guestBoxItems');
+    if(!cont) return;
+    if(!guestRientro.activeItems.length){ cont.innerHTML='<div class="muted">Nessun articolo in questo baule.</div>'; return; }
+    cont.innerHTML=guestRientro.activeItems.map((it,idx)=>{
+      const q=Number(it.qty||0);
+      const checked=Number(it.qty_checked||0);
+      const last=it.guest_name ? ('Aggiornato da '+it.guest_name+(it.updated_at ? ' · '+String(it.updated_at).slice(0,16).replace('T',' ') : '')) : 'Non ancora verificato';
+      return '<div class="guest-item-card">'+
+        '<div class="guest-item-title">'+safeHtml(it.item_text||'')+'</div>'+
+        '<div class="guest-count-row">'+
+          '<div class="muted">Previsto: <strong>'+q+'</strong></div>'+
+          '<button class="qtyBtn minus" type="button" data-guest-minus="'+idx+'">−</button>'+
+          '<input class="guest-count-input" type="number" min="0" max="'+q+'" value="'+checked+'" data-guest-check-idx="'+idx+'">'+
+          '<button class="qtyBtn plus" type="button" data-guest-plus="'+idx+'">+</button>'+
+        '</div>'+
+        '<div class="guest-last">'+safeHtml(last)+'</div>'+
+      '</div>';
+    }).join('');
+    cont.querySelectorAll('[data-guest-minus]').forEach(btn=>btn.addEventListener('click',()=>guestAdjustItem(parseInt(btn.dataset.guestMinus,10),-1)));
+    cont.querySelectorAll('[data-guest-plus]').forEach(btn=>btn.addEventListener('click',()=>guestAdjustItem(parseInt(btn.dataset.guestPlus,10),1)));
+    cont.querySelectorAll('[data-guest-check-idx]').forEach(inp=>inp.addEventListener('change',()=>guestClampInput(inp)));
+  }
+
+  function guestClampInput(inp){
+    const idx=parseInt(inp.dataset.guestCheckIdx,10);
+    const it=guestRientro.activeItems[idx];
+    if(!it) return;
+    let v=parseInt(inp.value||'0',10);
+    if(isNaN(v)) v=0;
+    v=Math.max(0, Math.min(Number(it.qty||0), v));
+    inp.value=String(v);
+    it.qty_checked=v;
+    try{ haptic('light'); }catch{}
+  }
+
+  function guestAdjustItem(idx, delta){
+    const it=guestRientro.activeItems[idx];
+    if(!it) return;
+    const next=Math.max(0, Math.min(Number(it.qty||0), Number(it.qty_checked||0)+delta));
+    it.qty_checked=next;
+    const inp=document.querySelector('[data-guest-check-idx="'+idx+'"]');
+    if(inp) inp.value=String(next);
+    try{ haptic(delta>0?'tick':'tock'); }catch{}
+  }
+
+  async function guestSaveBoxChecks(){
+    if(!guestSession?.token || !guestRientro.activeBox){ return; }
+    const status=document.getElementById('guestSaveBoxStatus');
+    if(status) status.textContent='Salvataggio online…';
+    const checks=(guestRientro.activeItems||[]).map(it=>({
+      item_text: it.item_text,
+      item_search_text: it.item_search_text || (typeof normalizeDescription==='function' ? normalizeDescription(it.item_text||'') : String(it.item_text||'').toUpperCase()),
+      qty_checked: Number(it.qty_checked||0)
+    }));
+    try{
+      const data=await callEventAccess('guest-save-checks', {
+        token: guestSession.token,
+        label_id: guestRientro.activeBox.label_id,
+        guest_name: guestSession.guest_name || 'Guest',
+        checks
+      }, false);
+      if(status) status.innerHTML='<span class="ok">Rientro salvato online.</span>';
+      try{ haptic('success'); }catch{}
+      await guestOpenBox(guestRientro.activeBox);
+      await guestRefreshBoxes();
+    }catch(err){
+      if(status) status.innerHTML='<span class="err">Errore salvataggio: '+safeHtml(err.message||err)+'</span>';
+      try{ haptic('error'); }catch{}
+    }
+  }
+
+  function guestBackToBoxes(){
+    document.getElementById('guestBoxDetailPanel')?.classList.add('hidden');
+    document.getElementById('guestBoxesPanel')?.classList.remove('hidden');
+    document.getElementById('guestBackToBoxesBtn')?.classList.add('hidden');
+    guestRientro.activeBox=null;
+    guestRientro.activeItems=[];
+    guestRefreshBoxes();
+  }
+
+  // override: logout pulisce anche Guest
+  const oldAppLogout = window.appLogout;
+  window.appLogout = async function(){
+    try{ guestScanMode=false; }catch{}
+    try{ saveGuestSession(null); }catch{}
+    try{ localStorage.removeItem(KEY_GUEST_SESSION); }catch{}
+    try{ if(typeof oldAppLogout==='function') return await oldAppLogout(); }catch(e){ console.warn(e); }
+    try{ showLoginOverlay(true); }catch{}
+  };
+
+  // override: etichetta operatore mostra nickname guest
+  const oldUpdateOperatorLabel = window.updateOperatorLabel;
+  window.updateOperatorLabel = function(){
+    const tag=document.getElementById('opNameTag');
+    if(window.isGuestMode && window.isGuestMode()){
+      if(tag){ tag.textContent=(guestSession?.guest_name || 'Guest')+' · guest'; tag.classList.remove('hidden'); }
+      document.getElementById('appLogoutBtn')?.classList.remove('hidden');
+      return;
+    }
+    if(typeof oldUpdateOperatorLabel==='function') oldUpdateOperatorLabel();
+  };
+
+  // override: UI permessi
+  const oldUpdateAdminUI = window.updateAdminUI;
+  window.updateAdminUI = function(){
+    const guest = window.isGuestMode && window.isGuestMode();
+    const admin = (typeof isCurrentAdmin==='function') ? isCurrentAdmin() : false;
+    if(typeof oldUpdateAdminUI==='function') oldUpdateAdminUI();
+    document.querySelectorAll('.admin-only').forEach(el => el.classList.toggle('hidden', !admin));
+    document.querySelectorAll('button[data-tab]').forEach(btn=>{
+      const tab=btn.dataset.tab;
+      if(guest){
+        const allowed=['tab-home','tab-guest-search','tab-guest-rientro'];
+        const show=allowed.includes(tab);
+        btn.classList.toggle('hidden', !show);
+        btn.disabled=!show;
+      }else{
+        btn.classList.remove('hidden');
+        if(tab==='tab-cloud'){ btn.disabled=!admin; btn.title=admin?'':'Riservato agli admin'; }
+      }
+    });
+    const blockForGuest=['saveLocal','loadLocal','saveLabelCloudBtn','updateLabelCloudBtn','saveAsNewLabelCloudBtn','importListToCloudBtn','eventPinBtn','clearList','exportJson','btnGenQR','btnDownloadPNG','btnPrint','btnPDFMain','archiveSearchBtn','rReset','rAll','rExport','rPDF'];
+    blockForGuest.forEach(id=>{ const el=document.getElementById(id); if(el) el.disabled=guest; });
+    if(guest){ updateGuestRientroHeader(); }
+  };
+
+  // override: blocco navigazione guest
+  const oldGoTab = window.goTab;
+  window.goTab = function(id, fromUser=false){
+    if(window.isGuestMode && window.isGuestMode() && !['tab-home','tab-guest-search','tab-guest-rientro'].includes(id)){
+      alert('Area non disponibile in modalità Guest.');
+      id='tab-guest-rientro';
+    }
+    const ret = (typeof oldGoTab==='function') ? oldGoTab(id, fromUser) : undefined;
+    if(id==='tab-guest-rientro') setTimeout(guestRefreshBoxes, 50);
+    return ret;
+  };
+
+  // hard block funzioni vietate al guest
+  function blockGuestFunction(fnName, msg){
+    const old=window[fnName];
+    if(typeof old!=='function') return;
+    window[fnName]=function(...args){
+      if(window.isGuestMode && window.isGuestMode()){ alert(msg || 'Funzione non disponibile in modalità Guest.'); return; }
+      return old.apply(this,args);
+    };
+  }
+  ['saveLabelToCloud','updateExistingLabelInCloud','importCurrentListDescriptionsToCloud','generateAndHandlePDF','searchCloudArchive'].forEach(n=>blockGuestFunction(n));
+
+  document.addEventListener('DOMContentLoaded', function(){
+    document.getElementById('guestRefreshBoxesBtn')?.addEventListener('click', guestRefreshBoxes);
+    document.getElementById('guestBackToBoxesBtn')?.addEventListener('click', guestBackToBoxes);
+    document.getElementById('guestSaveBoxBtn')?.addEventListener('click', guestSaveBoxChecks);
+    setTimeout(()=>{ try{ updateOperatorLabel(); updateAdminUI(); updateGuestRientroHeader(); }catch{} }, 300);
+  });
+
+  window.guestRefreshBoxes = guestRefreshBoxes;
+})();
+</script>
+
+
+<script>
+/* === PATCH FINALE VISIBILITÀ PROFILI + LOGOUT GUEST === */
+(function(){
+  const GUEST_SESSION_KEY = 'smartlabel_guest_session_v1';
+  const allowedGuestTabs = new Set(['tab-home','tab-guest-search','tab-guest-rientro']);
+  const guestHiddenIds = [
+    'saveLocal','loadLocal','saveLabelCloudBtn','updateLabelCloudBtn','saveAsNewLabelCloudBtn',
+    'importListToCloudBtn','eventPinBtn','clearList','exportJson',
+    'btnGenQR','btnDownloadPNG','btnPrint','btnPDFMain',
+    'archiveSearchBtn','rReset','rAll','rExport','rPDF',
+    'btnSetCurrent','btnCompare'
+  ];
+
+  function readGuestSession(){
+    try { return JSON.parse(localStorage.getItem(GUEST_SESSION_KEY) || 'null'); }
+    catch { return null; }
+  }
+
+  function hasGuestSession(){
+    try { return !!(window.guestSession || readGuestSession()); }
+    catch { return false; }
+  }
+
+  function isSupabaseUser(){
+    try { return !!window.currentUser; } catch { return false; }
+  }
+
+  function isGuest(){
+    return hasGuestSession() && !isSupabaseUser();
+  }
+
+  window.isGuestMode = isGuest;
+
+  function setStoredDisplay(el, show){
+    if(!el) return;
+    if(el.dataset.guestOriginalDisplay === undefined){
+      el.dataset.guestOriginalDisplay = el.style.display || '';
+    }
+    el.style.display = show ? (el.dataset.guestOriginalDisplay || '') : 'none';
+  }
+
+  function showOnlyAllowedTabsForGuest(guest){
+    document.querySelectorAll('button[data-tab]').forEach(btn => {
+      const tab = btn.dataset.tab;
+      const visible = !guest || allowedGuestTabs.has(tab);
+      setStoredDisplay(btn, visible);
+      btn.disabled = !visible;
+    });
+
+    document.querySelectorAll('[data-go]').forEach(el => {
+      const target = el.getAttribute('data-go');
+      const visible = !guest || allowedGuestTabs.has(target);
+      setStoredDisplay(el, visible);
+    });
+  }
+
+  function hideForbiddenGuestButtons(guest){
+    guestHiddenIds.forEach(id => {
+      const el = document.getElementById(id);
+      if(!el) return;
+      setStoredDisplay(el, !guest);
+      el.disabled = !!guest;
+    });
+  }
+
+  function updateLogoutAndBadge(guest){
+    const logout = document.getElementById('appLogoutBtn');
+    const tag = document.getElementById('opNameTag');
+    if(guest){
+      const s = window.guestSession || readGuestSession() || {};
+      if(tag){
+        tag.textContent = (s.guest_name || 'Guest') + ' · guest';
+        tag.classList.remove('hidden');
+      }
+      if(logout){
+        logout.textContent = 'Logout Guest';
+        logout.classList.remove('hidden');
+        logout.style.display = '';
+      }
+    }else{
+      if(logout){ logout.textContent = 'Logout'; }
+    }
+  }
+
+  function applyProfileVisibility(){
+    const guest = isGuest();
+    showOnlyAllowedTabsForGuest(guest);
+    hideForbiddenGuestButtons(guest);
+    updateLogoutAndBadge(guest);
+  }
+
+  async function doGuestLogout(){
+    try { window.guestScanMode = false; } catch {}
+    try { if(typeof stopCameraOverlay === 'function') stopCameraOverlay('Logout Guest.'); } catch {}
+    try { if(typeof saveGuestSession === 'function') saveGuestSession(null); } catch {}
+    try { window.guestSession = null; } catch {}
+    try { localStorage.removeItem(GUEST_SESSION_KEY); } catch {}
+    try { localStorage.removeItem('smartlabel_guest_event_cache_v1'); } catch {}
+
+    try {
+      const client = (typeof ensureSupabase === 'function') ? await ensureSupabase() : null;
+      if(client) await client.auth.signOut();
+    } catch {}
+
+    try { window.currentUser = null; window.currentProfile = null; } catch {}
+    try { if(typeof showLoginOverlay === 'function') showLoginOverlay(true); } catch {}
+    try { if(typeof goTab === 'function') goTab('tab-home', false); } catch {}
+    setTimeout(applyProfileVisibility, 50);
+  }
+
+  document.addEventListener('click', function(ev){
+    const logout = ev.target && ev.target.closest ? ev.target.closest('#appLogoutBtn,#adminLogoutBtn') : null;
+    if(logout && isGuest()){
+      ev.preventDefault();
+      ev.stopPropagation();
+      ev.stopImmediatePropagation();
+      doGuestLogout();
+      return false;
+    }
+
+    const tabBtn = ev.target && ev.target.closest ? ev.target.closest('button[data-tab]') : null;
+    if(tabBtn && isGuest() && !allowedGuestTabs.has(tabBtn.dataset.tab)){
+      ev.preventDefault();
+      ev.stopPropagation();
+      ev.stopImmediatePropagation();
+      alert('Area non disponibile in modalità Guest.');
+      try { if(typeof goTab === 'function') goTab('tab-guest-rientro', true); } catch {}
+      return false;
+    }
+
+    const cta = ev.target && ev.target.closest ? ev.target.closest('[data-go]') : null;
+    if(cta && isGuest() && !allowedGuestTabs.has(cta.getAttribute('data-go'))){
+      ev.preventDefault();
+      ev.stopPropagation();
+      ev.stopImmediatePropagation();
+      alert('Area non disponibile in modalità Guest.');
+      try { if(typeof goTab === 'function') goTab('tab-guest-rientro', true); } catch {}
+      return false;
+    }
+  }, true);
+
+  // Applica subito e dopo ogni cambio login/tab. È intenzionale: intercetta anche login Guest e ricariche pagina.
+  document.addEventListener('DOMContentLoaded', function(){
+    applyProfileVisibility();
+    setTimeout(applyProfileVisibility, 200);
+    setTimeout(applyProfileVisibility, 800);
+  });
+  window.addEventListener('storage', applyProfileVisibility);
+  setInterval(applyProfileVisibility, 1000);
+  window.applyProfileVisibility = applyProfileVisibility;
+})();
+</script>
+
+
+
+<script>
+/* === PATCH ADMIN/OPERATORE: selezione evento per Rientro evento === */
+(function(){
+  const stateOp = { events: [], selectedEventKey: '', boxes: [], activeBox: null, activeItems: [] };
+
+  function safeHtml(v){
+    try{ return escapeHtml(String(v ?? '')); }
+    catch{ return String(v ?? '').replace(/[&<>\"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+  }
+
+  function isOperatorOrAdminMode(){
+    try{ return !!currentUser && !window.isGuestMode(); }catch{ return false; }
+  }
+
+  function isGuestOnly(){
+    try{ return !!window.isGuestMode && window.isGuestMode(); }catch{ return false; }
+  }
+
+  function setRientroStatus(msg, cls='muted'){
+    const el=document.getElementById('guestRientroStatus');
+    if(!el) return;
+    el.className=cls;
+    el.innerHTML=msg;
+  }
+
+  function updateRientroHeaderMode(){
+    const picker=document.getElementById('operatorEventPicker');
+    const guestBox=document.getElementById('guestRientroEventBox');
+    if(isOperatorOrAdminMode()){
+      picker?.classList.remove('hidden');
+      if(guestBox){
+        const role = (typeof isCurrentAdmin==='function' && isCurrentAdmin()) ? 'Admin' : 'Operatore';
+        guestBox.innerHTML='<span class="ok">Modalità '+role+': scegli un evento e carica i bauli.</span>';
+      }
+    }else{
+      picker?.classList.add('hidden');
+      if(guestBox && guestSession?.event){
+        guestBox.innerHTML='<span class="ok">Evento: <strong>'+safeHtml(guestSession.event.event_name||'')+'</strong> · '+safeHtml(guestSession.guest_name||'Guest')+'</span>';
+      }
+    }
+  }
+
+  async function loadOperatorEvents(force=false){
+    if(!isOperatorOrAdminMode()) return;
+    const sel=document.getElementById('operatorEventSelect');
+    const status=document.getElementById('operatorEventStatus');
+    if(!sel) return;
+    if(stateOp.events.length && !force) return;
+    if(status) status.textContent='Carico eventi…';
+    try{
+      const data=await callEventAccess('operator-events', {}, true);
+      stateOp.events=data.events || [];
+      sel.innerHTML=stateOp.events.length
+        ? stateOp.events.map(ev=>'<option value="'+safeHtml(ev.event_key||'')+'">'+safeHtml(ev.event_name||ev.event_key||'(senza nome)')+' · '+safeHtml(String(ev.boxes_count||0))+' bauli</option>').join('')
+        : '<option value="">Nessun evento disponibile</option>';
+      if(stateOp.selectedEventKey){ sel.value=stateOp.selectedEventKey; }
+      if(!sel.value && stateOp.events[0]) sel.value=stateOp.events[0].event_key || '';
+      stateOp.selectedEventKey=sel.value || '';
+      if(status) status.innerHTML='<span class="ok">Eventi caricati: '+stateOp.events.length+'</span>';
+    }catch(err){
+      if(status) status.innerHTML='<span class="err">Errore eventi: '+safeHtml(err.message||err)+'</span>';
+    }
+  }
+
+  function progressPct(box){
+    const total=Number(box.qty_expected || 0);
+    const checked=Number(box.qty_checked || 0);
+    return total>0 ? Math.round(100*Math.min(checked,total)/total) : 0;
+  }
+
+  function renderBoxes(boxes, opener){
+    const list=document.getElementById('guestBoxesList');
+    if(!list) return;
+    if(!boxes.length){
+      list.innerHTML='<div class="muted">Nessun baule disponibile per questo evento.</div>';
+      return;
+    }
+    list.innerHTML=boxes.map((b,idx)=>{
+      const pct=progressPct(b);
+      const total=Number(b.qty_expected || 0);
+      const checked=Number(b.qty_checked || 0);
+      return '<div class="guest-box-card" data-op-box-idx="'+idx+'">'+
+        '<div class="title">📦 '+safeHtml(b.box_code||'(senza ID)')+'</div>'+
+        '<div class="meta">'+safeHtml(b.position_name||'-')+'<br>'+safeHtml(b.production_name||'')+'</div>'+ 
+        '<div class="guest-progress-row"><div class="progress"><span style="width:'+pct+'%"></span></div><div class="guest-percent">'+pct+'%</div></div>'+ 
+        '<div class="meta">Verificati '+checked+' / '+total+' pezzi</div>'+ 
+      '</div>';
+    }).join('');
+    list.querySelectorAll('[data-op-box-idx]').forEach(card=>{
+      card.addEventListener('click', ()=>opener(boxes[parseInt(card.dataset.opBoxIdx,10)]));
+    });
+  }
+
+  async function refreshBoxesUnified(){
+    updateRientroHeaderMode();
+    document.getElementById('guestBoxDetailPanel')?.classList.add('hidden');
+    document.getElementById('guestBoxesPanel')?.classList.remove('hidden');
+    document.getElementById('guestBackToBoxesBtn')?.classList.add('hidden');
+
+    if(isOperatorOrAdminMode()){
+      await loadOperatorEvents(false);
+      const sel=document.getElementById('operatorEventSelect');
+      const eventKey=sel?.value || stateOp.selectedEventKey || '';
+      if(!eventKey){ setRientroStatus('Seleziona un evento.', 'cloud-warn'); renderBoxes([], openOperatorBox); return; }
+      stateOp.selectedEventKey=eventKey;
+      setRientroStatus('Carico bauli evento…');
+      try{
+        const data=await callEventAccess('operator-boxes', { event_key:eventKey }, true);
+        stateOp.boxes=data.boxes || [];
+        renderBoxes(stateOp.boxes, openOperatorBox);
+        const total=stateOp.boxes.reduce((a,b)=>a+Number(b.qty_expected||0),0);
+        const checked=stateOp.boxes.reduce((a,b)=>a+Number(b.qty_checked||0),0);
+        const pct=total>0 ? Math.round(100*Math.min(checked,total)/total) : 0;
+        setRientroStatus('Bauli caricati: <strong>'+stateOp.boxes.length+'</strong> · Evento completato: <strong>'+pct+'%</strong> ('+checked+'/'+total+')', 'cloud-ok');
+      }catch(err){
+        setRientroStatus('Errore caricamento bauli: '+safeHtml(err.message||err), 'cloud-err');
+      }
+      return;
+    }
+
+    if(isGuestOnly() && typeof window.guestRefreshBoxes === 'function'){
+      return window.guestRefreshBoxes();
+    }
+    setRientroStatus('Accedi come Guest oppure come Admin/Operatore.', 'cloud-warn');
+  }
+
+  async function openOperatorBox(box){
+    if(!box || !box.label_id) return;
+    stateOp.activeBox=box;
+    document.getElementById('guestBoxesPanel')?.classList.add('hidden');
+    document.getElementById('guestBoxDetailPanel')?.classList.remove('hidden');
+    document.getElementById('guestBackToBoxesBtn')?.classList.remove('hidden');
+    const title=document.getElementById('guestBoxDetailTitle');
+    if(title) title.textContent='📦 '+(box.box_code||'Baule');
+    const meta=document.getElementById('guestBoxDetailMeta');
+    if(meta) meta.innerHTML=safeHtml(box.position_name||'-')+' · '+safeHtml(box.production_name||'')+'<br>Caricamento articoli…';
+    const cont=document.getElementById('guestBoxItems');
+    if(cont) cont.innerHTML='';
+    try{
+      const data=await callEventAccess('operator-box-detail', { event_key:stateOp.selectedEventKey, label_id:box.label_id }, true);
+      stateOp.activeItems=data.items || [];
+      renderOperatorBoxDetail(data.box || box);
+    }catch(err){
+      if(meta) meta.innerHTML='<span class="err">Errore apertura baule: '+safeHtml(err.message||err)+'</span>';
+    }
+  }
+
+  function renderOperatorBoxDetail(box){
+    const total=(stateOp.activeItems||[]).reduce((a,it)=>a+Number(it.qty||0),0);
+    const checked=(stateOp.activeItems||[]).reduce((a,it)=>a+Number(it.qty_checked||0),0);
+    const pct=total>0 ? Math.round(100*Math.min(checked,total)/total) : 0;
+    const meta=document.getElementById('guestBoxDetailMeta');
+    if(meta){
+      meta.innerHTML=safeHtml(box.position_name||'-')+' · '+safeHtml(box.production_name||'')+
+        '<div class="guest-progress-row"><div class="progress"><span style="width:'+pct+'%"></span></div><div class="guest-percent">'+pct+'%</div></div>'+ 
+        '<div class="muted">Verificati '+checked+' / '+total+' pezzi</div>';
+    }
+    const cont=document.getElementById('guestBoxItems');
+    if(!cont) return;
+    if(!stateOp.activeItems.length){ cont.innerHTML='<div class="muted">Nessun articolo in questo baule.</div>'; return; }
+    cont.innerHTML=stateOp.activeItems.map((it,idx)=>{
+      const q=Number(it.qty||0);
+      const checked=Number(it.qty_checked||0);
+      const last=it.guest_name ? ('Aggiornato da '+it.guest_name+(it.updated_at ? ' · '+String(it.updated_at).slice(0,16).replace('T',' ') : '')) : 'Non ancora verificato';
+      return '<div class="guest-item-card">'+
+        '<div class="guest-item-title">'+safeHtml(it.item_text||'')+'</div>'+ 
+        '<div class="guest-count-row">'+
+          '<div class="muted">Previsto: <strong>'+q+'</strong></div>'+ 
+          '<button class="qtyBtn minus" type="button" data-op-minus="'+idx+'">−</button>'+ 
+          '<input class="guest-count-input" type="number" min="0" max="'+q+'" value="'+checked+'" data-op-check-idx="'+idx+'">'+ 
+          '<button class="qtyBtn plus" type="button" data-op-plus="'+idx+'">+</button>'+ 
+        '</div>'+ 
+        '<div class="guest-last">'+safeHtml(last)+'</div>'+ 
+      '</div>';
+    }).join('');
+    cont.querySelectorAll('[data-op-minus]').forEach(btn=>btn.addEventListener('click',()=>adjustOperatorItem(parseInt(btn.dataset.opMinus,10),-1)));
+    cont.querySelectorAll('[data-op-plus]').forEach(btn=>btn.addEventListener('click',()=>adjustOperatorItem(parseInt(btn.dataset.opPlus,10),1)));
+    cont.querySelectorAll('[data-op-check-idx]').forEach(inp=>inp.addEventListener('change',()=>clampOperatorInput(inp)));
+  }
+
+  function clampOperatorInput(inp){
+    const idx=parseInt(inp.dataset.opCheckIdx,10);
+    const it=stateOp.activeItems[idx];
+    if(!it) return;
+    let v=parseInt(inp.value||'0',10);
+    if(isNaN(v)) v=0;
+    v=Math.max(0, Math.min(Number(it.qty||0), v));
+    inp.value=String(v);
+    it.qty_checked=v;
+  }
+  function adjustOperatorItem(idx, delta){
+    const it=stateOp.activeItems[idx];
+    if(!it) return;
+    const next=Math.max(0, Math.min(Number(it.qty||0), Number(it.qty_checked||0)+delta));
+    it.qty_checked=next;
+    const inp=document.querySelector('[data-op-check-idx="'+idx+'"]');
+    if(inp) inp.value=String(next);
+    try{ haptic(delta>0?'tick':'tock'); }catch{}
+  }
+
+  async function saveChecksUnified(){
+    if(isGuestOnly()){
+      // Lascia lavorare il salvataggio guest già presente nel file.
+      return;
+    }
+    if(!isOperatorOrAdminMode() || !stateOp.activeBox) return;
+    const status=document.getElementById('guestSaveBoxStatus');
+    if(status) status.textContent='Salvataggio online…';
+    const checks=(stateOp.activeItems||[]).map(it=>({
+      item_text: it.item_text,
+      item_search_text: it.item_search_text || (typeof normalizeDescription==='function' ? normalizeDescription(it.item_text||'') : String(it.item_text||'').toUpperCase()),
+      qty_checked: Number(it.qty_checked||0)
+    }));
+    try{
+      await callEventAccess('operator-save-checks', {
+        event_key: stateOp.selectedEventKey,
+        label_id: stateOp.activeBox.label_id,
+        checks
+      }, true);
+      if(status) status.innerHTML='<span class="ok">Rientro salvato online.</span>';
+      try{ haptic('success'); }catch{}
+      await openOperatorBox(stateOp.activeBox);
+      await refreshBoxesUnified();
+    }catch(err){
+      if(status) status.innerHTML='<span class="err">Errore salvataggio: '+safeHtml(err.message||err)+'</span>';
+      try{ haptic('error'); }catch{}
+    }
+  }
+
+  function backUnified(){
+    if(isOperatorOrAdminMode()){
+      document.getElementById('guestBoxDetailPanel')?.classList.add('hidden');
+      document.getElementById('guestBoxesPanel')?.classList.remove('hidden');
+      document.getElementById('guestBackToBoxesBtn')?.classList.add('hidden');
+      stateOp.activeBox=null;
+      stateOp.activeItems=[];
+      refreshBoxesUnified();
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', function(){
+    const refresh=document.getElementById('guestRefreshBoxesBtn');
+    const back=document.getElementById('guestBackToBoxesBtn');
+    const save=document.getElementById('guestSaveBoxBtn');
+    const reload=document.getElementById('operatorReloadEventsBtn');
+    const select=document.getElementById('operatorEventSelect');
+    refresh?.addEventListener('click', function(ev){ if(isOperatorOrAdminMode()){ ev.preventDefault(); ev.stopImmediatePropagation(); refreshBoxesUnified(); } }, true);
+    back?.addEventListener('click', function(ev){ if(isOperatorOrAdminMode()){ ev.preventDefault(); ev.stopImmediatePropagation(); backUnified(); } }, true);
+    save?.addEventListener('click', function(ev){ if(isOperatorOrAdminMode()){ ev.preventDefault(); ev.stopImmediatePropagation(); saveChecksUnified(); } }, true);
+    reload?.addEventListener('click', async ()=>{ stateOp.events=[]; await loadOperatorEvents(true); await refreshBoxesUnified(); });
+    select?.addEventListener('change', ()=>{ stateOp.selectedEventKey=select.value||''; refreshBoxesUnified(); });
+    setTimeout(()=>{ updateRientroHeaderMode(); if(isOperatorOrAdminMode()) loadOperatorEvents(false); }, 700);
+  });
+
+  const oldGoTab=window.goTab;
+  window.goTab=function(id, fromUser=false){
+    const ret = (typeof oldGoTab==='function') ? oldGoTab(id, fromUser) : undefined;
+    if(id==='tab-guest-rientro'){
+      setTimeout(()=>{ updateRientroHeaderMode(); if(isOperatorOrAdminMode()) refreshBoxesUnified(); }, 120);
+    }
+    return ret;
+  };
+
+  const oldApply=window.applyProfileVisibility;
+  window.applyProfileVisibility=function(){
+    if(typeof oldApply==='function') oldApply();
+    updateRientroHeaderMode();
+    const cloudBtn=document.querySelector('button[data-tab="tab-cloud"]');
+    if(cloudBtn && isOperatorOrAdminMode()){
+      const admin=(typeof isCurrentAdmin==='function') ? isCurrentAdmin() : false;
+      if(!admin){ cloudBtn.style.display='none'; cloudBtn.disabled=true; }
+    }
+  };
+
+  window.operatorRefreshBoxes = refreshBoxesUnified;
+})();
 </script>
 
 </body>
