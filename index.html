@@ -1983,24 +1983,35 @@ nav.noprint,
       try{ localStorage.setItem(KEY_GUEST_CACHE, JSON.stringify(guestScannedBoxes || {})); }catch{}
     }
 
-    async function callEventAccess(action, body={}, requireAuth=false){
-      const headers = {'Content-Type':'application/json','apikey':PRECONFIG_SUPABASE.anonKey};
-      if(requireAuth){
-        const client = await ensureSupabase();
-        const { data: sessionData } = await client.auth.getSession();
-        const accessToken = sessionData?.session?.access_token;
-        if(!accessToken) throw new Error('Sessione login non trovata.');
-        headers.Authorization = `Bearer ${accessToken}`;
+      async function callEventAccess(action, body={}, requireAuth=false){
+        const headers = {
+          'Content-Type':'application/json',
+          'apikey':PRECONFIG_SUPABASE.anonKey,
+          'Authorization':`Bearer ${PRECONFIG_SUPABASE.anonKey}`
+        };
+
+        if(requireAuth){
+          const client = await ensureSupabase();
+          const { data: sessionData } = await client.auth.getSession();
+          const accessToken = sessionData?.session?.access_token;
+          if(!accessToken) throw new Error('Sessione login non trovata.');
+          headers.Authorization = `Bearer ${accessToken}`;
+        }
+
+        const res = await fetch(`${PRECONFIG_SUPABASE.url}/functions/v1/event-access`, {
+          method:'POST',
+          headers,
+          body: JSON.stringify({action, ...body})
+        });
+
+        const data = await res.json().catch(()=>({}));
+
+        if(!res.ok){
+          throw new Error(data.error || data.message || 'Errore Edge Function event-access');
+        }
+
+        return data;
       }
-      const res = await fetch(`${PRECONFIG_SUPABASE.url}/functions/v1/event-access`, {
-        method:'POST',
-        headers,
-        body: JSON.stringify({action, ...body})
-      });
-      const data = await res.json().catch(()=>({}));
-      if(!res.ok) throw new Error(data.error || 'Errore Edge Function event-access');
-      return data;
-    }
 
     async function guestLogin(){
       const name=(document.getElementById('guestNameInput')?.value||'').trim();
