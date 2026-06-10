@@ -1122,6 +1122,64 @@ textarea:not(.no-uppercase){
 .guest-last{font-size:11px;color:var(--muted);margin-top:6px}
 .guest-save-sticky{position:sticky;bottom:8px;z-index:5;background:rgba(17,24,39,.95);border:1px solid var(--b);border-radius:16px;padding:10px;margin-top:12px;backdrop-filter:blur(8px)}
 
+
+
+/* === PATCH 2026-06-10: MENU MOBILE SENZA ALLARGAMENTO ORIZZONTALE === */
+html,
+body{
+  max-width:100%;
+  overflow-x:hidden;
+}
+
+header,
+.wrap,
+nav.noprint,
+.nav-scroll{
+  max-width:100%;
+  min-width:0;
+}
+
+@media(max-width:767px){
+  nav.noprint{
+    width:100%;
+    overflow-x:hidden;
+  }
+
+  .nav-scroll{
+    width:100%;
+    max-width:100%;
+    display:flex;
+    flex-wrap:wrap !important;
+    overflow-x:hidden !important;
+    gap:6px;
+    padding-bottom:0;
+  }
+
+  nav.noprint button{
+    white-space:normal !important;
+    flex:1 1 calc(50% - 6px) !important;
+    min-width:0 !important;
+    max-width:100%;
+    overflow-wrap:anywhere;
+  }
+
+  nav.noprint button[data-tab="tab-home"]{
+    flex-basis:100% !important;
+  }
+
+  #appLogoutBtn{
+    width:100%;
+    max-width:100%;
+  }
+}
+
+@media(max-width:380px){
+  nav.noprint button{
+    flex-basis:100% !important;
+  }
+}
+/* === FINE PATCH MENU MOBILE === */
+
 </style>
 </head>
 
@@ -6470,6 +6528,99 @@ document.addEventListener("DOMContentLoaded", function(){
   };
 
   window.operatorRefreshBoxes = refreshBoxesUnified;
+})();
+</script>
+
+
+
+<script>
+/* === PATCH 2026-06-10: TROVA MATERIALE SOLO GUEST ===
+   La ricerca articoli evento resta una prerogativa del Guest con PIN.
+   Admin/Operatore continuano a usare Rientro evento per vedere bauli e dettaglio articoli.
+*/
+(function(){
+  const GUEST_SESSION_KEY = 'smartlabel_guest_session_v1';
+
+  function readStoredGuestSession(){
+    try { return JSON.parse(localStorage.getItem(GUEST_SESSION_KEY) || 'null'); }
+    catch { return null; }
+  }
+
+  function hasRealSupabaseUser(){
+    try {
+      return (typeof currentUser !== 'undefined' && !!currentUser);
+    } catch {
+      return false;
+    }
+  }
+
+  function hasGuestSession(){
+    try {
+      if (typeof guestSession !== 'undefined' && guestSession && guestSession.token) return true;
+    } catch {}
+    const stored = readStoredGuestSession();
+    return !!(stored && stored.token);
+  }
+
+  function isGuestOnlyMode(){
+    return hasGuestSession() && !hasRealSupabaseUser();
+  }
+
+  function setVisible(el, visible){
+    if(!el) return;
+    if(el.dataset.guestSearchOriginalDisplay === undefined){
+      el.dataset.guestSearchOriginalDisplay = el.style.display || '';
+    }
+    el.style.display = visible ? (el.dataset.guestSearchOriginalDisplay || '') : 'none';
+    if('disabled' in el) el.disabled = !visible;
+  }
+
+  function applyGuestSearchOnlyVisibility(){
+    const guest = isGuestOnlyMode();
+
+    document.querySelectorAll('button[data-tab="tab-guest-search"], [data-go="tab-guest-search"]').forEach(el => {
+      setVisible(el, guest);
+    });
+
+    const tab = document.getElementById('tab-guest-search');
+    if(!guest && tab && !tab.classList.contains('hidden')){
+      try {
+        if(typeof goTab === 'function') goTab('tab-home', false);
+        else tab.classList.add('hidden');
+      } catch {
+        tab.classList.add('hidden');
+      }
+    }
+
+    const box = document.getElementById('guestEventBox');
+    if(box && !guest){
+      box.textContent = 'La ricerca materiale evento è disponibile solo con accesso Guest tramite PIN evento.';
+    }
+  }
+
+  document.addEventListener('click', function(ev){
+    if(isGuestOnlyMode()) return;
+
+    const target = ev.target && ev.target.closest ? ev.target.closest('button[data-tab="tab-guest-search"], [data-go="tab-guest-search"], #guestSearchBtn') : null;
+    if(!target) return;
+
+    ev.preventDefault();
+    ev.stopPropagation();
+    ev.stopImmediatePropagation();
+    alert('Trova materiale è disponibile solo in modalità Guest con PIN evento. Admin e Operatore possono usare Rientro evento per vedere bauli e dettaglio articoli.');
+    try { if(typeof goTab === 'function') goTab('tab-home', false); } catch {}
+    return false;
+  }, true);
+
+  document.addEventListener('DOMContentLoaded', function(){
+    applyGuestSearchOnlyVisibility();
+    setTimeout(applyGuestSearchOnlyVisibility, 200);
+    setTimeout(applyGuestSearchOnlyVisibility, 800);
+  });
+
+  window.addEventListener('storage', applyGuestSearchOnlyVisibility);
+  setInterval(applyGuestSearchOnlyVisibility, 1000);
+  window.applyGuestSearchOnlyVisibility = applyGuestSearchOnlyVisibility;
 })();
 </script>
 
