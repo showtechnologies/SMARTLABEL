@@ -1241,6 +1241,87 @@ nav.noprint,
 }
 /* === FINE PATCH FEEDBACK VISIVO SCANSIONE CONTINUA GUEST === */
 
+
+
+/* === PATCH MISSION LOG SCANSIONE CONTINUA GUEST === */
+#scanMissionPanel{
+  position:absolute;
+  left:10px;
+  right:10px;
+  bottom:10px;
+  z-index:26;
+  background:rgba(3,7,18,.86);
+  border:1px solid rgba(255,255,255,.25);
+  border-radius:16px;
+  padding:10px;
+  color:#fff;
+  backdrop-filter:blur(8px);
+  box-shadow:0 12px 42px rgba(0,0,0,.55);
+  max-height:38vh;
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+}
+#scanMissionPanel.hidden{display:none!important}
+.scanMissionTop{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  justify-content:space-between;
+}
+.scanMissionTitle{
+  min-width:0;
+  font-size:13px;
+  line-height:1.25;
+  font-weight:800;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.scanMissionMeta{
+  font-size:12px;
+  color:#d1d5db;
+  line-height:1.25;
+}
+.scanMissionBtn{
+  border:1px solid rgba(255,255,255,.28);
+  background:#1f2937;
+  color:#fff;
+  border-radius:12px;
+  padding:8px 10px;
+  font-size:12px;
+  line-height:1.1;
+  font-weight:800;
+  white-space:nowrap;
+}
+#scanMissionLog{
+  display:flex;
+  flex-direction:column;
+  gap:5px;
+  overflow:auto;
+  -webkit-overflow-scrolling:touch;
+  padding-right:2px;
+}
+.scanLogItem{
+  border-radius:10px;
+  padding:7px 8px;
+  font-size:12px;
+  line-height:1.25;
+  background:rgba(31,41,55,.8);
+  border:1px solid rgba(255,255,255,.12);
+}
+.scanLogItem.ok{background:rgba(6,95,70,.86);border-color:#34d399}
+.scanLogItem.warn{background:rgba(146,64,14,.86);border-color:#fbbf24}
+.scanLogItem.err{background:rgba(127,29,29,.88);border-color:#f87171}
+.scanLogItem.info{background:rgba(30,64,175,.86);border-color:#93c5fd}
+.scanLogItem strong{display:block;font-size:13px;line-height:1.2}
+.scanLogItem span{display:block;color:#e5e7eb;margin-top:2px}
+@media(max-height:620px){
+  #scanMissionPanel{max-height:30vh;padding:8px}
+  .scanMissionMeta{display:none}
+}
+/* === FINE PATCH MISSION LOG SCANSIONE CONTINUA GUEST === */
+
 </style>
 </head>
 
@@ -1798,6 +1879,16 @@ nav.noprint,
       <video id="cameraVideo" autoplay playsinline muted></video>
       <div id="scanFrame"></div>
       <div id="scanFeedback" aria-live="assertive"></div>
+      <div id="scanMissionPanel" class="hidden" aria-live="polite">
+        <div class="scanMissionTop">
+          <div style="min-width:0;flex:1">
+            <div id="scanMissionTitle" class="scanMissionTitle">Nessuna ricerca attiva</div>
+            <div id="scanMissionMeta" class="scanMissionMeta">Seleziona gli articoli e avvia la scansione.</div>
+          </div>
+          <button id="scanRepeatBtn" class="scanMissionBtn" type="button">Ripeti giro</button>
+        </div>
+        <div id="scanMissionLog"></div>
+      </div>
       <canvas id="cameraCanvas"></canvas>
     </div>
   </div>
@@ -2023,6 +2114,7 @@ nav.noprint,
     let guestSearchResults = [];
     let guestSelectedKeys = new Set();
     let guestScanMode = false;
+    let guestScanLog = [];
     let guestScannedBoxes = loadGuestCache();
 
 
@@ -2191,6 +2283,7 @@ nav.noprint,
         guestSearchResults=results;
         guestSelectedKeys=new Set(results.map(r=>guestItemKey(r)));
         renderGuestResults();
+        renderGuestScanOverlayLog();
         if(status) status.innerHTML='<span class="ok">'+results.length+' risultati trovati.</span>';
       }catch(err){
         const fallback=localGuestSearch(q);
@@ -2221,8 +2314,10 @@ nav.noprint,
       box.querySelectorAll('[data-guest-key]').forEach(chk=>chk.addEventListener('change',()=>{
         if(chk.checked) guestSelectedKeys.add(chk.dataset.guestKey); else guestSelectedKeys.delete(chk.dataset.guestKey);
         updateGuestMissionStatus();
+        renderGuestScanOverlayLog();
       }));
       updateGuestMissionStatus();
+      renderGuestScanOverlayLog();
     }
 
     function updateGuestMissionStatus(lastMessage=''){
@@ -2261,9 +2356,78 @@ nav.noprint,
       updateGuestMissionStatus();
     }
 
+    function getGuestSelectedBoxSet(){
+      return new Set([...guestSelectedKeys].map(k=>k.split('|')[1]).filter(Boolean));
+    }
+
+    function getGuestSearchTerm(){
+      return (document.getElementById('guestSearchInput')?.value || '').trim();
+    }
+
+    function clearGuestScanRound(){
+      const key=getGuestEventKey();
+      if(key && guestScannedBoxes[key]){
+        guestScannedBoxes[key].boxes={};
+        saveGuestCache();
+      }
+      guestScanLog=[];
+      renderGuestScannedBoxes();
+      updateGuestMissionStatus('RICERCA RIAVVIATA');
+      renderGuestScanOverlayLog();
+      showGuestScanFeedback('RICERCA RIAVVIATA', 'info');
+      try{ haptic('light'); }catch{}
+    }
+
+    function addGuestScanLog(kind, title, detail=''){
+      guestScanLog.unshift({
+        kind,
+        title:String(title || ''),
+        detail:String(detail || ''),
+        at:new Date().toISOString()
+      });
+      guestScanLog=guestScanLog.slice(0,8);
+      renderGuestScanOverlayLog();
+    }
+
+    function renderGuestScanOverlayLog(){
+      const panel=document.getElementById('scanMissionPanel');
+      const title=document.getElementById('scanMissionTitle');
+      const meta=document.getElementById('scanMissionMeta');
+      const log=document.getElementById('scanMissionLog');
+      if(!panel || !title || !meta || !log) return;
+
+      const selectedCount=guestSelectedKeys.size;
+      const targetBoxes=getGuestSelectedBoxSet();
+      const found=countGuestFoundTargetBoxes();
+      const searchTerm=getGuestSearchTerm();
+
+      if(!guestScanMode){
+        panel.classList.add('hidden');
+        return;
+      }
+
+      panel.classList.remove('hidden');
+      title.textContent = searchTerm ? ('Ricerca: ' + searchTerm.toUpperCase()) : 'Scansione continua';
+      meta.textContent = 'Articoli selezionati: ' + selectedCount + ' · Bauli target: ' + targetBoxes.size + ' · Trovati: ' + found + '/' + targetBoxes.size;
+
+      if(!guestScanLog.length){
+        log.innerHTML='<div class="scanLogItem info"><strong>Pronto a scansionare</strong><span>Inquadra i QR dei bauli. Qui compariranno i match.</span></div>';
+        return;
+      }
+
+      log.innerHTML=guestScanLog.map(row=>{
+        const kind=['ok','warn','err','info'].includes(row.kind) ? row.kind : 'info';
+        return '<div class="scanLogItem '+kind+'"><strong>'+escapeHtml(row.title)+'</strong>'+
+          (row.detail ? '<span>'+escapeHtml(row.detail)+'</span>' : '')+
+        '</div>';
+      }).join('');
+    }
+
     function startGuestContinuousScan(){
       guestScanMode=true;
+      renderGuestScanOverlayLog();
       startCameraOverlay();
+      setTimeout(renderGuestScanOverlayLog, 250);
     }
 
     function showGuestScanFeedback(message, kind='info'){
@@ -2293,6 +2457,8 @@ nav.noprint,
       if(camStatusEl){
         camStatusEl.textContent = safeMsg;
       }
+
+      renderGuestScanOverlayLog();
     }
 
     async function handleGuestScannedText(text){
@@ -2304,9 +2470,11 @@ nav.noprint,
         const qrEventKey=normalizeEventKey(obj.e||'');
 
         if(currentEventKey && qrEventKey && currentEventKey!==qrEventKey){
+          const msg='QR DI ALTRO EVENTO';
           haptic('error');
-          updateGuestMissionStatus('⚠️ QR DI ALTRO EVENTO');
-          showGuestScanFeedback('QR DI ALTRO EVENTO', 'err');
+          updateGuestMissionStatus('⚠️ '+msg);
+          addGuestScanLog('err', '⚠️ '+msg, obj.e ? ('Evento QR: '+obj.e) : '');
+          showGuestScanFeedback(msg, 'err');
           return;
         }
 
@@ -2341,26 +2509,33 @@ nav.noprint,
           }
         }
 
+        const pos = obj.pos ? (' · '+obj.pos) : '';
         if(foundItems.length){
           const msg='✅ TROVATO IN '+boxCode;
+          const detail=foundItems.map(it=>(it.d || '') + (it.q ? ' × '+it.q : '')).join(' · ');
           haptic('success');
           updateGuestMissionStatus(msg);
+          addGuestScanLog('ok', msg, detail || (boxCode+pos));
           showGuestScanFeedback(msg, 'ok');
         }else if(already){
           const msg='GIÀ SCANSIONATO '+boxCode;
           haptic('light');
           updateGuestMissionStatus(msg);
+          addGuestScanLog('info', '🔁 '+msg, boxCode+pos);
           showGuestScanFeedback(msg, 'info');
         }else{
           const msg='NON È QUI — '+boxCode;
           haptic('tock');
           updateGuestMissionStatus(msg);
+          addGuestScanLog('warn', '❌ '+msg, boxCode+pos);
           showGuestScanFeedback(msg, 'warn');
         }
       }catch(err){
+        const msg='QR NON VALIDO';
         haptic('error');
-        updateGuestMissionStatus('QR NON VALIDO');
-        showGuestScanFeedback('QR NON VALIDO', 'err');
+        updateGuestMissionStatus(msg);
+        addGuestScanLog('err', '⚠️ '+msg, err?.message || '');
+        showGuestScanFeedback(msg, 'err');
       }
     }
 
@@ -3137,7 +3312,8 @@ nav.noprint,
       document.getElementById('guestSearchBtn')?.addEventListener('click', guestSearch);
       document.getElementById('guestSearchInput')?.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ e.preventDefault(); guestSearch(); }});
       document.getElementById('guestStartScanBtn')?.addEventListener('click', startGuestContinuousScan);
-      document.getElementById('guestClearCacheBtn')?.addEventListener('click', ()=>{ const key=getGuestEventKey(); if(key && guestScannedBoxes[key]){ guestScannedBoxes[key].boxes={}; saveGuestCache(); renderGuestScannedBoxes(); updateGuestMissionStatus(); }});
+      document.getElementById('guestClearCacheBtn')?.addEventListener('click', ()=>{ clearGuestScanRound(); });
+      document.getElementById('scanRepeatBtn')?.addEventListener('click', (e)=>{ e.preventDefault(); clearGuestScanRound(); });
 
       const client = await ensureSupabase();
       if(!client){
@@ -5029,6 +5205,7 @@ Aggiornate: ${result.updated}`);
 
     function stopCameraOverlay(msg){
       guestScanMode=false;
+      renderGuestScanOverlayLog();
       camScanning=false;
       if(camStream){
         camStream.getTracks().forEach(t=>t.stop());
