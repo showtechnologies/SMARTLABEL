@@ -2115,6 +2115,7 @@ nav.noprint,
     let guestSelectedKeys = new Set();
     let guestScanMode = false;
     let guestScanLog = [];
+    let guestScanRound = { scannedBoxes:new Set(), logKeys:new Set(), foundItemKeys:new Set() };
     let guestScannedBoxes = loadGuestCache();
 
 
@@ -2226,6 +2227,7 @@ nav.noprint,
       const q=(document.getElementById('guestSearchInput')?.value||'').trim();
       const status=document.getElementById('guestSearchStatus');
       if(!q){ if(status) status.textContent='Scrivi cosa cercare.'; return; }
+      clearGuestScanRound('NUOVA RICERCA', false);
       if(status) status.textContent='Ricerca…';
       try{
         let results=[];
@@ -2313,6 +2315,7 @@ nav.noprint,
       }).join('');
       box.querySelectorAll('[data-guest-key]').forEach(chk=>chk.addEventListener('change',()=>{
         if(chk.checked) guestSelectedKeys.add(chk.dataset.guestKey); else guestSelectedKeys.delete(chk.dataset.guestKey);
+        clearGuestScanRound('SELEZIONE AGGIORNATA', false);
         updateGuestMissionStatus();
         renderGuestScanOverlayLog();
       }));
@@ -2364,29 +2367,44 @@ nav.noprint,
       return (document.getElementById('guestSearchInput')?.value || '').trim();
     }
 
-    function clearGuestScanRound(){
+    function resetGuestScanRoundState(){
+      guestScanRound = { scannedBoxes:new Set(), logKeys:new Set(), foundItemKeys:new Set() };
+    }
+
+    function clearGuestScanRound(message='RICERCA RIAVVIATA', showFeedback=true){
       const key=getGuestEventKey();
       if(key && guestScannedBoxes[key]){
         guestScannedBoxes[key].boxes={};
         saveGuestCache();
       }
+      resetGuestScanRoundState();
       guestScanLog=[];
       renderGuestScannedBoxes();
-      updateGuestMissionStatus('RICERCA RIAVVIATA');
+      updateGuestMissionStatus(message);
       renderGuestScanOverlayLog();
-      showGuestScanFeedback('RICERCA RIAVVIATA', 'info');
-      try{ haptic('light'); }catch{}
+      if(showFeedback && guestScanMode){
+        showGuestScanFeedback(message, 'info');
+        try{ haptic('light'); }catch{}
+      }
     }
 
-    function addGuestScanLog(kind, title, detail=''){
+    function addGuestScanLog(kind, title, detail='', key=''){
+      const logKey = key || [kind, title, detail].join('|');
+      if(guestScanRound.logKeys.has(logKey)){
+        renderGuestScanOverlayLog();
+        return false;
+      }
+      guestScanRound.logKeys.add(logKey);
       guestScanLog.unshift({
         kind,
         title:String(title || ''),
         detail:String(detail || ''),
-        at:new Date().toISOString()
+        at:new Date().toISOString(),
+        key:logKey
       });
-      guestScanLog=guestScanLog.slice(0,8);
+      guestScanLog=guestScanLog.slice(0,14);
       renderGuestScanOverlayLog();
+      return true;
     }
 
     function renderGuestScanOverlayLog(){
@@ -2473,7 +2491,7 @@ nav.noprint,
           const msg='QR DI ALTRO EVENTO';
           haptic('error');
           updateGuestMissionStatus('⚠️ '+msg);
-          addGuestScanLog('err', '⚠️ '+msg, obj.e ? ('Evento QR: '+obj.e) : '');
+          addGuestScanLog('err', '⚠️ '+msg, obj.e ? ('Evento QR: '+obj.e) : '', 'err|other-event|'+(obj.e||''));
           showGuestScanFeedback(msg, 'err');
           return;
         }
@@ -2481,7 +2499,10 @@ nav.noprint,
         const key=currentEventKey || qrEventKey || 'offline';
         guestScannedBoxes[key]=guestScannedBoxes[key] || {boxes:{}};
         const boxCode=obj.b || '(senza ID)';
-        const already=!!guestScannedBoxes[key].boxes[boxCode];
+        const pos = obj.pos ? String(obj.pos) : '';
+        const prod = obj.p ? String(obj.p) : '';
+        const boxLabel = boxCode + (pos ? ' / '+pos : '');
+        const already=guestScanRound.scannedBoxes.has(boxCode);
 
         guestScannedBoxes[key].boxes[boxCode]={
           box_code:boxCode,
@@ -2490,6 +2511,7 @@ nav.noprint,
           items:obj.l||[],
           scanned_at:new Date().toISOString()
         };
+        guestScanRound.scannedBoxes.add(boxCode);
 
         saveGuestCache();
         renderGuestScannedBoxes();
@@ -2501,40 +2523,62 @@ nav.noprint,
           const n=normalizeDescription(it.d||'');
           for(const sk of selected){
             const parts=sk.split('|');
-            const targetBox=parts[1];
+            const targetLabelId=parts[0] || '';
+            const targetBox=parts[1] || '';
             const targetItem=parts.slice(2).join('|');
             if((!targetBox || targetBox===boxCode) && n===targetItem){
-              foundItems.push(it);
+              foundItems.push({
+                item_text: it.d || targetItem,
+                item_search_text: n,
+                qty: it.q || 0,
+                box_code: boxCode,
+                position_name: pos,
+                production_name: prod,
+                label_id: targetLabelId
+              });
             }
           }
         }
 
-        const pos = obj.pos ? (' · '+obj.pos) : '';
         if(foundItems.length){
-          const msg='✅ TROVATO IN '+boxCode;
-          const detail=foundItems.map(it=>(it.d || '') + (it.q ? ' × '+it.q : '')).join(' · ');
-          haptic('success');
+          let newCount=0;
+          for(const it of foundItems){
+            const itemName = normalizeDescription(it.item_text || it.item_search_text || 'ARTICOLO');
+            const itemKey = ['found', boxCode, itemName].join('|');
+            if(guestScanRound.foundItemKeys.has(itemKey)) continue;
+            guestScanRound.foundItemKeys.add(itemKey);
+            newCount++;
+            const qtyTxt = Number(it.qty||0) ? ' × '+Number(it.qty||0) : '';
+            const detail = 'Trovato in '+boxLabel + (prod ? ' · '+prod : '');
+            addGuestScanLog('ok', '✅ '+itemName+qtyTxt, detail, itemKey);
+          }
+
+          const msg = newCount > 1 ? ('✅ '+newCount+' ARTICOLI TROVATI IN '+boxCode) : ('✅ TROVATO IN '+boxCode);
+          haptic(newCount ? 'success' : 'light');
           updateGuestMissionStatus(msg);
-          addGuestScanLog('ok', msg, detail || (boxCode+pos));
           showGuestScanFeedback(msg, 'ok');
-        }else if(already){
+          return;
+        }
+
+        if(already){
           const msg='GIÀ SCANSIONATO '+boxCode;
           haptic('light');
           updateGuestMissionStatus(msg);
-          addGuestScanLog('info', '🔁 '+msg, boxCode+pos);
+          addGuestScanLog('info', '🔁 '+msg, boxLabel, 'info|already|'+boxCode);
           showGuestScanFeedback(msg, 'info');
-        }else{
-          const msg='NON È QUI — '+boxCode;
-          haptic('tock');
-          updateGuestMissionStatus(msg);
-          addGuestScanLog('warn', '❌ '+msg, boxCode+pos);
-          showGuestScanFeedback(msg, 'warn');
+          return;
         }
+
+        const msg='NON È QUI — '+boxCode;
+        haptic('tock');
+        updateGuestMissionStatus(msg);
+        addGuestScanLog('warn', '❌ '+msg, boxLabel, 'warn|not-here|'+boxCode);
+        showGuestScanFeedback(msg, 'warn');
       }catch(err){
         const msg='QR NON VALIDO';
         haptic('error');
         updateGuestMissionStatus(msg);
-        addGuestScanLog('err', '⚠️ '+msg, err?.message || '');
+        addGuestScanLog('err', '⚠️ '+msg, err?.message || '', 'err|invalid|'+String(err?.message||''));
         showGuestScanFeedback(msg, 'err');
       }
     }
