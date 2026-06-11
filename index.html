@@ -1180,6 +1180,67 @@ nav.noprint,
 }
 /* === FINE PATCH MENU MOBILE === */
 
+
+
+/* === PATCH FEEDBACK VISIVO SCANSIONE CONTINUA GUEST === */
+#scanFeedback{
+  position:absolute;
+  left:50%;
+  top:50%;
+  transform:translate(-50%,-50%) scale(.96);
+  z-index:30;
+  min-width:min(86vw, 520px);
+  max-width:86vw;
+  padding:22px 18px;
+  border-radius:22px;
+  border:3px solid rgba(255,255,255,.85);
+  background:rgba(17,24,39,.92);
+  color:#fff;
+  text-align:center;
+  font-weight:900;
+  font-size:clamp(24px, 7vw, 46px);
+  line-height:1.08;
+  letter-spacing:.4px;
+  opacity:0;
+  pointer-events:none;
+  transition:opacity 120ms ease-out, transform 120ms ease-out;
+  box-shadow:0 16px 60px rgba(0,0,0,.65);
+  text-shadow:0 2px 10px rgba(0,0,0,.45);
+}
+#scanFeedback.show{
+  opacity:1;
+  transform:translate(-50%,-50%) scale(1);
+}
+#scanFeedback.ok{
+  background:rgba(6,95,70,.94);
+  border-color:#34d399;
+}
+#scanFeedback.warn{
+  background:rgba(146,64,14,.94);
+  border-color:#fbbf24;
+}
+#scanFeedback.err{
+  background:rgba(127,29,29,.94);
+  border-color:#f87171;
+}
+#scanFeedback.info{
+  background:rgba(30,64,175,.94);
+  border-color:#93c5fd;
+}
+#scanFrame.scan-ok{
+  border-color:#34d399 !important;
+  box-shadow:0 0 0 9999px rgba(0,0,0,.25), 0 0 28px #34d399;
+}
+#scanFrame.scan-warn{
+  border-color:#fbbf24 !important;
+  box-shadow:0 0 0 9999px rgba(0,0,0,.25), 0 0 28px #fbbf24;
+}
+#scanFrame.scan-err{
+  border-color:#f87171 !important;
+  box-shadow:0 0 0 9999px rgba(0,0,0,.25), 0 0 28px #f87171;
+}
+/* === FINE PATCH FEEDBACK VISIVO SCANSIONE CONTINUA GUEST === */
+
 </style>
 </head>
 
@@ -1736,6 +1797,7 @@ nav.noprint,
     <div id="cameraVideoWrap">
       <video id="cameraVideo" autoplay playsinline muted></video>
       <div id="scanFrame"></div>
+      <div id="scanFeedback" aria-live="assertive"></div>
       <canvas id="cameraCanvas"></canvas>
     </div>
   </div>
@@ -2204,6 +2266,35 @@ nav.noprint,
       startCameraOverlay();
     }
 
+    function showGuestScanFeedback(message, kind='info'){
+      const fb=document.getElementById('scanFeedback');
+      const frame=document.getElementById('scanFrame');
+      const safeMsg = String(message || '').toUpperCase();
+
+      if(fb){
+        fb.className = kind + ' show';
+        fb.textContent = safeMsg;
+        clearTimeout(window.__guestScanFeedbackTimer);
+        window.__guestScanFeedbackTimer = setTimeout(()=>{
+          fb.classList.remove('show');
+        }, kind === 'ok' ? 1300 : 950);
+      }
+
+      if(frame){
+        frame.classList.remove('scan-ok','scan-warn','scan-err');
+        const frameClass = kind === 'ok' ? 'scan-ok' : (kind === 'err' ? 'scan-err' : 'scan-warn');
+        frame.classList.add(frameClass);
+        clearTimeout(window.__guestScanFrameTimer);
+        window.__guestScanFrameTimer = setTimeout(()=>{
+          frame.classList.remove('scan-ok','scan-warn','scan-err');
+        }, 850);
+      }
+
+      if(camStatusEl){
+        camStatusEl.textContent = safeMsg;
+      }
+    }
+
     async function handleGuestScannedText(text){
       if(!text) return;
       try{
@@ -2211,35 +2302,65 @@ nav.noprint,
         const obj=normalizeState(JSON.parse(pretty));
         const currentEventKey=getGuestEventKey();
         const qrEventKey=normalizeEventKey(obj.e||'');
+
         if(currentEventKey && qrEventKey && currentEventKey!==qrEventKey){
-          haptic('error'); updateGuestMissionStatus('⚠️ QR DI ALTRO EVENTO'); return;
+          haptic('error');
+          updateGuestMissionStatus('⚠️ QR DI ALTRO EVENTO');
+          showGuestScanFeedback('QR DI ALTRO EVENTO', 'err');
+          return;
         }
+
         const key=currentEventKey || qrEventKey || 'offline';
         guestScannedBoxes[key]=guestScannedBoxes[key] || {boxes:{}};
         const boxCode=obj.b || '(senza ID)';
         const already=!!guestScannedBoxes[key].boxes[boxCode];
-        guestScannedBoxes[key].boxes[boxCode]={box_code:boxCode, position_name:obj.pos||'', event_name:obj.e||'', items:obj.l||[], scanned_at:new Date().toISOString()};
-        saveGuestCache(); renderGuestScannedBoxes();
+
+        guestScannedBoxes[key].boxes[boxCode]={
+          box_code:boxCode,
+          position_name:obj.pos||'',
+          event_name:obj.e||'',
+          items:obj.l||[],
+          scanned_at:new Date().toISOString()
+        };
+
+        saveGuestCache();
+        renderGuestScannedBoxes();
+
         const selected=[...guestSelectedKeys];
         const foundItems=[];
+
         for(const it of (obj.l||[])){
           const n=normalizeDescription(it.d||'');
           for(const sk of selected){
             const parts=sk.split('|');
             const targetBox=parts[1];
             const targetItem=parts.slice(2).join('|');
-            if((!targetBox || targetBox===boxCode) && n===targetItem) foundItems.push(it);
+            if((!targetBox || targetBox===boxCode) && n===targetItem){
+              foundItems.push(it);
+            }
           }
         }
+
         if(foundItems.length){
-          haptic('success'); updateGuestMissionStatus('✅ TROVATO IN '+boxCode);
+          const msg='✅ TROVATO IN '+boxCode;
+          haptic('success');
+          updateGuestMissionStatus(msg);
+          showGuestScanFeedback(msg, 'ok');
         }else if(already){
-          haptic('light'); updateGuestMissionStatus('GIÀ SCANSIONATO '+boxCode);
+          const msg='GIÀ SCANSIONATO '+boxCode;
+          haptic('light');
+          updateGuestMissionStatus(msg);
+          showGuestScanFeedback(msg, 'info');
         }else{
-          haptic('tock'); updateGuestMissionStatus('NON È QUI — '+boxCode);
+          const msg='NON È QUI — '+boxCode;
+          haptic('tock');
+          updateGuestMissionStatus(msg);
+          showGuestScanFeedback(msg, 'warn');
         }
       }catch(err){
-        haptic('error'); updateGuestMissionStatus('QR NON VALIDO');
+        haptic('error');
+        updateGuestMissionStatus('QR NON VALIDO');
+        showGuestScanFeedback('QR NON VALIDO', 'err');
       }
     }
 
@@ -4026,60 +4147,6 @@ Aggiornate: ${result.updated}`);
       // spazio extra per il footer fuori dal bordo
       const FRAME_INSET = 8;      // distanza dai lati
       const FOOTER_AREA = 12;     // altezza riservata al footer fuori dal bordo
-      // Banda verticale PDF per ID baule: modifica isolata, non tocca QR/footer/decode.
-      const SIDE_BOX_ID_W = 20;
-      const materialTableLeftX = marginL + SIDE_BOX_ID_W;
-
-      function drawVerticalBoxId(d){
-        const boxCode = String(state.b || currentCloudLabelBoxCode || "").trim();
-        if(!boxCode) return;
-
-        const clean = boxCode.toUpperCase();
-
-        // Metodo robusto: creo una piccola immagine PNG trasparente con testo ruotato
-        // e la inserisco nel PDF. Evita i problemi di rendering di jsPDF con angle/baseline.
-        const bandX = FRAME_INSET + 1.5;
-        const bandY = FRAME_INSET + 7;
-        const bandW = Math.max(10, SIDE_BOX_ID_W - 4);
-        const bandH = pageH - (2 * FRAME_INSET) - FOOTER_AREA - 14;
-
-        const scale = 6; // risoluzione interna canvas per testo più nitido
-        const c = document.createElement("canvas");
-        c.width = Math.round(bandW * scale);
-        c.height = Math.round(bandH * scale);
-
-        const g = c.getContext("2d");
-        if(!g) return;
-        g.clearRect(0, 0, c.width, c.height);
-
-        // Testo ruotato di 90°: leggibile ruotando il foglio in senso orario.
-        g.save();
-        g.translate(c.width / 2, c.height / 2);
-        g.rotate(-Math.PI / 2);
-        g.textAlign = "center";
-        g.textBaseline = "middle";
-        g.fillStyle = "#000000";
-
-        // Font adattivo: la lunghezza del testo deve stare nell'altezza della banda.
-        let pxFont = Math.round(36 * scale);
-        const maxTextW = c.height * 0.88;
-        const maxTextH = c.width * 0.72;
-        while(pxFont > 10 * scale){
-          g.font = "700 " + pxFont + "px Arial, Helvetica, sans-serif";
-          const m = g.measureText(clean);
-          const approxH = pxFont;
-          if(m.width <= maxTextW && approxH <= maxTextH) break;
-          pxFont -= 2 * scale;
-        }
-
-        g.font = "700 " + pxFont + "px Arial, Helvetica, sans-serif";
-        g.fillText(clean, 0, 0);
-        g.restore();
-
-        const img = c.toDataURL("image/png");
-        d.addImage(img, "PNG", bandX, bandY, bandW, bandH);
-      }
-
       function drawPageFrame(d){
         d.setDrawColor(0,0,0);        // NERO
         d.setLineWidth(0.6);
@@ -4093,7 +4160,6 @@ Aggiornate: ${result.updated}`);
         );
       }
       drawPageFrame(doc);
-      drawVerticalBoxId(doc);
       
       // ✅ Watermark sulla PRIMA pagina (dietro a tutto il resto)
       if (mode === "etichetta" && watermarkEnabled && watermarkText){
@@ -4351,7 +4417,7 @@ Aggiornate: ${result.updated}`);
 
         drawMaterialsTable(doc, {
           startY: matStartY,
-          leftX: materialTableLeftX,
+          leftX: marginL,
           maxRight: maxRightBeforeQR,
           mode: mode,
           marginT: marginT,
@@ -4653,7 +4719,6 @@ Aggiornate: ${result.updated}`);
             cfg.addFooterFn(doc);
             doc.addPage("a4","landscape");
             drawPageFrame(doc);
-            drawVerticalBoxId(doc);
 
             // ✅ Watermark anche sulle PAGINE SUCCESSIVE (sempre dietro la tabella)
             if (cfg.mode === "etichetta" && watermarkEnabled && watermarkText){
@@ -5001,7 +5066,6 @@ Aggiornate: ${result.updated}`);
             camScanning=false;
             if(guestScanMode){
               await handleGuestScannedText(text);
-              camStatusEl.textContent="QR letto. Continua a scansionare…";
               camScanning=true;
               setTimeout(()=>requestAnimationFrame(tickLiveScan), 450);
               return;
