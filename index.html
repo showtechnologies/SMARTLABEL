@@ -4367,6 +4367,60 @@ Aggiornate: ${result.updated}`);
       // spazio extra per il footer fuori dal bordo
       const FRAME_INSET = 8;      // distanza dai lati
       const FOOTER_AREA = 12;     // altezza riservata al footer fuori dal bordo
+      // Banda verticale PDF per ID baule: modifica isolata, non tocca QR/footer/decode.
+      const SIDE_BOX_ID_W = 20;
+      const materialTableLeftX = marginL + SIDE_BOX_ID_W;
+
+      function drawVerticalBoxId(d){
+        const boxCode = String(state.b || currentCloudLabelBoxCode || "").trim();
+        if(!boxCode) return;
+
+        const clean = boxCode.toUpperCase();
+
+        // Metodo robusto: creo una piccola immagine PNG trasparente con testo ruotato
+        // e la inserisco nel PDF. Evita i problemi di rendering di jsPDF con angle/baseline.
+        const bandX = FRAME_INSET + 1.5;
+        const bandY = FRAME_INSET + 7;
+        const bandW = Math.max(10, SIDE_BOX_ID_W - 4);
+        const bandH = pageH - (2 * FRAME_INSET) - FOOTER_AREA - 14;
+
+        const scale = 6; // risoluzione interna canvas per testo più nitido
+        const c = document.createElement("canvas");
+        c.width = Math.round(bandW * scale);
+        c.height = Math.round(bandH * scale);
+
+        const g = c.getContext("2d");
+        if(!g) return;
+        g.clearRect(0, 0, c.width, c.height);
+
+        // Testo ruotato di 90°: leggibile ruotando il foglio in senso orario.
+        g.save();
+        g.translate(c.width / 2, c.height / 2);
+        g.rotate(-Math.PI / 2);
+        g.textAlign = "center";
+        g.textBaseline = "middle";
+        g.fillStyle = "#000000";
+
+        // Font adattivo: la lunghezza del testo deve stare nell'altezza della banda.
+        let pxFont = Math.round(36 * scale);
+        const maxTextW = c.height * 0.88;
+        const maxTextH = c.width * 0.72;
+        while(pxFont > 10 * scale){
+          g.font = "700 " + pxFont + "px Arial, Helvetica, sans-serif";
+          const m = g.measureText(clean);
+          const approxH = pxFont;
+          if(m.width <= maxTextW && approxH <= maxTextH) break;
+          pxFont -= 2 * scale;
+        }
+
+        g.font = "700 " + pxFont + "px Arial, Helvetica, sans-serif";
+        g.fillText(clean, 0, 0);
+        g.restore();
+
+        const img = c.toDataURL("image/png");
+        d.addImage(img, "PNG", bandX, bandY, bandW, bandH);
+      }
+
       function drawPageFrame(d){
         d.setDrawColor(0,0,0);        // NERO
         d.setLineWidth(0.6);
@@ -4380,6 +4434,7 @@ Aggiornate: ${result.updated}`);
         );
       }
       drawPageFrame(doc);
+      drawVerticalBoxId(doc);
       
       // ✅ Watermark sulla PRIMA pagina (dietro a tutto il resto)
       if (mode === "etichetta" && watermarkEnabled && watermarkText){
@@ -4637,7 +4692,7 @@ Aggiornate: ${result.updated}`);
 
         drawMaterialsTable(doc, {
           startY: matStartY,
-          leftX: marginL,
+          leftX: materialTableLeftX,
           maxRight: maxRightBeforeQR,
           mode: mode,
           marginT: marginT,
@@ -4939,6 +4994,7 @@ Aggiornate: ${result.updated}`);
             cfg.addFooterFn(doc);
             doc.addPage("a4","landscape");
             drawPageFrame(doc);
+            drawVerticalBoxId(doc);
 
             // ✅ Watermark anche sulle PAGINE SUCCESSIVE (sempre dietro la tabella)
             if (cfg.mode === "etichetta" && watermarkEnabled && watermarkText){
