@@ -1180,6 +1180,16 @@ nav.noprint,
 }
 /* === FINE PATCH MENU MOBILE === */
 
+/* === PATCH UX: PULSANTI CLOUD NON APPLICABILI IN GRIGIO === */
+.btn.disabled-cloud,
+.btn:disabled{
+  opacity:.45;
+  filter:grayscale(1);
+  cursor:not-allowed;
+}
+/* === FINE PATCH UX CLOUD DISABLED === */
+
+
 
 
 /* === PATCH FEEDBACK VISIVO SCANSIONE CONTINUA GUEST === */
@@ -1322,6 +1332,54 @@ nav.noprint,
 }
 /* === FINE PATCH MISSION LOG SCANSIONE CONTINUA GUEST === */
 
+
+
+/* === PATCH BUSY OVERLAY CLOUD/FETCH === */
+#globalBusyOverlay{
+  position:fixed;
+  inset:0;
+  z-index:99998;
+  display:none;
+  align-items:center;
+  justify-content:center;
+  background:rgba(0,0,0,.18);
+  pointer-events:auto;
+}
+#globalBusyOverlay.show{display:flex;}
+.globalBusyCard{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  max-width:min(86vw, 360px);
+  padding:14px 16px;
+  border-radius:16px;
+  border:1px solid rgba(255,255,255,.18);
+  background:rgba(17,24,39,.94);
+  color:#fff;
+  box-shadow:0 12px 44px rgba(0,0,0,.55);
+  backdrop-filter:blur(8px);
+  font-size:14px;
+  line-height:1.25;
+  font-weight:700;
+}
+.globalBusySpinner{
+  width:22px;
+  height:22px;
+  border-radius:999px;
+  border:3px solid rgba(255,255,255,.28);
+  border-top-color:#fff;
+  animation:globalBusySpin .8s linear infinite;
+  flex:0 0 auto;
+}
+@keyframes globalBusySpin{to{transform:rotate(360deg)}}
+body.app-busy button:not(#closeCamBtn):not(#toggleFlashBtn),
+body.app-busy input,
+body.app-busy select,
+body.app-busy textarea{
+  cursor:progress;
+}
+/* === FINE PATCH BUSY OVERLAY CLOUD/FETCH === */
+
 </style>
 </head>
 
@@ -1356,6 +1414,13 @@ nav.noprint,
             </div>
           </div>
 <body>
+  <div id="globalBusyOverlay" aria-live="polite" aria-busy="true">
+    <div class="globalBusyCard">
+      <div class="globalBusySpinner" aria-hidden="true"></div>
+      <div id="globalBusyText">Operazione in corso…</div>
+    </div>
+  </div>
+
   <header>
     <div class="wrap">
       <h1>
@@ -2138,34 +2203,79 @@ nav.noprint,
       try{ localStorage.setItem(KEY_GUEST_CACHE, JSON.stringify(guestScannedBoxes || {})); }catch{}
     }
 
-      async function callEventAccess(action, body={}, requireAuth=false){
-        const headers = {
-          'Content-Type':'application/json',
-          'apikey':PRECONFIG_SUPABASE.anonKey,
-          'Authorization':`Bearer ${PRECONFIG_SUPABASE.anonKey}`
+      let globalBusyCount = 0;
+
+      function busyLabelForAction(action){
+        const labels = {
+          'guest-login': 'Accesso guest…',
+          'generate-pin': 'Genero PIN evento…',
+          'sync-label-items': 'Sincronizzo indice…',
+          'find-label-by-box-code': 'Cerco label cloud…',
+          'move-label-to-trash': 'Sposto nel cestino…',
+          'guest-search': 'Cerco articoli…',
+          'guest-boxes': 'Carico bauli evento…',
+          'guest-box-detail': 'Carico dettaglio baule…',
+          'guest-save-checks': 'Salvo rientro…',
+          'operator-events': 'Carico eventi…',
+          'operator-boxes': 'Carico bauli evento…',
+          'operator-box-detail': 'Carico dettaglio baule…',
+          'operator-save-checks': 'Salvo rientro…',
+          'operator-search': 'Cerco articoli…'
         };
+        return labels[action] || 'Operazione in corso…';
+      }
 
-        if(requireAuth){
-          const client = await ensureSupabase();
-          const { data: sessionData } = await client.auth.getSession();
-          const accessToken = sessionData?.session?.access_token;
-          if(!accessToken) throw new Error('Sessione login non trovata.');
-          headers.Authorization = `Bearer ${accessToken}`;
+      function setGlobalBusy(active, label){
+        const overlay=document.getElementById('globalBusyOverlay');
+        const text=document.getElementById('globalBusyText');
+        if(!overlay) return;
+        if(active){
+          globalBusyCount++;
+          if(text) text.textContent = label || 'Operazione in corso…';
+          overlay.classList.add('show');
+          document.body?.classList.add('app-busy');
+        }else{
+          globalBusyCount=Math.max(0, globalBusyCount-1);
+          if(globalBusyCount===0){
+            overlay.classList.remove('show');
+            document.body?.classList.remove('app-busy');
+          }
         }
+      }
 
-        const res = await fetch(`${PRECONFIG_SUPABASE.url}/functions/v1/event-access`, {
-          method:'POST',
-          headers,
-          body: JSON.stringify({action, ...body})
-        });
+      async function callEventAccess(action, body={}, requireAuth=false){
+        setGlobalBusy(true, busyLabelForAction(action));
+        try{
+          const headers = {
+            'Content-Type':'application/json',
+            'apikey':PRECONFIG_SUPABASE.anonKey,
+            'Authorization':`Bearer ${PRECONFIG_SUPABASE.anonKey}`
+          };
 
-        const data = await res.json().catch(()=>({}));
+          if(requireAuth){
+            const client = await ensureSupabase();
+            const { data: sessionData } = await client.auth.getSession();
+            const accessToken = sessionData?.session?.access_token;
+            if(!accessToken) throw new Error('Sessione login non trovata.');
+            headers.Authorization = `Bearer ${accessToken}`;
+          }
 
-        if(!res.ok){
-          throw new Error(data.error || data.message || 'Errore Edge Function event-access');
+          const res = await fetch(`${PRECONFIG_SUPABASE.url}/functions/v1/event-access`, {
+            method:'POST',
+            headers,
+            body: JSON.stringify({action, ...body})
+          });
+
+          const data = await res.json().catch(()=>({}));
+
+          if(!res.ok){
+            throw new Error(data.error || data.message || 'Errore Edge Function event-access');
+          }
+
+          return data;
+        }finally{
+          setGlobalBusy(false);
         }
-
-        return data;
       }
 
     async function guestLogin(){
@@ -3252,6 +3362,7 @@ async function handleGuestScannedText(text){
     let lastPayloadText=""; // Variabile riposizionata
     let currentCloudLabelId = null;
     let currentCloudLabelBoxCode = "";
+    let editingListRowIdx = null;
 
     // LOGIN SUPABASE AUTH
     let currentUser = null;
@@ -3840,12 +3951,20 @@ def unpack_to_pretty(s: str) -> str:
         if(modeEl){
           modeEl.innerHTML = 'Modalità cloud label: modifica della label <strong>' + escapeHtml(currentCloudLabelBoxCode || '(senza ID)') + '</strong>.';
         }
-        if(updateBtn) updateBtn.disabled = false;
+        if(updateBtn){
+          updateBtn.disabled = false;
+          updateBtn.classList.remove('disabled-cloud');
+          updateBtn.title = 'Aggiorna la label cloud collegata.';
+        }
       }else{
         if(modeEl){
           modeEl.textContent = 'Modalità cloud label: nuova label.';
         }
-        if(updateBtn) updateBtn.disabled = true;
+        if(updateBtn){
+          updateBtn.disabled = true;
+          updateBtn.classList.add('disabled-cloud');
+          updateBtn.title = 'Disponibile solo dopo caricamento da cloud o QR riconosciuto.';
+        }
       }
     }
 
@@ -3956,6 +4075,15 @@ def unpack_to_pretty(s: str) -> str:
           throw new Error('Risposta cloud non valida: box_code mancante.');
         }
 
+        // Le label operative non devono restare in stato draft: devono comparire in ricerca/rientro evento.
+        if(row.id){
+          const { error: statusErr } = await client
+            .from('labels')
+            .update({ status: 'saved', updated_at: new Date().toISOString() })
+            .eq('id', row.id);
+          if(statusErr) throw statusErr;
+        }
+
         state.b = row.box_code;
         applyMeta();
         saveLocal(state);
@@ -3990,11 +4118,6 @@ def unpack_to_pretty(s: str) -> str:
     }
 
     async function updateExistingLabelInCloud(){
-      const client = await ensureSupabase();
-      if(!client){
-        alert('Cloud non disponibile o non configurato.');
-        return;
-      }
       if(!currentCloudLabelId){
         alert('Questa lista non arriva dal cloud. Usa "Salva label nel cloud" oppure "Salva come nuova".');
         return;
@@ -4007,33 +4130,25 @@ def unpack_to_pretty(s: str) -> str:
       }
 
       try{
-        const patch = {
-          event_name: payload.e || '',
-          production_name: payload.p || '',
-          position_name: payload.pos || '',
-          note: payload.note || '',
-          label_color: (typeof payload.c === 'number' ? payload.c : 6),
-          event_date: (payload.t || null),
-          payload_json: payload,
+        const data = await callEventAccess('update-label', {
+          label_id: currentCloudLabelId,
+          box_code: currentCloudLabelBoxCode || state.b || payload.b || '',
+          payload,
           payload_hash: payloadHash
-        };
+        }, true);
 
-        const { data, error } = await client
-          .from('labels')
-          .update(patch)
-          .eq('id', currentCloudLabelId)
-          .select('id, box_code')
-          .single();
+        if(!data || !data.ok || !data.label){
+          throw new Error('Risposta update-label non valida.');
+        }
 
-        if(error) throw error;
-
-        if(data && data.box_code){
-          state.b = data.box_code;
+        const row = data.label;
+        if(row.box_code){
+          state.b = row.box_code;
+          payload.b = row.box_code;
           applyMeta();
           saveLocal(state);
-          setCurrentCloudLabelContext(data);
+          setCurrentCloudLabelContext(row);
         }
-        await syncLabelItemsForGuest(currentCloudLabelId, currentCloudLabelBoxCode || state.b || data?.box_code || "", payload);
 
         const canonBox = document.getElementById('jsonCanon');
         const shaEl = document.getElementById('sha256');
@@ -4050,8 +4165,9 @@ def unpack_to_pretty(s: str) -> str:
           descMsg = ' • ATTENZIONE: label aggiornata, ma descrizioni non sincronizzate: ' + (descErr.message || descErr);
         }
 
-        updateCloudStatus('Label cloud aggiornata: <strong>' + escapeHtml(currentCloudLabelBoxCode || state.b || '') + '</strong>' + escapeHtml(descMsg), descMsg.includes('ATTENZIONE') ? 'cloud-warn' : 'cloud-ok');
-        alert('Label cloud aggiornata con successo.' + (descMsg ? '\n' + descMsg.replace(/^ • /,'') : ''));
+        const indexedMsg = Number.isFinite(Number(data.indexed_items)) ? (' • Articoli indicizzati: ' + Number(data.indexed_items)) : '';
+        updateCloudStatus('Label cloud aggiornata e reindicizzata: <strong>' + escapeHtml(row.box_code || currentCloudLabelBoxCode || state.b || '') + '</strong>' + escapeHtml(indexedMsg + descMsg), descMsg.includes('ATTENZIONE') ? 'cloud-warn' : 'cloud-ok');
+        alert('Label cloud aggiornata con successo.' + indexedMsg + (descMsg ? '\n' + descMsg.replace(/^ • /,'') : ''));
       }catch(err){
         updateCloudStatus('Errore aggiornamento label: ' + escapeHtml(err.message || String(err)), 'cloud-err');
         alert('Errore aggiornamento label cloud: ' + (err.message || err));
@@ -4163,18 +4279,56 @@ Aggiornate: ${result.updated}`);
       tb.innerHTML="";
       state.l.forEach((it,idx)=>{
         const tr=document.createElement('tr');
+        const isEditing = editingListRowIdx === idx;
+        const descCell = isEditing
+          ? '<input class="list-edit-desc" data-edit-desc="'+idx+'" value="'+escapeHtml(it.d||'')+'" autocomplete="off" spellcheck="false">'
+          : escapeHtml(it.d);
+        const qtyCell = isEditing
+          ? '<input class="list-edit-qty" data-edit-qty="'+idx+'" type="number" min="1" value="'+Number(it.q||1)+'" style="max-width:90px;text-align:center">'
+          : Number(it.q||0);
         tr.innerHTML=`
           <td data-label="#" style="display:none">${idx+1}</td>
-          <td data-label="Descrizione">${escapeHtml(it.d)}</td>
-          <td data-label="Q.tà">${it.q}</td>
+          <td data-label="Descrizione">${descCell}</td>
+          <td data-label="Q.tà">${qtyCell}</td>
           <td class="noprint" data-label="Azioni">
+            <button class="btn sm ghost" data-edit-row="${idx}">${isEditing ? 'Salva' : 'Modifica'}</button>
             <button class="btn sm ghost" data-del="${idx}">Elimina</button>
           </td>`;
         tb.appendChild(tr);
       });
+      tb.querySelectorAll('button[data-edit-row]').forEach(b=>{
+        b.onclick=()=>{
+          const i=parseInt(b.dataset.editRow,10);
+          if(editingListRowIdx === i){
+            const descInput=tb.querySelector('[data-edit-desc="'+i+'"]');
+            const qtyInput=tb.querySelector('[data-edit-qty="'+i+'"]');
+            const desc=displayDescription(descInput ? descInput.value : '');
+            let qty=parseInt(qtyInput ? qtyInput.value : '0',10);
+            if(!desc){ alert('La descrizione non può essere vuota.'); return; }
+            if(!Number.isFinite(qty) || qty < 1) qty = 1;
+            state.l[i] = { ...state.l[i], d: desc, q: qty };
+            upsertLocalDescription(desc);
+            try{ saveDescriptionRemote(desc); }catch{}
+            editingListRowIdx = null;
+            state = normalizeState(state);
+            saveLocal(state);
+            renderTables();
+            haptic('tick');
+          }else{
+            editingListRowIdx = i;
+            renderTables();
+            setTimeout(()=>{
+              const inp=document.querySelector('[data-edit-desc="'+i+'"]');
+              if(inp){ inp.focus(); try{ inp.select(); }catch{} }
+            }, 0);
+          }
+        };
+      });
       tb.querySelectorAll('button[data-del]').forEach(b=>{
         b.onclick=()=>{
           const i=parseInt(b.dataset.del,10);
+          if(editingListRowIdx === i) editingListRowIdx = null;
+          else if(editingListRowIdx !== null && editingListRowIdx > i) editingListRowIdx--;
           state.l.splice(i,1);
           saveLocal(state);
           renderTables();
@@ -5186,14 +5340,24 @@ Aggiornate: ${result.updated}`);
       });
     }
 
+    function canReconnectCloudLabelFromQR(){
+      // Non usa isOperatorOrAdminMode(): in alcune patch quella funzione è locale a un altro blocco <script>.
+      // Qui basta sapere se esiste una sessione Supabase reale: callEventAccess farà comunque il controllo admin/operator lato Edge Function.
+      try{
+        if(typeof currentUser !== 'undefined' && currentUser) return true;
+      }catch{}
+      return false;
+    }
+
     async function reconnectDecodedLabelFromCloud(obj){
       const boxCode = String(obj?.b || '').trim();
       if(!boxCode){
         clearCurrentCloudLabelContext();
         return { found:false, reason:'no-box' };
       }
-      if(!isOperatorOrAdminMode()){
+      if(!canReconnectCloudLabelFromQR()){
         clearCurrentCloudLabelContext();
+        decStatus.innerHTML = '<span class="warn">QR decodificato. Per aggiornare la label cloud devi essere loggato come Admin/Operatore. Puoi comunque usare “Salva come nuova”.</span>';
         return { found:false, reason:'not-auth' };
       }
       try{
@@ -5472,9 +5636,17 @@ Aggiornate: ${result.updated}`);
 
     btnSetCurrent.onclick=async ()=>{
       try{
-        const obj=JSON.parse(jsonDecoded.value);
+        // Usa prima l'oggetto già decodificato dal QR. Il textarea può essere vuoto/non aggiornato
+        // su alcuni browser mobile e generare un falso "JSON non valido".
+        let obj = null;
+        if(decodedObj){
+          obj = decodedObj;
+        }else{
+          const rawJson = String(jsonDecoded?.value || '').trim();
+          if(!rawJson) throw new Error('nessun JSON ricostruito disponibile');
+          obj = JSON.parse(rawJson);
+        }
 
-        // 🆕 Normalizza l'oggetto da JSON ricostruito
         state = normalizeState(obj);
         applyMeta();
         renderTables();
@@ -5482,16 +5654,20 @@ Aggiornate: ${result.updated}`);
         saveLocal(state);
 
         const reconnect = await reconnectDecodedLabelFromCloud(state);
+        updateLabelCloudMode();
+
         if(reconnect && reconnect.found && !reconnect.is_trash){
           alert("Lista impostata come corrente.\n\nBaule riconosciuto nel cloud: puoi usare Aggiorna label cloud.");
         }else if(reconnect && reconnect.is_trash){
           alert("Lista impostata come corrente.\n\nAttenzione: questo baule è nel cestino cloud. Usa Salva come nuova se vuoi riutilizzarne il contenuto.");
+        }else if(reconnect && reconnect.reason === 'not-auth'){
+          alert("Lista impostata come corrente.\n\nNon sei collegato come Admin/Operatore: puoi lavorare localmente o salvare come nuova dopo il login.");
         }else{
           alert("Lista impostata come corrente.\n\nNessuna label cloud attiva collegata: salvataggio come nuova label.");
         }
-        haptic('light'); // 🆕 Feedback aptico/visivo all'impostazione
+        haptic('light');
       }catch(e){
-        alert("JSON non valido.");
+        alert("JSON non valido: " + (e.message || e));
       }
     };
 
