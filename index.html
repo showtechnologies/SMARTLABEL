@@ -5148,6 +5148,7 @@ Aggiornate: ${result.updated}`);
           </div>
           <div class="actions">
             <button class="btn sm" data-archive-open="${idx}">Apri</button>
+            <button class="btn sm ghost warnBtn" data-archive-trash="${idx}">Sposta nel cestino</button>
           </div>
         </div>
       `).join('');
@@ -5163,6 +5164,59 @@ Aggiornate: ${result.updated}`);
           applyCloudPayloadToCurrentState(payload, row, true);
         });
       });
+
+      archiveResults.querySelectorAll('[data-archive-trash]').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const row = rows[parseInt(btn.dataset.archiveTrash, 10)];
+          if(!row || !row.id){ alert('Label cloud non trovata.'); return; }
+          const labelName = (row.box_code || '(senza ID)') + ' — ' + (row.event_name || '(senza evento)');
+          const ok = confirm('Spostare nel cestino questo baule?\n\n' + labelName + '\n\nIl baule sparirà da archivio, ricerca materiali, rientro evento e accesso guest, ma resterà recuperabile da Supabase.');
+          if(!ok) return;
+          const sure = confirm('Confermi lo spostamento nel cestino?');
+          if(!sure) return;
+          try{
+            await callEventAccess('move-label-to-trash', { label_id: row.id }, true);
+            setArchiveStatus('Baule spostato nel cestino: <strong>' + escapeHtml(row.box_code || '') + '</strong>', 'cloud-ok');
+            clearCurrentCloudLabelContext();
+            await searchCloudArchive();
+          }catch(err){
+            alert('Errore spostamento nel cestino: ' + (err.message || err));
+          }
+        });
+      });
+    }
+
+    async function reconnectDecodedLabelFromCloud(obj){
+      const boxCode = String(obj?.b || '').trim();
+      if(!boxCode){
+        clearCurrentCloudLabelContext();
+        return { found:false, reason:'no-box' };
+      }
+      if(!isOperatorOrAdminMode()){
+        clearCurrentCloudLabelContext();
+        return { found:false, reason:'not-auth' };
+      }
+      try{
+        const data = await callEventAccess('find-label-by-box-code', { box_code: boxCode }, true);
+        if(data?.found && data?.label){
+          if(data.is_trash){
+            clearCurrentCloudLabelContext();
+            updateLabelCloudMode();
+            decStatus.innerHTML = '<span class="warn">QR decodificato, ma il baule ' + escapeHtml(boxCode) + ' è nel cestino cloud. Usa “Salva come nuova”.</span>';
+            return { found:true, is_trash:true, label:data.label };
+          }
+          setCurrentCloudLabelContext(data.label);
+          decStatus.innerHTML = '<span class="ok">QR decodificato. Label cloud riconosciuta: <strong>' + escapeHtml(boxCode) + '</strong>. Puoi aggiornarla.</span>';
+          return { found:true, is_trash:false, label:data.label };
+        }
+        clearCurrentCloudLabelContext();
+        decStatus.innerHTML = '<span class="warn">QR decodificato, ma il baule ' + escapeHtml(boxCode) + ' non risulta nel cloud. Verrà salvato come nuova label.</span>';
+        return { found:false, reason:'not-found' };
+      }catch(err){
+        clearCurrentCloudLabelContext();
+        decStatus.innerHTML = '<span class="warn">QR decodificato. Non sono riuscito a verificare il cloud: ' + escapeHtml(err.message || String(err)) + '</span>';
+        return { found:false, reason:'error' };
+      }
     }
 
     async function searchCloudArchive(){
@@ -5175,7 +5229,8 @@ Aggiornate: ${result.updated}`);
       try{
         let query = client
           .from('labels')
-          .select('id, box_code, event_name, production_name, position_name, event_date, created_at, updated_at, payload_json')
+          .select('id, box_code, event_name, production_name, position_name, event_date, created_at, updated_at, status, payload_json')
+          .neq('status', 'trash')
           .order('created_at', { ascending:false })
           .limit(500);
 
@@ -5415,19 +5470,25 @@ Aggiornate: ${result.updated}`);
       }
     }
 
-    btnSetCurrent.onclick=()=>{
+    btnSetCurrent.onclick=async ()=>{
       try{
         const obj=JSON.parse(jsonDecoded.value);
 
         // 🆕 Normalizza l'oggetto da JSON ricostruito
         state = normalizeState(obj);
-        clearCurrentCloudLabelContext();
-        
         applyMeta();
         renderTables();
         updateProgress();
         saveLocal(state);
-        alert("Lista impostata come corrente.");
+
+        const reconnect = await reconnectDecodedLabelFromCloud(state);
+        if(reconnect && reconnect.found && !reconnect.is_trash){
+          alert("Lista impostata come corrente.\n\nBaule riconosciuto nel cloud: puoi usare Aggiorna label cloud.");
+        }else if(reconnect && reconnect.is_trash){
+          alert("Lista impostata come corrente.\n\nAttenzione: questo baule è nel cestino cloud. Usa Salva come nuova se vuoi riutilizzarne il contenuto.");
+        }else{
+          alert("Lista impostata come corrente.\n\nNessuna label cloud attiva collegata: salvataggio come nuova label.");
+        }
         haptic('light'); // 🆕 Feedback aptico/visivo all'impostazione
       }catch(e){
         alert("JSON non valido.");
