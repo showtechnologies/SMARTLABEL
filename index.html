@@ -1858,7 +1858,7 @@ nav.noprint,
         </div>
         <div>
           <label>PIN evento</label>
-          <input id="guestPinInput" class="no-uppercase" type="tel" inputmode="numeric" pattern="[0-9]*" maxlength="6" placeholder="Es. 4821" autocomplete="one-time-code">
+          <input id="guestPinInput" class="no-uppercase" type="tel" inputmode="numeric" pattern="[0-9]{3}" maxlength="3" placeholder="Es. 482" autocomplete="one-time-code">
         </div>
         <button id="guestLoginBtn" class="btn ghost" type="button">Entra come Guest</button>
         <div id="guestLoginStatus" class="muted"></div>
@@ -2479,8 +2479,30 @@ nav.noprint,
       renderGuestScanOverlayLog();
     }
 
-    async function handleGuestScannedText(text){
+    
+    function isIgnorableProjectQrText(text){
+      const s = String(text || '').trim();
+      if(!s) return true;
+      if(s.startsWith('QRJ1:')) return false;
+
+      // Durante la scansione continua ci interessa solo il QR dati SmartLabel.
+      // Il mini QR dell'app / URL progetto viene ignorato in silenzio.
+      try{
+        const u = new URL(s);
+        const href = u.href.toLowerCase();
+        const app = String(typeof APP_URL !== 'undefined' ? APP_URL : '').toLowerCase();
+        if(app && href === app) return true;
+        if(href.includes('showtechnologies.github.io/smartlabel')) return true;
+        if(href.includes('smartlabel') && (u.protocol === 'http:' || u.protocol === 'https:')) return true;
+      }catch{
+        if(/^https?:\/\//i.test(s) && s.toLowerCase().includes('smartlabel')) return true;
+      }
+      return false;
+    }
+
+async function handleGuestScannedText(text){
       if(!text) return;
+      if(isIgnorableProjectQrText(text)) return;
       try{
         const pretty=await pyodide.runPythonAsync(`unpack_to_pretty(${JSON.stringify(text)})`);
         const obj=normalizeState(JSON.parse(pretty));
@@ -5719,7 +5741,7 @@ Aggiornate: ${result.updated}`);
       async function robustDecodeFromCanvas(baseCanvas){
         // 🔹 FAST PATH: prova tutti i decoder solo sul canvas base
         const fast = await tryDecodeCanvas(baseCanvas);
-        if (fast) return fast;
+        if (fast && !isIgnorableProjectQrText(fast)) return fast;
 
         // 🔹 FALLBACK ROBUSTO: rotazioni / scale / filtri,
         // ma SENZA più chiamare BarcodeDetector ogni volta
@@ -5737,7 +5759,7 @@ Aggiornate: ${result.updated}`);
 
               const c = (Math.abs(s - 1) < 1e-3) ? v : scale(v, s);
               const t = await tryDecodeCanvasNoBD(c);
-              if (t) return t;
+              if (t && !isIgnorableProjectQrText(t)) return t;
             }
           }
         }
@@ -6348,7 +6370,12 @@ document.addEventListener("DOMContentLoaded", function(){
     const cont=document.getElementById('guestBoxItems');
     if(!cont) return;
     if(!guestRientro.activeItems.length){ cont.innerHTML='<div class="muted">Nessun articolo in questo baule.</div>'; return; }
-    cont.innerHTML=guestRientro.activeItems.map((it,idx)=>{
+    const guestBulkActions =
+      '<div class="row actions-wrap" style="margin-bottom:12px">'+
+        '<button class="btn ghost" type="button" data-guest-mark-all>Spunta tutto il baule</button>'+
+        '<button class="btn ghost" type="button" data-guest-mark-zero>Azzera baule</button>'+
+      '</div>';
+    cont.innerHTML=guestBulkActions + guestRientro.activeItems.map((it,idx)=>{
       const q=Number(it.qty||0);
       const checked=Number(it.qty_checked||0);
       const last=it.guest_name ? ('Aggiornato da '+it.guest_name+(it.updated_at ? ' · '+String(it.updated_at).slice(0,16).replace('T',' ') : '')) : 'Non ancora verificato';
@@ -6363,9 +6390,20 @@ document.addEventListener("DOMContentLoaded", function(){
         '<div class="guest-last">'+safeHtml(last)+'</div>'+
       '</div>';
     }).join('');
+    cont.querySelector('[data-guest-mark-all]')?.addEventListener('click',()=>guestSetWholeBox(true));
+    cont.querySelector('[data-guest-mark-zero]')?.addEventListener('click',()=>guestSetWholeBox(false));
     cont.querySelectorAll('[data-guest-minus]').forEach(btn=>btn.addEventListener('click',()=>guestAdjustItem(parseInt(btn.dataset.guestMinus,10),-1)));
     cont.querySelectorAll('[data-guest-plus]').forEach(btn=>btn.addEventListener('click',()=>guestAdjustItem(parseInt(btn.dataset.guestPlus,10),1)));
     cont.querySelectorAll('[data-guest-check-idx]').forEach(inp=>inp.addEventListener('change',()=>guestClampInput(inp)));
+  }
+
+  function guestSetWholeBox(full=true){
+    if(!guestRientro.activeItems || !guestRientro.activeItems.length) return;
+    guestRientro.activeItems.forEach(it=>{
+      it.qty_checked = full ? Number(it.qty || 0) : 0;
+    });
+    renderGuestBoxDetail(guestRientro.activeBox || {});
+    try{ haptic(full ? 'success' : 'reset'); }catch{}
   }
 
   function guestClampInput(inp){
@@ -6821,7 +6859,12 @@ document.addEventListener("DOMContentLoaded", function(){
     const cont=document.getElementById('guestBoxItems');
     if(!cont) return;
     if(!stateOp.activeItems.length){ cont.innerHTML='<div class="muted">Nessun articolo in questo baule.</div>'; return; }
-    cont.innerHTML=stateOp.activeItems.map((it,idx)=>{
+    const opBulkActions =
+      '<div class="row actions-wrap" style="margin-bottom:12px">'+
+        '<button class="btn ghost" type="button" data-op-mark-all>Spunta tutto il baule</button>'+
+        '<button class="btn ghost" type="button" data-op-mark-zero>Azzera baule</button>'+
+      '</div>';
+    cont.innerHTML=opBulkActions + stateOp.activeItems.map((it,idx)=>{
       const q=Number(it.qty||0);
       const checked=Number(it.qty_checked||0);
       const last=it.guest_name ? ('Aggiornato da '+it.guest_name+(it.updated_at ? ' · '+String(it.updated_at).slice(0,16).replace('T',' ') : '')) : 'Non ancora verificato';
@@ -6836,9 +6879,20 @@ document.addEventListener("DOMContentLoaded", function(){
         '<div class="guest-last">'+safeHtml(last)+'</div>'+ 
       '</div>';
     }).join('');
+    cont.querySelector('[data-op-mark-all]')?.addEventListener('click',()=>setWholeOperatorBox(true));
+    cont.querySelector('[data-op-mark-zero]')?.addEventListener('click',()=>setWholeOperatorBox(false));
     cont.querySelectorAll('[data-op-minus]').forEach(btn=>btn.addEventListener('click',()=>adjustOperatorItem(parseInt(btn.dataset.opMinus,10),-1)));
     cont.querySelectorAll('[data-op-plus]').forEach(btn=>btn.addEventListener('click',()=>adjustOperatorItem(parseInt(btn.dataset.opPlus,10),1)));
     cont.querySelectorAll('[data-op-check-idx]').forEach(inp=>inp.addEventListener('change',()=>clampOperatorInput(inp)));
+  }
+
+  function setWholeOperatorBox(full=true){
+    if(!stateOp.activeItems || !stateOp.activeItems.length) return;
+    stateOp.activeItems.forEach(it=>{
+      it.qty_checked = full ? Number(it.qty || 0) : 0;
+    });
+    renderOperatorBoxDetail(stateOp.activeBox || {});
+    try{ haptic(full ? 'success' : 'reset'); }catch{}
   }
 
   function clampOperatorInput(inp){
