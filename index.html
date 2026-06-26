@@ -3977,6 +3977,71 @@ def unpack_to_pretty(s: str) -> str:
       return { canon, payload, payloadHash };
     }
 
+
+    async function rebuildPayloadAfterMetaFix(){
+      state = normalizeState(state);
+      const canon = canonicalJSON(state,true);
+      const payload = JSON.parse(canon);
+      const payloadHash = await sha256hex(canon);
+      return { canon, payload, payloadHash };
+    }
+
+    function validateLabelCloudSave(action, payload){
+      const isUpdate = action === 'update';
+      const isNew = action === 'new';
+      const eventName = String(payload.e || '').trim();
+      const positionName = String(payload.pos || '').trim();
+      const productionName = String(payload.p || '').trim();
+      const note = String(payload.note || '').trim();
+      const itemCount = Array.isArray(payload.l) ? payload.l.length : 0;
+
+      if(!eventName){
+        alert('Compila il campo Evento prima di salvare la label nel cloud.');
+        return false;
+      }
+      if(!positionName){
+        alert('Compila il campo Nome Baule / Posizione prima di salvare.\n\nQuesto campo finisce sia nel database sia dentro il QR: se resta vuoto o vecchio, la label risulterà disallineata.');
+        try{ goTab('tab-qr', true); }catch{}
+        try{ posNameEl.focus(); }catch{}
+        return false;
+      }
+      if(itemCount <= 0){
+        alert('Aggiungi almeno un articolo prima di salvare la label nel cloud.');
+        try{ goTab('tab-lista', true); }catch{}
+        return false;
+      }
+
+      if(isUpdate && currentCloudLabelBoxCode){
+        // In aggiornamento l'ID baule deve restare quello della label cloud caricata.
+        payload.b = currentCloudLabelBoxCode;
+        state.b = currentCloudLabelBoxCode;
+        try{ boxIdEl.value = currentCloudLabelBoxCode; }catch{}
+      }
+      if(isNew){
+        // Una nuova label non deve ereditare un vecchio ID baule rimasto in locale.
+        payload.b = '';
+        state.b = '';
+        try{ boxIdEl.value = ''; }catch{}
+      }
+
+      const actionLabel = isUpdate
+        ? ('AGGIORNA ' + (currentCloudLabelBoxCode || payload.b || '(ID corrente)'))
+        : 'SALVA COME NUOVA LABEL';
+      const msg = [
+        'Confermi il salvataggio nel cloud?',
+        '',
+        'Azione: ' + actionLabel,
+        'Evento: ' + eventName,
+        'Nome Baule / Posizione: ' + positionName,
+        'Produzione: ' + (productionName || '-'),
+        'Note: ' + (note || '-'),
+        'Articoli: ' + itemCount,
+        '',
+        'Controlla bene Nome Baule / Posizione: questo testo sarà quello ricercabile nel DB e quello dentro il QR.'
+      ].join('\n');
+      return confirm(msg);
+    }
+
     async function saveCurrentListDescriptionsToCloudSilent(){
       const client = await ensureSupabase();
       if(!client) return { inserted:0, updated:0, skipped:true };
@@ -4051,11 +4116,9 @@ def unpack_to_pretty(s: str) -> str:
         return;
       }
 
-      const { canon, payload, payloadHash } = await buildCurrentLabelPayload();
-      if(!payload.e){
-        alert('Compila almeno il campo Evento prima di salvare la label nel cloud.');
-        return;
-      }
+      let { canon, payload, payloadHash } = await buildCurrentLabelPayload();
+      if(!validateLabelCloudSave('new', payload)) return;
+      ({ canon, payload, payloadHash } = await rebuildPayloadAfterMetaFix());
 
       try{
         const { data, error } = await client.rpc('save_label', {
@@ -4123,11 +4186,9 @@ def unpack_to_pretty(s: str) -> str:
         return;
       }
 
-      const { canon, payload, payloadHash } = await buildCurrentLabelPayload();
-      if(!payload.e){
-        alert('Compila almeno il campo Evento prima di aggiornare la label.');
-        return;
-      }
+      let { canon, payload, payloadHash } = await buildCurrentLabelPayload();
+      if(!validateLabelCloudSave('update', payload)) return;
+      ({ canon, payload, payloadHash } = await rebuildPayloadAfterMetaFix());
 
       try{
         const data = await callEventAccess('update-label', {
@@ -6925,11 +6986,8 @@ document.addEventListener("DOMContentLoaded", function(){
   // Applica subito e dopo ogni cambio login/tab. È intenzionale: intercetta anche login Guest e ricariche pagina.
   document.addEventListener('DOMContentLoaded', function(){
     applyProfileVisibility();
-    setTimeout(applyProfileVisibility, 200);
-    setTimeout(applyProfileVisibility, 800);
   });
   window.addEventListener('storage', applyProfileVisibility);
-  setInterval(applyProfileVisibility, 1000);
   window.applyProfileVisibility = applyProfileVisibility;
 })();
 </script>
@@ -7318,8 +7376,68 @@ document.addEventListener("DOMContentLoaded", function(){
   });
 
   window.addEventListener('storage', applyGuestSearchOnlyVisibility);
-  setInterval(applyGuestSearchOnlyVisibility, 1000);
   window.applyGuestSearchOnlyVisibility = applyGuestSearchOnlyVisibility;
+})();
+</script>
+
+
+
+<script>
+/* === PATCH STABILIZZAZIONE UI RUOLI + ANTI-LAMPEGGIO === */
+(function(){
+  const guestTabs = new Set(['tab-home','tab-guest-search','tab-guest-rientro']);
+
+  function guestMode(){
+    try{ return !!window.isGuestMode && window.isGuestMode(); }catch{ return false; }
+  }
+  function adminMode(){
+    try{ return typeof isCurrentAdmin === 'function' && isCurrentAdmin(); }catch{ return false; }
+  }
+  function loggedMode(){
+    try{ return !!currentUser && !guestMode(); }catch{ return false; }
+  }
+  function setVisible(el, show){
+    if(!el) return;
+    el.classList.toggle('hidden', !show);
+    el.style.display = show ? '' : 'none';
+    if('disabled' in el) el.disabled = !show;
+  }
+
+  window.applyProfileVisibility = function(){
+    const guest = guestMode();
+    const logged = loggedMode();
+    const admin = adminMode();
+
+    document.querySelectorAll('button[data-tab]').forEach(btn=>{
+      const tab = btn.dataset.tab;
+      let show = true;
+      if(guest) show = guestTabs.has(tab);
+      else if(logged && tab === 'tab-cloud') show = admin;
+      setVisible(btn, show);
+      if(tab === 'tab-cloud') btn.title = admin ? '' : 'Riservato agli admin';
+    });
+
+    document.querySelectorAll('.admin-only').forEach(el=>setVisible(el, admin && !guest));
+
+    const logout = document.getElementById('appLogoutBtn');
+    if(logout){
+      const showLogout = guest || logged;
+      logout.classList.toggle('hidden', !showLogout);
+      logout.style.display = showLogout ? '' : 'none';
+      logout.disabled = !showLogout;
+      logout.textContent = guest ? 'Logout Guest' : 'Logout';
+    }
+
+    const tag = document.getElementById('opNameTag');
+    if(tag && guest){
+      const s = window.guestSession || {};
+      tag.textContent = (s.guest_name || 'Guest') + ' · guest';
+      tag.classList.remove('hidden');
+    }
+  };
+
+  document.addEventListener('DOMContentLoaded', window.applyProfileVisibility);
+  window.addEventListener('storage', window.applyProfileVisibility);
 })();
 </script>
 
