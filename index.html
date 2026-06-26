@@ -7383,48 +7383,60 @@ document.addEventListener("DOMContentLoaded", function(){
 
 
 <script>
-/* === PATCH STABILIZZAZIONE UI RUOLI + ANTI-LAMPEGGIO === */
+/* === PATCH STABILIZZAZIONE UI RUOLI + ADMIN VISIBILE ===
+   Fix: non lascia mai style.display='none' sugli elementi admin quando il profilo risulta admin.
+   Evita anche controlli periodici: la UI viene ricalcolata dopo login, cambio tab e storage.
+*/
 (function(){
   const guestTabs = new Set(['tab-home','tab-guest-search','tab-guest-rientro']);
 
-  function guestMode(){
+  function hasGuest(){
     try{ return !!window.isGuestMode && window.isGuestMode(); }catch{ return false; }
   }
-  function adminMode(){
-    try{ return typeof isCurrentAdmin === 'function' && isCurrentAdmin(); }catch{ return false; }
+  function hasUser(){
+    try{ return typeof currentUser !== 'undefined' && !!currentUser; }catch{ return false; }
   }
-  function loggedMode(){
-    try{ return !!currentUser && !guestMode(); }catch{ return false; }
+  function isAdminNow(){
+    try{
+      if(typeof isCurrentAdmin === 'function' && isCurrentAdmin()) return true;
+      const email = String((typeof currentUser !== 'undefined' && currentUser && currentUser.email) || '').toLowerCase();
+      const role = String((typeof currentProfile !== 'undefined' && currentProfile && currentProfile.role) || '').toLowerCase();
+      if(role === 'admin') return true;
+      if(typeof PRECONFIG_SUPABASE !== 'undefined' && Array.isArray(PRECONFIG_SUPABASE.adminEmails)){
+        return PRECONFIG_SUPABASE.adminEmails.map(x=>String(x||'').toLowerCase().trim()).includes(email);
+      }
+    }catch(e){ console.warn('isAdminNow error', e); }
+    return false;
   }
-  function setVisible(el, show){
+  function showEl(el, show){
     if(!el) return;
     el.classList.toggle('hidden', !show);
     el.style.display = show ? '' : 'none';
     if('disabled' in el) el.disabled = !show;
   }
 
-  window.applyProfileVisibility = function(){
-    const guest = guestMode();
-    const logged = loggedMode();
-    const admin = adminMode();
+  function stableRoleUI(){
+    const guest = hasGuest() && !hasUser();
+    const logged = hasUser() && !guest;
+    const admin = logged && isAdminNow();
 
     document.querySelectorAll('button[data-tab]').forEach(btn=>{
       const tab = btn.dataset.tab;
       let show = true;
       if(guest) show = guestTabs.has(tab);
-      else if(logged && tab === 'tab-cloud') show = admin;
-      setVisible(btn, show);
+      // Operatori loggati: Cloud/Admin nascosto. Admin: visibile.
+      if(logged && tab === 'tab-cloud') show = admin;
+      showEl(btn, show);
       if(tab === 'tab-cloud') btn.title = admin ? '' : 'Riservato agli admin';
     });
 
-    document.querySelectorAll('.admin-only').forEach(el=>setVisible(el, admin && !guest));
+    // IMPORTANTE: resetta anche style.display, non solo la classe hidden.
+    document.querySelectorAll('.admin-only').forEach(el=>showEl(el, admin));
 
     const logout = document.getElementById('appLogoutBtn');
     if(logout){
       const showLogout = guest || logged;
-      logout.classList.toggle('hidden', !showLogout);
-      logout.style.display = showLogout ? '' : 'none';
-      logout.disabled = !showLogout;
+      showEl(logout, showLogout);
       logout.textContent = guest ? 'Logout Guest' : 'Logout';
     }
 
@@ -7433,11 +7445,27 @@ document.addEventListener("DOMContentLoaded", function(){
       const s = window.guestSession || {};
       tag.textContent = (s.guest_name || 'Guest') + ' · guest';
       tag.classList.remove('hidden');
+      tag.style.display = '';
     }
-  };
 
-  document.addEventListener('DOMContentLoaded', window.applyProfileVisibility);
-  window.addEventListener('storage', window.applyProfileVisibility);
+    const cloudTab = document.getElementById('tab-cloud');
+    if(cloudTab && !cloudTab.classList.contains('hidden') && logged && !admin){
+      try{ if(typeof goTab === 'function') goTab('tab-home', false); }catch{}
+    }
+
+    const box = document.getElementById('adminAuthStatus');
+    if(box && admin){
+      box.innerHTML = '<span class="cloud-ok">Admin autenticato.</span>';
+    }
+  }
+
+  // Sostituisci sia il vecchio updateAdminUI sia applyProfileVisibility.
+  try{ window.updateAdminUI = stableRoleUI; updateAdminUI = stableRoleUI; }catch{}
+  try{ window.applyProfileVisibility = stableRoleUI; applyProfileVisibility = stableRoleUI; }catch{}
+
+  document.addEventListener('DOMContentLoaded', function(){ setTimeout(stableRoleUI, 0); setTimeout(stableRoleUI, 300); });
+  window.addEventListener('storage', stableRoleUI);
+  window.addEventListener('focus', stableRoleUI);
 })();
 </script>
 
